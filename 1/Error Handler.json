@@ -1,0 +1,96 @@
+{
+  "name": "Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "error-trigger-1",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (INSERT INTO errores (workflow, nodo, mensaje) VALUES ($1, $2, $3) RETURNING *) SELECT * FROM ins",
+        "options": {
+          "queryReplacement": "={{ [ $json.workflow?.name ?? 'desconocido', $json.execution?.lastNodeExecuted ?? 'desconocido', $json.execution?.error?.message ?? JSON.stringify($json.execution?.error ?? {}) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "id": "postgres-log-error",
+      "name": "Log Error",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "={{ ['b1394623b60e4442', 'b2ee472a8e629466'].includes($json.workflow?.id) ? 'administrador@fincas.example.com' : 'it@despacho.example.com' }}",
+        "subject": "=Fallo en {{ $json.workflow }}",
+        "text": "={{ $json.mensaje }}",
+        "options": {},
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        0
+      ],
+      "id": "email-alerta-error",
+      "name": "Notificar Fallo",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Notificar Fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "2a89390fb7794f12"
+}

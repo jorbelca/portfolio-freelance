@@ -1,0 +1,102 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # URL donde n8n será accesible (ajusta si usas dominio propio)
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      # Base de datos PostgreSQL (recomendado para producción)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-secure_password}
+      # Autenticación: se configura creando la cuenta de propietario (owner) en el primer arranque de la UI.
+      # Configuración SMTP usando GreenMail (sin autenticación)
+      - N8N_SMTP_HOST=greenmail
+      - N8N_SMTP_PORT=3025
+      - N8N_SMTP_SECURE=false
+      - N8N_SMTP_FROM=n8n@example.com
+      - TRIAGE_CONFIANZA_UMBRAL=${TRIAGE_CONFIANZA_UMBRAL:-0.7}
+      # Archivar como ruido es la única rama que no deja rastro: exige más confianza.
+      - TRIAGE_CONFIANZA_UMBRAL_RUIDO=${TRIAGE_CONFIANZA_UMBRAL_RUIDO:-0.9}
+      # --- Demo B: triage de incidencias para administradores de fincas (misma pila) ---
+      - FINCAS_CONFIANZA_UMBRAL=${FINCAS_CONFIANZA_UMBRAL:-0.7}
+      # Decir "aquí no corre ningún plazo" es la única rama sin rastro de la Demo B: nadie
+      # vuelve a mirar esa incidencia. Afirmar la ausencia de plazo exige más confianza que
+      # afirmar su existencia, porque un plazo del art. 16 LCS vencido acaba en derrama.
+      - FINCAS_UMBRAL_SIN_PLAZO=${FINCAS_UMBRAL_SIN_PLAZO:-0.9}
+      # La ventana de deduplicación (72 h) NO es una variable de entorno a propósito: vive una
+      # sola vez, dentro de buscar_incidencia_raiz() en 2/init-fincas-tables.sql. Duplicarla aquí
+      # crearía dos fuentes de verdad que divergen en silencio.
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+      greenmail:
+        condition: service_started
+
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    restart: unless-stopped
+    ports:
+      # Expuesto al host para poder cargar seed-expedientes.sql y correr eval/run_eval.py.
+      # Solo para la demo local: en un despliegue real, quitar esta línea.
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_USER=n8n_user
+      - POSTGRES_PASSWORD=${DB_POSTGRESDB_PASSWORD:-secure_password}
+      - POSTGRES_DB=n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Se ejecutan por orden alfabético en el primer arranque: pgvector primero, luego las tablas.
+      - ./init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
+      - ./init-triage-tables.sql:/docker-entrypoint-initdb.d/init-triage-tables.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n_user -d n8n"]
+      interval: 5s
+      retries: 10
+
+  # -------------------------------------------------
+  # Servidor de correo de pruebas SMTP+IMAP (GreenMail)
+  # -------------------------------------------------
+  greenmail:
+    image: greenmail/standalone:latest
+    container_name: greenmail
+    environment:
+      - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled
+    ports:
+      # SMTP que n8n usará para enviar correos
+      - "3025:3025"
+      # IMAP que n8n usará para recibir correos (IMAP Email Trigger)
+      - "3143:3143"
+    restart: unless-stopped
+
+  # -------------------------------------------------
+  # Webmail UI para GreenMail (componer/ver correos a mano)
+  # -------------------------------------------------
+  roundcube:
+    image: roundcube/roundcubemail:latest
+    container_name: roundcube
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=greenmail
+      - ROUNDCUBEMAIL_DEFAULT_PORT=3143
+      - ROUNDCUBEMAIL_SMTP_SERVER=greenmail
+      - ROUNDCUBEMAIL_SMTP_PORT=3025
+      - ROUNDCUBEMAIL_DB_TYPE=sqlite
+    ports:
+      - "8081:80"
+    depends_on:
+      - greenmail
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
+  postgres_data:

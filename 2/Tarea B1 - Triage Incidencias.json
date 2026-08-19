@@ -1,0 +1,1021 @@
+{
+  "name": "Demo 3 - Triage Incidencias Fincas",
+  "nodes": [
+    {
+      "parameters": {
+        "format": "simple",
+        "postProcessAction": "read",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "imap-trigger-b1",
+      "name": "IMAP Email Trigger",
+      "credentials": {
+        "imap": {
+          "id": "IMAP_FINCAS_CRED_ID",
+          "name": "IMAP account (fincas)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT comunidad_id, email AS propietario_email, nombre FROM propietarios WHERE LOWER(email) = $1 LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [ (($json.from || '').match(/<([^>]+)>/) || [null, $json.from])[1].trim().toLowerCase() ] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "id": "postgres-resolver-comunidad",
+      "name": "Resolver Comunidad y Propietario",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-comunidad-no-resuelta",
+              "leftValue": "={{ $json.comunidad_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "if-comunidad-resuelta",
+      "name": "IF Comunidad Resuelta"
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "administrador@fincas.example.com",
+        "subject": "=Remitente no identificado en el censo — revisar manualmente: {{ $('IMAP Email Trigger').first().json.subject }}",
+        "text": "=El sistema no ha podido resolver una comunidad para este correo: el remitente no figura en el censo de propietarios de ninguna comunidad gestionada.\n\nPor eso este correo NO ha pasado por el clasificador ni por el RAG de estatutos (compuerta de confidencialidad): sin comunidad_id no hay filtro posible, y no se puede garantizar el aislamiento entre fincas.\n\nSi se ha registrado en la tabla de incidencias, con comunidad_id vacio, imputacion 'mixto' y decidido_por 'compuerta', y esta en la cola de revision: no clasificar no puede significar no dejar rastro. Revisar y dar de alta a mano si corresponde.\n\nRemitente: {{ $('IMAP Email Trigger').first().json.from }}\nAsunto: {{ $('IMAP Email Trigger').first().json.subject }}\n\nCuerpo:\n{{ $('IMAP Email Trigger').first().json.textPlain }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        -220
+      ],
+      "id": "email-alerta-sin-comunidad",
+      "name": "Alerta Remitente No Identificado",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres el sistema de apoyo al triage jurídico de incidencias de un administrador de fincas que gestiona varias comunidades de propietarios. Tu salida NO es asesoramiento jurídico al vecino ni a la comunidad: es una propuesta que el administrador revisa y firma antes de comunicar nada a nadie (art. 50 del Reglamento de IA de la UE: eres un sistema de apoyo a la decisión humana, no quien decide).\n\nAl final de este mensaje tienes, literalmente, las cláusulas de la escritura de ESTA comunidad (el sistema ya las ha filtrado por comunidad: nunca preguntes ni menciones de qué comunidad se trata). No hay nada que buscar ni ninguna tool que llamar: si una cláusula afecta a la imputación de esta incidencia, está ahí abajo. Léelas antes de decidir. Si ninguna es aplicable al elemento de esta incidencia, clasifica por el régimen legal supletorio y no cites estatutos.\n\nDEFINICIONES OPERATIVAS\n- comun: el elemento cuya conservación corresponde a la comunidad por su naturaleza (qué es y a quién corresponde conservarlo), con independencia de en qué vivienda se manifieste el daño. Una gotera dentro de un piso causada por un fallo de cubierta es comun.\n- privativo: el elemento cuyo mantenimiento corresponde en exclusiva al propietario (art. 9.1.b LPH), aunque esté empotrado o conectado a un elemento común. Una avería de instalación interior sigue siendo privativa aunque el agua gotee a la vivienda de abajo.\n- mixto: NO es la casilla de \"no lo sé\". Se reserva para exactamente dos casos: (1) causa o alcance realmente repartido entre un elemento común y uno privativo (p. ej. una bajante común obstruida por un vertido indebido de un vecino concreto que revienta en su propio baño); (2) la respuesta depende de una cláusula estatutaria concreta que se aparta del régimen legal supletorio (ver regla dura más abajo). Si solo falta información —fotos, ubicación exacta, informe técnico— y no hay ningún indicio positivo de reparto ni de cláusula aplicable, NO es mixto: clasifica con la mejor información disponible, baja la confianza, y señala en el fundamento qué dato falta.\n\n- no_aplica: el correo NO plantea una incidencia técnica que haya que imputar a nadie. Consultas administrativas (fecha de la junta, un certificado, una copia del acta), quejas de convivencia entre vecinos sin daño en ningún elemento del edificio, dudas sobre el reparto de una cuota ya acordada, o preguntas sobre la póliza sin siniestro que comunicar. No es un cajón de sastre: si hay un elemento del edificio dañado o deteriorado, hay incidencia y hay que imputarla, aunque el remitente la plantee como pregunta. Y no lo confundas con mixto: mixto significa que la imputación está repartida o depende de una cláusula estatutaria; no_aplica significa que no hay nada que imputar. Estos casos van igualmente a la cola del administrador —alguien tiene que contestar— pero con el motivo correcto en el registro.\nREGLA DURA — dependencia estatutaria (no admite excepción por claridad aparente)\nSi la respuesta depende de una cláusula de los estatutos de esta comunidad y no del régimen legal supletorio, la imputación es SIEMPRE mixto y el caso va a revisión humana, aunque la cláusula te parezca clarísima. El motivo no es que la puedas entender mal: una cláusula estatutaria es un pacto aislado de una comunidad y unas personas concretas, con más probabilidad de tener una razón histórica, un conflicto previo o una modificación posterior no indexada que tú no puedes reconstruir desde un fragmento recuperado.\n\nÁRBOL DE DECISIÓN POR ELEMENTO (usa el vocabulario cerrado de elemento_normalizado)\n- bajante: la columna general que sirve a más de una vivienda es comun (art. 396 CC), aunque el tramo dañado esté empotrado dentro de un piso. Mientras no haya informe técnico que localice la rotura con precisión, clasifica comun por defecto (criterio de carga de la prueba de esta rúbrica, no una norma expresa). Comprueba estatutos: algunas comunidades atribuyen a cada vertical el coste de su propia bajante aunque siga siendo formalmente común.\n- derivacion_particular: el ramal que sale de la bajante y sirve en exclusiva a una vivienda es privativo desde el punto de conexión (art. 9.1.b LPH).\n- terraza: la estructura, la impermeabilización y la función de cubierta son SIEMPRE comun (art. 396 CC), con estatutos o sin ellos. El pavimento o solado de uso exclusivo y su mantenimiento ordinario son privativo (art. 9.1.b LPH) SALVO que los estatutos de esta comunidad se lo atribuyan expresamente a la comunidad. Comprueba estatutos siempre que el fallo esté en el pavimento y no en la impermeabilización: es el punto donde dos comunidades con estatutos distintos dan respuestas distintas al mismo síntoma.\n- fachada: comun por naturaleza expresa (art. 396 CC). Un elemento añadido por un propietario (toldo, aparato de aire acondicionado, rótulo) sigue siendo privativo de quien lo instaló aunque los estatutos regulen su uso o estética.\n- ventana: la hoja, el marco, el cristal y la persiana son privativo (art. 9.1.b LPH); el hueco o vano en el muro es comun (art. 396 CC). Si los estatutos atribuyen la carpintería al propietario, normalmente confirman por escrito el régimen por defecto: no lo trates como una divergencia si coincide con el criterio de arriba.\n- cubierta: comun por naturaleza expresa (art. 396 CC), casi sin excepción práctica real.\n- ascensor: comun (art. 396 CC; art. 10.1.a LPH para su conservación obligatoria), siempre, con independencia de que una vivienda concreta no lo use. Una cláusula que exonera de gasto a bajos o locales NO cambia la naturaleza común del ascensor: exoneración de gasto e imputación son cosas distintas, no las confundas.\n- garaje / trastero: los elementos estructurales del recinto (rampa, muros, cubierta del garaje, ventilación forzada, detección de CO, portón automático) son comun; la plaza o el trastero individual delimitado —su suelo, su puerta— es privativo (art. 9.1.b LPH). \"Anejo inseparable\" en estatutos vincula la transmisibilidad registral, pero NO convierte el garaje entero en un único elemento indivisible: dentro sigue existiendo la misma frontera común/privativo.\n- instalacion_agua / instalacion_electrica / instalacion_gas: comun desde el origen (acometida, columna montante, centralización de contadores) hasta el punto de entrada o llave de corte de cada vivienda; privativo desde ahí hacia el interior (art. 9.1.b LPH, en relación con el art. 396 CC). Con contadores centralizados en un armario de planta: el armario y todo lo anterior es comun, el tramo armario-vivienda es privativo, salvo que los estatutos de esta comunidad amplíen expresamente lo común hasta la puerta de cada piso.\n- humedad_origen_no_determinado: si hay informe técnico que localiza el origen, reclasifica según el elemento identificado y no uses este valor. Sin informe y con más de una causa plausible con distinto pagador cada una, es mixto y va a revisión con las hipótesis planteadas en el fundamento. Sin informe pero con una causa sustancialmente más probable que las demás (p. ej. antecedentes repetidos en esa misma vertical), imputa provisionalmente por esa causa, dilo explícitamente en el fundamento como pendiente de confirmación técnica, y usa confianza baja — mixto exige ambigüedad real entre causas, no simple falta de certeza absoluta. Nunca presupongas condensación (ni ninguna otra causa) sin indicios solo porque sea la hipótesis más barata para la comunidad.\n\nLAS OTRAS TRES DECISIONES\n- urgencia (art. 20.c LPH): true si, de no atenderse de inmediato, el daño crece, hay riesgo para personas o para otras propiedades (fuga activa, riesgo estructural visible, fuga de gas, atrapamiento en ascensor). Es un eje independiente de la imputación: una avería privativa también puede ser urgente si el propietario no reacciona.\n- requiere_junta: false si la actuación es de conservación necesaria u obligatoria de un elemento común (art. 10.1 LPH) — eso no exige acuerdo previo sobre el \"si\", solo distribuye la derrama. true si es una mejora no esencial, una nueva instalación, o algo que excede de forma sensible el presupuesto ordinario ya aprobado.\n- plazos_activos: incluye el código \"siniestro_lcs16\" cuando el daño puede dar lugar a un parte a la aseguradora de la comunidad y ese aviso todavía no se ha hecho — el plazo del art. 16 LCS es de 7 días desde que se tiene conocimiento del siniestro. PRECISIÓN OBLIGATORIA sobre este artículo, porque se simplifica mal con frecuencia: incumplir el plazo de 7 días NO extingue la cobertura ni hace perder el derecho al siniestro de forma automática; lo que hace es facultar al asegurador a reclamar los daños y perjuicios causados por la falta de declaración, un efecto que además decae si se prueba que el asegurador conoció el siniestro por otro medio. La pérdida del derecho a indemnización por incumplir este deber exige dolo o culpa grave, un estándar muy superior al simple retraso. Nunca escribas que \"se pierde la cobertura\" por no avisar en 7 días — es jurídicamente incorrecto y esta rúbrica lo señala expresamente.\n\nJERARQUÍA DE DESEMPATE (ordenada por coste del error si se comete, no por importancia aparente) — cuando dos señales compitan entre sí y tengas que decidir de forma conservadora, en este orden:\n1º plazos — ante la duda, declara que hay plazo activo. Es la única decisión de esta rúbrica que, si se marca mal como \"sin plazo\", cierra el asunto sin que nadie vuelva a mirarlo.\n2º urgencia — ante la duda, marca urgente. Tratar como urgente algo que no lo era es una gestión anticipada y reversible; no atender algo urgente deja crecer un daño real.\n3º junta — ante la duda, exige acuerdo o al menos informa al presidente antes de actuar. Pedir acuerdo de más es fricción; actuar sin acuerdo necesario es un vicio de procedimiento.\n4º imputación — ante la duda, usa mixto y revisión humana antes que forzar comun o privativo sin base suficiente. Es el error más visible (la queja del vecino) pero el más fácil de corregir después: por eso va el último.\nSi dos ejes no compiten por el mismo dato (p. ej. dudas de la urgencia pero tienes certeza del plazo), no elijas entre ellos: resuelve cada uno según su propio criterio.\n\nIMPUTACIÓN RIVAL Y CONFIANZA (en este orden — la rival se decide ANTES de puntuar la confianza)\n- imputacion_rival: la segunda imputación que otro administrador con este mismo criterio podría defender razonablemente. Si de verdad el caso encaja limpiamente en una sola, escribe \"ninguna\". Si has tenido que aplicar el desempate del punto 4º de la jerarquía anterior, o dudaste entre dos imputaciones por cualquier motivo, la que descartaste ES la rival — por construcción, ahí no puedes escribir \"ninguna\".\n- confianza (0 a 1): mide EXCLUSIVAMENTE cuánto te fías de tu propia clasificación — nunca la gravedad ni la urgencia de la avería. Una avería gravísima con imputación obvia tiene confianza alta; una avería menor pero ambigua en su imputación tiene confianza baja. Confundir ambas cosas invalida el control de calidad de todo este sistema.\n\nFUNDAMENTO\nCuando cites una norma, dala con su artículo (p. ej. \"art. 396 CC\", \"art. 9.1.b LPH\", \"art. 16 LCS\"). Cuando la clasificación depende, total o parcialmente, de una cláusula de los estatutos de esta comunidad, cita también esa cláusula literalmente — nunca te limites a decir \"según los estatutos\" sin la cita.\n\nRAZONAMIENTO OBLIGATORIO\nTu única salida es este razonamiento en prosa — no generes JSON, no generes ninguna estructura con claves, no adelantes la clasificación en la primera frase. En 4 a 7 frases, y en este orden: (1) PRIMERO, la puerta: ¿este correo pide arreglar algo que se ha roto o deteriorado? Si no hay nada que reparar —una consulta administrativa, una queja por el reparto de cuotas, una petición de permiso, un conflicto entre vecinos— entonces imputacion es no_aplica y no analices de quién es el elemento: la pregunta no es qué es la fachada o el ascensor, es si hay un desperfecto que imputar. Di explícitamente \"sí hay desperfecto\" o \"no hay desperfecto\" antes de seguir; (2) si lo hay, qué elemento físico ha fallado y de qué lado del art. 396 CC / art. 9.1.b LPH cae por naturaleza; (3) si alguna cláusula de las de abajo lo menciona, cuál y qué cambia respecto del régimen legal, o \"ninguna aplicable\" si no hay; (4) cuál es la segunda lectura defendible y por qué la descartas; (5) qué dato falta, si falta alguno.\n\nTermina el razonamiento con una frase final, explícita e inequívoca, que declare los siete valores que otro sistema formalizará a partir de tu texto (no como JSON, en prosa): la imputación (uno de comun, privativo, mixto, no_aplica), la imputación rival (uno de comun, privativo, mixto, no_aplica, o \"ninguna\"), el elemento_normalizado (vocabulario cerrado de abajo, o ninguno si la imputación es no_aplica), si es urgente (sí/no), si requiere junta (sí/no), qué plazos activos hay o \"ninguno\", y tu confianza de 0 a 1. Ese sistema no va a reinterpretar tu razonamiento ni a decidir por su cuenta — solo transcribe lo que digas aquí, así que sé explícito en los siete valores, no los des por sobreentendidos.\n\nVOCABULARIO CERRADO DE elemento_normalizado (usa exactamente uno de estos valores)\nbajante, derivacion_particular, terraza, fachada, cubierta, ventana, ascensor, garaje, trastero, instalacion_agua, instalacion_electrica, instalacion_gas, humedad_origen_no_determinado\n\nCLÁUSULAS DE LA ESCRITURA DE ESTA COMUNIDAD\n{{ $json.estatutos }}\n\nComunidad (comunidad_id, ya resuelta — no la cuestiones): {{ $('Resolver Comunidad y Propietario').first().json.comunidad_id }}\nRemitente: {{ $('IMAP Email Trigger').first().json.from }}\nAsunto: {{ $('IMAP Email Trigger').first().json.subject }}\nDescripción de la incidencia:\n{{ $('IMAP Email Trigger').first().json.textPlain }}",
+        "options": {
+          "enableStreaming": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "ai-agent-clasificador",
+      "name": "AI Agent Clasificador",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "options": {
+          "maxTokens": 4096
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "id": "openrouter-model-b1",
+      "name": "OpenRouter Chat Model (Decisión)",
+      "position": [
+        1568,
+        512
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "openRouterApi": {
+          "id": "BfZd50u5fzJ2MxCL",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        860,
+        340
+      ],
+      "id": "embeddings-b1",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gheJaqxnD1VwJSq6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": "documentos_comunidad",
+        "topK": 12,
+        "prompt": "={{ $('IMAP Email Trigger').first().json.subject }}\n{{ $('IMAP Email Trigger').first().json.textPlain }}",
+        "includeDocumentMetadata": true,
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "comunidad_id",
+                "value": "={{ $('Resolver Comunidad y Propietario').first().json.comunidad_id || 'SIN-COMUNIDAD-NO-COINCIDE' }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        340
+      ],
+      "id": "pgvector-retrieve-estatutos",
+      "name": "Cargar Estatutos de la Comunidad",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"imputacion\": {\n      \"type\": \"string\",\n      \"enum\": [\"comun\", \"privativo\", \"mixto\", \"no_aplica\"]\n    },\n    \"imputacion_rival\": {\n      \"type\": \"string\",\n      \"enum\": [\"comun\", \"privativo\", \"mixto\", \"no_aplica\", \"ninguna\"]\n    },\n    \"elemento_normalizado\": {\n      \"type\": \"string\",\n      \"enum\": [\"bajante\", \"derivacion_particular\", \"terraza\", \"fachada\", \"cubierta\", \"ventana\", \"ascensor\", \"garaje\", \"trastero\", \"instalacion_agua\", \"instalacion_electrica\", \"instalacion_gas\", \"humedad_origen_no_determinado\"]\n    },\n    \"fundamento\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"norma\": {\"type\": \"string\"},\n          \"cita\": {\"type\": \"string\"},\n          \"fuente\": {\"type\": \"string\", \"enum\": [\"ley\", \"estatutos\"]}\n        },\n        \"required\": [\"norma\", \"cita\", \"fuente\"]\n      }\n    },\n    \"urgencia\": {\"type\": \"boolean\"},\n    \"requiere_junta\": {\"type\": \"boolean\"},\n    \"plazos_activos\": {\n      \"type\": \"array\",\n      \"items\": {\"type\": \"string\"}\n    },\n    \"confianza\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    }\n  },\n  \"required\": [\"imputacion\", \"imputacion_rival\", \"elemento_normalizado\", \"fundamento\", \"urgencia\", \"requiere_junta\", \"plazos_activos\", \"confianza\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        352
+      ],
+      "id": "output-parser-b1",
+      "name": "Output Parser Estructurado"
+    },
+    {
+      "parameters": {
+        "jsCode": "const CONFIANZA_MAX_CON_RIVAL = 0.6;\nconst IMPUTACIONES_VALIDAS = ['comun', 'privativo', 'mixto', 'no_aplica'];\n\nreturn $input.all().map((item, i) => {\n  let raw = item.json.output;\n  if (typeof raw === 'string') {\n    const match = raw.match(/\\{[\\s\\S]*\\}/);\n    try {\n      raw = JSON.parse(match ? match[0] : raw);\n    } catch (e) {\n      raw = null;\n    }\n  }\n  // El agente a veces devuelve el objeto anidado como {\"output\": {...}} en vez de plano\n  // (visto en ejecuciones reales cuando el autoFix del parser reintenta). Desenvuelve antes\n  // de validar, si no 'imputacion' vive en raw.output.imputacion y el chequeo de abajo lo\n  // trata como ausente.\n  if (raw && typeof raw === 'object' && raw.output && typeof raw.output === 'object') {\n    raw = raw.output;\n  }\n  // Un objeto bien formado pero con forma equivocada (imputacion ausente o fuera del\n  // vocabulario cerrado) no dispara el chequeo '!raw' de abajo — sin esto, 'undefined'\n  // se cuela tal cual en el insert de Postgres en vez de caer a sin_clasificar.\n  if (raw && !IMPUTACIONES_VALIDAS.includes(raw.imputacion)) {\n    raw = null;\n  }\n  // Si el agente no devuelve salida utilizable (modelo caido, JSON irrecuperable), esto lanzaba\n  // 'Cannot read properties of undefined' y la incidencia no llegaba a ninguna tabla. Como el\n  // trigger IMAP marca el correo como leido ANTES de ejecutar, el caso se perdia entero: paso\n  // con i21. Ahora entra etiquetado como sin_clasificar, con confianza 0, que el umbral manda a\n  // revision. Peor una fila fea en la cola que un correo que nadie sabe que existio.\n  if (!raw || typeof raw !== 'object') {\n    raw = {\n      imputacion: 'sin_clasificar',\n      imputacion_rival: 'ninguna',\n      elemento_normalizado: null,\n      fundamento: [],\n      urgencia: false,\n      requiere_junta: false,\n      plazos_activos: [],\n      confianza: 0,\n    };\n  }\n\n  // Normaliza confianza: si el modelo no la devuelve o no es numérica, fuerza 0. 0 siempre\n  // dispara revisión humana vía el umbral; nunca cuela la incidencia sin control.\n  let confianza = raw.confianza;\n  confianza = (typeof confianza === 'number' && Number.isFinite(confianza)) ? confianza : 0;\n\n  const imputacion = raw.imputacion;\n\n  // Recorte por rival: si el modelo reconoce una segunda imputación defendible, su propia\n  // confianza no puede pasar de aquí. La confianza verbalizada de un LLM satura cerca de 1\n  // (medido en la Demo A: 27 de 28 casos en [0.9-1.0], los 4 errores incluidos), así que el\n  // umbral solo protege si algo la baja de forma determinista, no si el modelo se siente seguro.\n  const rival = typeof raw.imputacion_rival === 'string' ? raw.imputacion_rival : 'ninguna';\n  const hay_rival = rival !== 'ninguna' && rival !== imputacion;\n  if (hay_rival) confianza = Math.min(confianza, CONFIANZA_MAX_CON_RIVAL);\n\n  // Regla dura de la rúbrica (§6): si el fundamento sale de una cláusula de la escritura de\n  // ESTA finca, el sistema no cierra el caso — lo firma un humano. Lo que NO hace es tocar la\n  // imputación: medido sobre las 45 incidencias, forzar 'mixto' aquí destruía 6 clasificaciones\n  // correctas (i07, i13, i20, i26, i28, i33) y bajaba el acierto del 23.8% al 15.6%. Citar la\n  // escritura no significa que el reparto sea mixto, solo que la respuesta depende de un\n  // documento propio de la finca y nadie debería mandarla sin leerla.\n  const fundamento = Array.isArray(raw.fundamento) ? raw.fundamento : [];\n  const depende_de_estatutos = fundamento.some((f) => f && f.fuente === 'estatutos');\n\n  const plazos_activos = Array.isArray(raw.plazos_activos) ? raw.plazos_activos : [];\n  const sin_plazo = plazos_activos.length === 0;\n\n  // Umbral asimétrico (regla 2 del brief): en esta demo la rama \"sin rastro\" no es ninguna\n  // imputación, es declarar plazos_activos: []. Un plazo del art. 16 LCS perdido no se\n  // recupera después, así que exige más confianza (0.9) que el resto de casos (0.7). Si la\n  // env var no está definida o no es numérica, Number(...) da NaN y NaN >= NaN es false:\n  // falla cerrado a revisión humana, nunca cuela sin control.\n  const umbral = sin_plazo\n    ? Number($env.FINCAS_UMBRAL_SIN_PLAZO)\n    : Number($env.FINCAS_CONFIANZA_UMBRAL);\n\n  const confianza_ok = confianza >= umbral;\n\n  // accion: el umbral manda primero (si no se alcanza, todo va a revisión con independencia\n  // de la imputación). Con confianza suficiente, mixto también va a revisión (regla 3 del\n  // brief: dependencia estatutaria o reparto de causa exige lectura humana aunque el modelo\n  // esté seguro). accion es descriptivo (queda en la fila, para email/auditoría); quien de\n  // verdad enruta la ejecución es 'Switch Imputación' leyendo imputacion, no este campo. Por\n  // eso ese Switch tiene su propio fallbackOutput: 'extra' hacia la cola de revisión, para\n  // que un valor de imputacion no reconocido no se quede sin ninguna salida conectada.\n  let accion;\n  if (!confianza_ok) {\n    accion = 'revision_administrador';\n  } else if (depende_de_estatutos) {\n    accion = 'revision_administrador';\n  } else if (imputacion === 'mixto') {\n    accion = 'revision_administrador';\n  } else if (imputacion === 'comun') {\n    accion = 'parte_proveedor';\n  } else if (imputacion === 'privativo') {\n    accion = 'borrador_respuesta_vecino';\n  } else {\n    accion = 'revision_administrador';\n  }\n\n  // La vía deja claro QUÉ mandó el caso a un humano: su propia inseguridad (umbral), la\n  // regla estatutaria (estatutos), o nadie (sistema). Si el modelo ya dudaba, eso manda.\n  const decidido_por = !confianza_ok ? 'umbral' : (depende_de_estatutos ? 'estatutos' : 'sistema');\n\n  return {\n    json: {\n      ...raw,\n      imputacion_rival: rival,\n      plazos_activos,\n      confianza,\n      umbral_aplicado: umbral,\n      accion,\n      decidido_por,\n    },\n    pairedItem: { item: i },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        112
+      ],
+      "id": "code-parsear-controles",
+      "name": "Parsear y Aplicar Controles"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO incidencias (\n  message_id, comunidad_id, propietario_email, descripcion, elemento_normalizado,\n  imputacion, imputacion_rival, fundamento, urgencia, requiere_junta, plazos_activos,\n  confianza, umbral_aplicado, accion, decidido_por, incidencia_padre_id\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::jsonb, $12, $13, $14, $15,\n  buscar_incidencia_raiz($2, $5)\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING *",
+        "options": {
+          "queryReplacement": "={{ [\n  $('IMAP Email Trigger').first().json.metadata?.['message-id'],\n  $('Resolver Comunidad y Propietario').first().json.comunidad_id,\n  $('Resolver Comunidad y Propietario').first().json.propietario_email,\n  $('IMAP Email Trigger').first().json.textPlain,\n  $json.elemento_normalizado,\n  $json.imputacion,\n  $json.imputacion_rival,\n  JSON.stringify($json.fundamento || []),\n  $json.urgencia,\n  $json.requiere_junta,\n  JSON.stringify($json.plazos_activos || []),\n  $json.confianza,\n  $json.umbral_aplicado,\n  $json.accion,\n  $json.decidido_por\n] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        120
+      ],
+      "id": "postgres-dedup-insert",
+      "name": "Deduplicar e Insertar Incidencia",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ya-procesado",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        120
+      ],
+      "id": "if-ya-procesado",
+      "name": "IF Ya Procesado"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -40
+      ],
+      "id": "noop-duplicado",
+      "name": "Duplicado — Ya Procesado"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-confianza-suficiente",
+              "leftValue": "={{ Number($json.confianza) }}",
+              "rightValue": "={{ Number($json.umbral_aplicado) }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        160
+      ],
+      "id": "if-confianza-suficiente",
+      "name": "IF Confianza Suficiente"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Expande plazos_activos (0..N valores) en 0..N items, uno por plazo a dar de alta. Si el\n// array viene vacio no se emite ningun item y la rama de plazos no hace nada aguas abajo:\n// no hace falta un IF explicito para \"si no esta vacio\" (rubrica seccion 5: cuando dos ejes\n// no compiten por el mismo dato, cada uno se resuelve con su propio criterio, sin bloquear\n// al otro).\n//\n// Solo existe un tipo de plazo implementado en el esquema actual (siniestro_lcs16, 7 dias -\n// ver init-fincas-tables.sql). DEFAULT_DIAS es un colchon defensivo por si el clasificador\n// devuelve algun dia un codigo de plazo que esta rubrica todavia no cubre: mejor una fecha\n// visible y revisable que ningun aviso.\nconst DIAS_POR_TIPO = { siniestro_lcs16: 7 };\nconst DEFAULT_DIAS = 30;\n\nconst toDateStr = (d) => d.toISOString().slice(0, 10);\n\nconst out = [];\n$input.all().forEach((item, idx) => {\n  const plazos = Array.isArray(item.json.plazos_activos) ? item.json.plazos_activos : [];\n  for (const tipo of plazos) {\n    const dias = DIAS_POR_TIPO[tipo] ?? DEFAULT_DIAS;\n    const inicio = new Date();\n    const vence = new Date(inicio);\n    vence.setDate(vence.getDate() + dias);\n    out.push({\n      json: {\n        incidencia_id: item.json.id,\n        comunidad_id: item.json.comunidad_id,\n        elemento_normalizado: item.json.elemento_normalizado,\n        tipo,\n        dias_plazo: dias,\n        inicio: toDateStr(inicio),\n        vence: toDateStr(vence),\n      },\n      pairedItem: { item: idx },\n    });\n  }\n});\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        380
+      ],
+      "id": "code-expandir-plazos",
+      "name": "Expandir Plazos Activos"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO plazos (incidencia_id, tipo, dias_plazo, inicio, vence)\nVALUES ($1, $2, $3, $4, $5)\nRETURNING *, $6::text AS comunidad_id, $7::text AS elemento_normalizado",
+        "options": {
+          "queryReplacement": "={{ [$json.incidencia_id, $json.tipo, $json.dias_plazo, $json.inicio, $json.vence, $json.comunidad_id, $json.elemento_normalizado] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        380
+      ],
+      "id": "postgres-insertar-plazo",
+      "name": "Insertar Plazo",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "administrador@fincas.example.com",
+        "subject": "=Plazo activo: {{ $json.tipo }} — vence {{ $json.vence }}",
+        "text": "=Se ha dado de alta un plazo para la incidencia #{{ $json.incidencia_id }} (comunidad {{ $json.comunidad_id }}, elemento {{ $json.elemento_normalizado }}).\n\nTipo: {{ $json.tipo }}\nDias de plazo: {{ $json.dias_plazo }}\nInicio: {{ $json.inicio }}\nVence: {{ $json.vence }}\n\nSi el tipo es siniestro_lcs16: recuerda que superar los 7 dias NO extingue la cobertura por si solo, pero cuanto antes se comunique el siniestro a la aseguradora, menos discutible es despues la causa y el alcance del dano.",
+        "options": {},
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2400,
+        380
+      ],
+      "id": "email-aviso-plazo",
+      "name": "Email Aviso Plazo Activo",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.accion }}",
+                    "rightValue": "parte_proveedor",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "parte_proveedor"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.accion }}",
+                    "rightValue": "borrador_respuesta_vecino",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "borrador_respuesta_vecino"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.accion }}",
+                    "rightValue": "revision_administrador",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "revision_administrador"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "sin_accion"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1920,
+        120
+      ],
+      "id": "switch-imputacion",
+      "name": "Switch Acción"
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "proveedores@fincas.local",
+        "subject": "=Solicitud de presupuesto — {{ $json.elemento_normalizado }} ({{ $json.comunidad_id }})",
+        "text": "=Se ha detectado una incidencia de imputacion comunitaria que requiere intervencion de proveedor.\n\nComunidad: {{ $json.comunidad_id }}\nElemento: {{ $json.elemento_normalizado }}\nUrgente: {{ $json.urgencia ? 'SI' : 'no' }}\nRequiere acuerdo de junta: {{ $json.requiere_junta ? 'si' : 'no' }}\n\nDescripcion reportada:\n{{ $json.descripcion }}\n\nFundamento de la imputacion:\n{{ $json.fundamento && $json.fundamento.map ? $json.fundamento.map(f => '- ' + f.norma + (f.fuente === 'estatutos' ? ' (estatutos)' : '') + ': \"' + f.cita + '\"').join('\\n') : '' }}\n\nRogamos presupuesto de reparacion a la mayor brevedad posible.",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2160,
+        -60
+      ],
+      "id": "email-parte-proveedor",
+      "name": "Enviar Parte a Proveedor",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "borradores@fincas.local",
+        "subject": "=[BORRADOR — revisar antes de enviar] Re: incidencia {{ $json.elemento_normalizado }}",
+        "text": "=Destinatario previsto (revisar antes de reenviar): {{ $json.propietario_email }}\n\n---\n\nEstimado/a propietario/a:\n\nEn relacion con la incidencia comunicada sobre {{ $json.elemento_normalizado }}, tras su revision el elemento afectado es de caracter privativo, es decir, su mantenimiento corresponde a su propiedad y no a la comunidad.\n\nFundamento:\n{{ $json.fundamento && $json.fundamento.map ? $json.fundamento.map(f => '- ' + f.norma + (f.fuente === 'estatutos' ? ' (estatutos)' : '') + ': \"' + f.cita + '\"').join('\\n') : '' }}\n\nQuedamos a su disposicion para cualquier aclaracion.\n\n(Borrador generado automaticamente — pendiente de revision por el administrador antes de reenviar al propietario)",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2160,
+        120
+      ],
+      "id": "email-borrador-vecino",
+      "name": "Borrador Respuesta al Vecino",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO revision_administrador (incidencia_id, motivo_escalado)\nVALUES ($1, $2)\nRETURNING *",
+        "options": {
+          "queryReplacement": "={{ [\n  $json.id,\n  $json.confianza < $json.umbral_aplicado\n    ? 'Confianza insuficiente: ' + $json.confianza + ' < ' + $json.umbral_aplicado + ' (' + (($json.plazos_activos && $json.plazos_activos.length) ? 'con plazo activo' : 'sin plazo activo') + ')'\n    : ($json.imputacion === 'no_aplica'\n        ? 'No es una incidencia tecnica: no hay ningun elemento del edificio danado que imputar (consulta administrativa, convivencia, o duda sobre una cuota ya acordada). Requiere respuesta del administrador, no decision de imputacion.'\n        : $json.imputacion === 'mixto'\n        ? 'Imputacion mixta: depende de reparto de causa entre elemento comun y privativo, o de una clausula estatutaria concreta — requiere lectura humana (seccion 6 de la rubrica).'\n        : 'Imputacion no reconocida (\\'' + $json.imputacion + '\\'): el Output Parser deberia haberlo impedido; revisar manualmente antes de continuar (rama de seguridad del Switch Imputacion).')\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        300
+      ],
+      "id": "postgres-cola-revision",
+      "name": "Insertar en Cola Revisión Administrador",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "administrador@fincas.example.com",
+        "subject": "=Revision pendiente — incidencia #{{ $json.incidencia_id }}",
+        "text": "=Una incidencia requiere tu revision antes de comunicar nada.\n\nMotivo: {{ $json.motivo_escalado }}\n\nComunidad: {{ $('Deduplicar e Insertar Incidencia').first().json.comunidad_id }}\nPropietario: {{ $('Deduplicar e Insertar Incidencia').first().json.propietario_email }}\nElemento: {{ $('Deduplicar e Insertar Incidencia').first().json.elemento_normalizado }}\nImputacion propuesta: {{ $('Deduplicar e Insertar Incidencia').first().json.imputacion }} (rival: {{ $('Deduplicar e Insertar Incidencia').first().json.imputacion_rival }})\nConfianza: {{ $('Deduplicar e Insertar Incidencia').first().json.confianza }} (umbral aplicado: {{ $('Deduplicar e Insertar Incidencia').first().json.umbral_aplicado }})\n\nDescripcion:\n{{ $('Deduplicar e Insertar Incidencia').first().json.descripcion }}",
+        "options": {},
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2400,
+        300
+      ],
+      "id": "email-aviso-revision",
+      "name": "Email Aviso Revisión Administrador",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Por que existe este IF (y por que no se puede borrar)\nNo es un chequeo redundante de \"el email existe\". El filtro de comunidad_id del RAG (searchFilterJson) solo protege si SIEMPRE tiene un valor: si en algun caso llega vacio, el filtro se convierte en `{}`, no hay WHERE, y la busqueda de estatutos devuelve fragmentos de TODAS las comunidades mezclados — secreto de una finca filtrado a otra. Comprobado en pruebas: sin filtro, clausulas contradictorias de dos fincas salen intercaladas en el mismo top-4.\n\nEste nodo es la unica garantia de que comunidad_id nunca llega vacio al agente ni al RAG. Si un remitente no esta en el censo, la incidencia va directa a revision del administrador y JAMAS toca el vector store. Nunca se deja que el modelo elija la comunidad (nada de $fromAI para ese campo).",
+        "height": 300,
+        "width": 420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -420
+      ],
+      "id": "sticky-compuerta-confidencialidad",
+      "name": "Sticky Note - Compuerta de Confidencialidad"
+    },
+    {
+      "parameters": {
+        "content": "## Art. 50 AI Act — frontera de este sistema\nEste workflow PREPARA y FUNDAMENTA la decision del administrador de fincas: cita norma y, cuando aplica, clausula estatutaria concreta. No es asesoramiento juridico al vecino ni a la comunidad, y la responsabilidad de la decision final y de cualquier comunicacion que de ella se derive sigue siendo del administrador humano.\n\nPor eso: ningun correo sale automaticamente al propietario (siempre borrador a revisar), y toda imputacion mixta o de baja confianza se detiene en la cola de revision antes de producir ningun efecto.",
+        "height": 260,
+        "width": 400,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        720,
+        380
+      ],
+      "id": "sticky-ai-act",
+      "name": "Sticky Note - Art. 50 AI Act"
+    },
+    {
+      "parameters": {
+        "content": "## Por que esta rama registra antes de avisar\nSin comunidad resuelta el correo no puede pasar por el RAG: el filtro de comunidad_id quedaria vacio y la busqueda devolveria clausulas de todas las fincas. Pero no clasificar no puede significar no registrar, o esta seria la unica rama del sistema sin rastro en incidencias. Se registra con comunidad_id NULL (la columna se hizo nullable para esto), imputacion 'mixto' y decidido_por 'compuerta', que distingue este escalado del que provoca el umbral de confianza.\n\nMitigacion de idempotencia: ON CONFLICT (message_id) DO NOTHING en el mismo CTE que inserta en revision_administrador, asi que un reenvio del mismo Message-ID no duplica ni la incidencia ni la entrada de cola. Ademas el IMAP trigger marca \\SEEN ANTES de ejecutar el workflow (ver EmailReadImapV2 utils.js), no despues.\n\nNota tecnica: el nodo Postgres de arriba tiene alwaysOutputData: true, asi que si no hay match emite un item sintetico SIN pairedItem trazable. Por eso el correo de este nodo usa $('IMAP Email Trigger').first().json...  en vez de .item.json...: .item exige resolver el pairedItem y revienta la ejecucion con ese item sintetico; .first() no lo necesita.",
+        "height": 340,
+        "width": 460,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -420
+      ],
+      "id": "sticky-sin-comunidad-fk",
+      "name": "Sticky Note - Sin Comunidad Resuelta"
+    },
+    {
+      "parameters": {
+        "content": "## Por que aqui no hay `$n::numeric AS umbral_aplicado`\nA diferencia de la tabla triage_log de la Demo A, incidencias.umbral_aplicado YA es una columna real del esquema. El Code node de arriba calcula el umbral una unica vez; el INSERT lo guarda en esa columna; RETURNING * lo devuelve. Anadir ademas `$n::numeric AS umbral_aplicado` duplicaria el nombre de columna en el RETURNING (JS se queda con el ultimo valor por orden de insercion de claves) sin aportar nada: seria la misma regla de 'nunca dos copias del mismo calculo' pero violada por exceso de celo, no por defecto. Una sola fuente de verdad: RETURNING * ya basta.",
+        "height": 260,
+        "width": 420,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -140
+      ],
+      "id": "sticky-umbral-returning",
+      "name": "Sticky Note - Umbral en RETURNING"
+    },
+    {
+      "parameters": {
+        "content": "## Tarea B1 — Triage Incidencias\nIMAP -> resuelve comunidad -> compuerta de confidencialidad -> agente clasificador (RAG filtrado por comunidad, sin memoria) -> controles deterministas (recorte por rival + umbral asimetrico) en codigo -> dedup/insercion idempotente -> confianza suficiente? -> switch por imputacion (comun/privativo/mixto) + rama paralela de plazos.",
+        "height": 300,
+        "width": 440,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -420
+      ],
+      "id": "sticky-b1-flujo",
+      "name": "Sticky Note - Resumen del Flujo B1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inc AS (\n  INSERT INTO incidencias (\n    message_id, comunidad_id, propietario_email, descripcion,\n    imputacion, plazos_activos, accion, decidido_por\n  ) VALUES ($1, NULL, $2, $3, 'mixto', '[]'::jsonb, 'revision_humana', 'compuerta')\n  ON CONFLICT (message_id) DO NOTHING\n  RETURNING *\n)\nINSERT INTO revision_administrador (incidencia_id, motivo_escalado)\nSELECT inc.id, 'Remitente no identificado en el censo de propietarios. Sin comunidad_id no se puede filtrar la busqueda en estatutos por finca, asi que el correo no ha pasado por el clasificador ni por el RAG (compuerta de confidencialidad). Dar de alta a mano si corresponde.'\nFROM inc\nRETURNING *",
+        "options": {
+          "queryReplacement": "={{ [\n  $('IMAP Email Trigger').first().json.metadata?.['message-id'],\n  $('IMAP Email Trigger').first().json.from,\n  $('IMAP Email Trigger').first().json.textPlain\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "name": "Registrar Incidencia Sin Comunidad",
+      "alwaysOutputData": true,
+      "position": [
+        720,
+        -220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Por qué esta rama escribe en base de datos\n\nSin comunidad resuelta el correo no puede pasar por el RAG: el filtro de metadatos quedaría vacío y la búsqueda devolvería cláusulas de todas las fincas. Pero **no clasificar no puede significar no registrar**. Si esta rama solo mandara un aviso por correo sería la única del sistema sin rastro en `incidencias`, y nadie volvería a mirar ese caso.\n\nSe registra con `comunidad_id NULL`, `imputacion = 'mixto'` y `decidido_por = 'compuerta'`, que distingue este escalado del que provoca el umbral de confianza.",
+        "height": 300,
+        "width": 380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "name": "Nota — Compuerta de Comunidad",
+      "position": [
+        680,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// La busqueda devuelve un item por fragmento. El agente tiene que ejecutarse una vez por\n// correo, no una vez por fragmento, asi que aqui se juntan en uno solo.\nconst frags = $input.all().map((it) => it.json.document).filter((d) => d && d.pageContent);\n\n// Si la busqueda no devuelve nada (comunidad sin escritura cargada, o filtro que no casa),\n// el agente tiene que saberlo explicitamente: si no, se inventa que ha leido una clausula.\nconst texto = frags.length\n  ? frags\n      .map((d, i) => `[fragmento ${i + 1} | pagina ${d.metadata?.pagina ?? '?'}]\\n${d.pageContent.trim()}`)\n      .join('\\n\\n')\n  : 'SIN FRAGMENTOS: no hay ninguna clausula cargada para esta comunidad. Clasifica por el regimen legal y no cites estatutos.';\n\nreturn [{ json: { estatutos: texto, fragmentos_estatutos: frags.length }, pairedItem: { item: 0 } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "fragmentos-estatutos-b1",
+      "name": "Fragmentos de Estatutos",
+      "position": [
+        1260,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "options": {
+          "maxTokens": 3000
+        }
+      },
+      "id": "4ff74a4c-6c66-4738-94dc-6ac6f0303900",
+      "name": "OpenRouter Chat Model (Razonamiento)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        352
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "openRouterApi": {
+          "id": "BfZd50u5fzJ2MxCL",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Vas a formalizar en JSON un razonamiento jurídico YA elaborado sobre una incidencia de una comunidad de propietarios (triage de un administrador de fincas). No reinterpretes el caso ni cambies la conclusión del razonamiento: tu única tarea es extraer y estructurar en los campos exactos lo que ya se decidió abajo.\n\nRAZONAMIENTO YA ELABORADO (tu única fuente de verdad para la conclusión — no vuelvas a analizar el caso, ya está decidido):\n{{ $('AI Agent Clasificador').first().json.output }}\n\nCÓMO FORMALIZAR CADA CAMPO\n- imputacion: uno de comun, privativo, mixto, no_aplica — el valor que el razonamiento concluye.\n- imputacion_rival: uno de comun, privativo, mixto, no_aplica, ninguna — el que el razonamiento menciona como segunda lectura, o \"ninguna\" si no menciona ninguna.\n- elemento_normalizado: exactamente uno del vocabulario cerrado de abajo, el elemento que el razonamiento identifica como el elemento físico afectado.\n- urgencia / requiere_junta: booleanos, según lo que el razonamiento concluye explícitamente.\n- plazos_activos: array de códigos; incluye \"siniestro_lcs16\" si el razonamiento indica que hay un plazo del art. 16 LCS activo (aviso a la aseguradora pendiente); array vacío si el razonamiento dice que no hay ninguno.\n- confianza: el número de 0 a 1 que el razonamiento indica.\n\nVOCABULARIO CERRADO DE elemento_normalizado (usa exactamente uno de estos valores)\nbajante, derivacion_particular, terraza, fachada, cubierta, ventana, ascensor, garaje, trastero, instalacion_agua, instalacion_electrica, instalacion_gas, humedad_origen_no_determinado\n\nFUNDAMENTO\nCada entrada de \"fundamento\" cita una norma con su artículo (p. ej. \"art. 396 CC\", \"art. 9.1.b LPH\", \"art. 16 LCS\"), fuente \"ley\" — usa las que el razonamiento menciona. Si el razonamiento se apoya en una cláusula de los estatutos de esta comunidad, añade TAMBIÉN una entrada con la cita literal exacta de esa cláusula (búscala en las cláusulas de abajo), fuente \"estatutos\" — nunca la parafrasees.\n\nCLÁUSULAS DE LA ESCRITURA DE ESTA COMUNIDAD (para citar el texto literal si el razonamiento se refiere a ellas)\n{{ $('Fragmentos de Estatutos').first().json.estatutos }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "3b93d432-93e0-4f18-94dd-7b7b6e83eb48",
+      "name": "AI Agent Decisor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1600,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IMAP Email Trigger": {
+      "main": [
+        [
+          {
+            "node": "Resolver Comunidad y Propietario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Comunidad y Propietario": {
+      "main": [
+        [
+          {
+            "node": "IF Comunidad Resuelta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Comunidad Resuelta": {
+      "main": [
+        [
+          {
+            "node": "Registrar Incidencia Sin Comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cargar Estatutos de la Comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Cargar Estatutos de la Comunidad",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear y Aplicar Controles": {
+      "main": [
+        [
+          {
+            "node": "Deduplicar e Insertar Incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicar e Insertar Incidencia": {
+      "main": [
+        [
+          {
+            "node": "IF Ya Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Ya Procesado": {
+      "main": [
+        [
+          {
+            "node": "Duplicado — Ya Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Confianza Suficiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Confianza Suficiente": {
+      "main": [
+        [
+          {
+            "node": "Switch Acción",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Expandir Plazos Activos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insertar en Cola Revisión Administrador",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Expandir Plazos Activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expandir Plazos Activos": {
+      "main": [
+        [
+          {
+            "node": "Insertar Plazo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Plazo": {
+      "main": [
+        [
+          {
+            "node": "Email Aviso Plazo Activo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar en Cola Revisión Administrador": {
+      "main": [
+        [
+          {
+            "node": "Email Aviso Revisión Administrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Incidencia Sin Comunidad": {
+      "main": [
+        [
+          {
+            "node": "Alerta Remitente No Identificado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Acción": {
+      "main": [
+        [
+          {
+            "node": "Enviar Parte a Proveedor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Borrador Respuesta al Vecino",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insertar en Cola Revisión Administrador",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insertar en Cola Revisión Administrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar Estatutos de la Comunidad": {
+      "main": [
+        [
+          {
+            "node": "Fragmentos de Estatutos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fragmentos de Estatutos": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Clasificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model (Decisión)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Output Parser Estructurado",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent Decisor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model (Razonamiento)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Clasificador",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser Estructurado": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent Decisor",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Clasificador": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Decisor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Decisor": {
+      "main": [
+        [
+          {
+            "node": "Parsear y Aplicar Controles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "2a89390fb7794f12"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "b1394623b60e4442"
+}

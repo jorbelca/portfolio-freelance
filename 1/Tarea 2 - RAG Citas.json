@@ -1,0 +1,486 @@
+{
+  "name": "Demo 2 - RAG con Citas",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Subir documento del despacho",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "documento_pdf",
+              "fieldType": "file",
+              "multipleFiles": true,
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "form-upload",
+      "name": "Subir Documento",
+      "webhookId": "demo1-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\nfor (const key of Object.keys($input.item.binary || {})) {\n  const bin = $input.item.binary[key];\n  const nombre = (bin.fileName || key).replace(/\\.pdf$/i, '');\n  out.push({ json: { documento: nombre }, binary: { [key]: bin } });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "split-files",
+      "name": "Separar Archivos (1 item por PDF)"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "={{ Object.keys($binary)[0] }}",
+        "options": {
+          "joinPages": false
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "id": "extract-pdf",
+      "name": "Extraer Texto PDF"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recibe 1 item por PDF (el array items[i].json.text, uno por página, gracias a\n// joinPages:false en \"Extraer Texto PDF\") y emite N items, uno por página real.\n//\n// Por qué itemMatching(i) y no $('Separar Archivos...').item: en modo \"Run Once for\n// All Items\" (el modo por defecto de este nodo, sin 'mode' explícito) $('Nodo').item\n// e $input.item resuelven SIEMPRE contra el item 0 del nodo actual — no son sensibles\n// a en qué vuelta del bucle estás. Es un hecho verificado leyendo el código fuente de\n// n8n (workflow-data-proxy.js: that.itemIndex viene fijado a 0 en runForAllItems /\n// JsTaskRunnerSandbox.runCodeAllItems). El formulario de subida admite multipleFiles,\n// así que con 2+ PDF en la misma ejecución, \".item\" pegaría el documento del PRIMER\n// PDF a las páginas de todos los demás — el mismo tipo de fallo silencioso que este\n// cambio pretende eliminar, solo que en el campo 'documento' en vez de 'pagina'.\n// itemMatching(i) sigue la cadena real de pairedItem para el item i.\nconst items = $input.all();\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const documento = $('Separar Archivos (1 item por PDF)').itemMatching(i).json.documento;\n\n  // Defensivo: la forma esperada de text es un array (una entrada por página). Si\n  // alguien reactiva joinPages en la UI, text vuelve a ser un string único; se trata\n  // como una sola página en vez de iterar carácter a carácter (que es lo que pasaría\n  // con un for..of sobre un string) o reventar.\n  let paginas = items[i].json.text;\n  if (typeof paginas === 'string') paginas = [paginas];\n  if (!Array.isArray(paginas)) paginas = [];\n\n  for (let p = 0; p < paginas.length; p++) {\n    const texto = typeof paginas[p] === 'string' ? paginas[p] : '';\n    // Salta páginas vacías o solo-espacios: no genera chunk que luego se embeba.\n    // OJO: 'pagina' es p + 1, la posición real en el array — si se salta una página\n    // en blanco NO se recompacta la numeración de las siguientes.\n    if (texto.trim() === '') continue;\n\n    out.push({\n      json: { documento, pagina: p + 1, texto },\n      pairedItem: { item: i },\n    });\n  }\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "set-metadata",
+      "name": "Añade Metadata {documento,pagina}"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH del AS (DELETE FROM documentos_despacho WHERE metadata->>'documento' = $1 RETURNING 1) SELECT $1::text AS documento, $2::int AS pagina, $3::text AS texto",
+        "options": {
+          "queryReplacement": "={{ [$json.documento, $json.pagina, $json.texto] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        160
+      ],
+      "id": "dedup-delete",
+      "name": "Borrar Versión Anterior (dedup)",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 100,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        440,
+        200
+      ],
+      "id": "text-splitter",
+      "name": "Text Splitter"
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "jsonData": "={{ $json.texto }}",
+        "jsonMode": "expressionData",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "documento",
+                "value": "={{ $json.documento }}"
+              },
+              {
+                "name": "pagina",
+                "value": "={{ $json.pagina }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        200
+      ],
+      "id": "data-loader",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        660,
+        360
+      ],
+      "id": "embeddings-1",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GEMINI_CRED_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "documentos_despacho",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "pgvector-insert",
+      "name": "Insertar en PGVector",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "initialMessages": "Soy un asistente de IA sobre los documentos del despacho. Cito documento y página en cada respuesta; si no encuentro respaldo suficiente en los documentos indexados, lo digo en vez de inventar.",
+        "options": {
+          "subtitle": "Asistente de IA — documentos del despacho"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        600
+      ],
+      "id": "chat-trigger-1",
+      "name": "Chat con el corpus",
+      "webhookId": "demo1-chat"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "tableName": "documentos_despacho",
+        "toolName": "knowledge_base",
+        "toolDescription": "Busca en los documentos del despacho (contratos, escrituras). Devuelve fragmentos con su documento y página de origen.",
+        "topK": 4,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        220,
+        800
+      ],
+      "id": "pgvector-retrieve",
+      "name": "Buscar en PGVector",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        220,
+        960
+      ],
+      "id": "embeddings-2",
+      "name": "Embeddings Google Gemini (query)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GEMINI_CRED_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Responde SOLO usando fragmentos recuperados de la knowledge_base. En cada afirmación cita [documento, página]. Si no hay fragmento suficiente para responder, di explícitamente \"no tengo información suficiente\" — nunca inventes.\n\nUsa la tool knowledge_base como máximo una vez por pregunta. Si tras esa única búsqueda los fragmentos no contienen la respuesta, responde inmediatamente \"no tengo información suficiente\" — no repitas la búsqueda con otra formulación ni sigas intentando.\n\nSi te preguntan qué documentos tienes disponibles/indexados, usa la tool \"Listar Documentos Disponibles\" y responde con esa lista, no con la knowledge_base.\n\nPregunta: {{ $json.chatInput }}",
+        "options": {
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        440,
+        600
+      ],
+      "id": "ai-agent-rag",
+      "name": "AI Agent - Responde con Citas",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "options": {
+          "maxTokens": 4096
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        440,
+        800
+      ],
+      "id": "openrouter-model-rag",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "BfZd50u5fzJ2MxCL",
+          "name": "OpenRouter account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT metadata->>'documento' AS documento, count(*) AS fragmentos FROM documentos_despacho GROUP BY 1 ORDER BY 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        800
+      ],
+      "id": "postgres-tool-list-docs",
+      "name": "Listar Documentos Disponibles",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        660,
+        800
+      ],
+      "id": "postgres-memory-rag",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Subir Documento": {
+      "main": [
+        [
+          {
+            "node": "Separar Archivos (1 item por PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Archivos (1 item por PDF)": {
+      "main": [
+        [
+          {
+            "node": "Extraer Texto PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Texto PDF": {
+      "main": [
+        [
+          {
+            "node": "Añade Metadata {documento,pagina}",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Añade Metadata {documento,pagina}": {
+      "main": [
+        [
+          {
+            "node": "Borrar Versión Anterior (dedup)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Borrar Versión Anterior (dedup)": {
+      "main": [
+        [
+          {
+            "node": "Insertar en PGVector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insertar en PGVector",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insertar en PGVector",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat con el corpus": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Responde con Citas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar en PGVector": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Responde con Citas",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Documentos Disponibles": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Responde con Citas",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini (query)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Buscar en PGVector",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Responde con Citas",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Responde con Citas",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "2a89390fb7794f12"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "bee472a8e629465a"
+}

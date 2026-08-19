@@ -1,0 +1,702 @@
+{
+  "name": "Demo 1 - Triage Email Despacho",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "imap-trigger-1",
+      "name": "IMAP Email Trigger",
+      "credentials": {
+        "imap": {
+          "id": "IMAP_CRED_ID",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Clasifica este email de un despacho legal en una de estas categorías EXACTAS: cliente_nuevo, expediente_existente, plazo, ruido, duda.\n\nUsa la tool de Postgres para comprobar si el remitente ya tiene expediente abierto antes de decidir.\n\nDEFINICIÓN DE CADA CATEGORÍA\n- cliente_nuevo: el remitente plantea una necesidad jurídica propia y no es titular de ningún expediente vivo relacionado. Incluye leads fuera de materia o jurisdicción: se cualifican para derivar, no se archivan.\n- expediente_existente: el remitente ES el titular de un expediente vivo (coincide su email o nombre en la base) y el correo trata de ese expediente o su materia. Un expediente cerrado solo cuenta si el correo trata de la materia de ese expediente cerrado; si plantea algo nuevo, es cliente_nuevo.\n- plazo: hay una fecha límite identificable (o un cómputo del que se derive) CON una consecuencia adversa nombrada o evidente (contestar una demanda, recurrir, aportar prueba, responder un requerimiento...). Una fecha sin consecuencia no es plazo. Urgencia expresada solo con palabras (\"urgente\", mayúsculas) sin fecha tampoco es plazo.\n- ruido: no exige ninguna acción ni respuesta del despacho Y no contiene datos de ningún cliente ni expediente real (publicidad genérica, boletines, avisos automáticos, correo interno logístico). Si cita a un cliente o expediente real, NUNCA es ruido: es duda.\n- duda: quedan dos o más categorías defendibles tras aplicar el desempate, o falta un dato imprescindible que no está ni en el correo ni en la base. También es duda siempre que (a) quien escribe no es el titular de un expediente pero pide información de uno — nunca clasifiques esto como expediente_existente aunque el vínculo parezca claro, es secreto profesional —, o (b) la contraparte nombrada podría ser cliente del despacho (posible conflicto de intereses). El motivo debe decir QUÉ falta o QUÉ compite, nunca \"no estoy seguro\".\n\nORDEN DE DESEMPATE si el correo encaja en varias categorías a la vez (la primera regla que dispare decide):\n1. plazo gana a todo, incluso a un expediente vivo o a un primer contacto sin expediente previo.\n2. Sospecha de conflicto de intereses → duda, aunque el correo encaje perfectamente en cliente_nuevo o expediente_existente.\n3. expediente_existente gana a cliente_nuevo (materia nueva de un cliente vivo se anota en su expediente, no se duplica ficha).\n4. cliente_nuevo gana a la duda residual: si identificas remitente y problema, clasifica aunque esté mal escrito o sea breve — duda no es un filtro de redacción.\n5. ruido es residual y nunca gana un empate: ante la duda, no es ruido.\n\nCONFIANZA — qué significa\n\"confianza\" (0 a 1) mide CUÁNTO TE FÍAS DE TU PROPIA CLASIFICACIÓN, no cuánta urgencia tiene el correo ni cuán grave es el problema del cliente. Un correo urgentísimo pero de categoría obvia tiene confianza alta. Un correo tranquilo pero ambiguo en su categoría tiene confianza baja. Confundir confianza con urgencia invalida el control de calidad del sistema.\n\nCATEGORÍA RIVAL — decídela ANTES de puntuar la confianza\nAntes de dar un número, nombra en \"categoria_rival\" la segunda categoría que otro abogado con esta misma rúbrica delante podría defender. Si de verdad no hay ninguna defendible, escribe \"ninguna\".\n- Si has tenido que aplicar el ORDEN DE DESEMPATE, la categoría que perdió el desempate ES la rival. Por construcción, ahí no puedes escribir \"ninguna\".\n- Si \"categoria_rival\" no es \"ninguna\", \"confianza\" NO puede pasar de 0.6. Una segunda lectura defendible es incertidumbre, por definición.\n- \"ninguna\" es la respuesta correcta solo cuando el correo encaja limpiamente en una sola categoría sin desempate. No la uses por comodidad.\n- Con \"ruido\" sé especialmente estricto: archivar es la única decisión que no deja rastro. Si dudaste entre ruido y cualquier otra cosa, la rival no es \"ninguna\".\n\nAsunto: {{ $json.subject }}\nDe: {{ $json.from }}\nCuerpo: {{ $json.textPlain }}\n\nResponde SOLO con JSON, en este orden exacto de claves: {\"categoria\": \"...\", \"categoria_rival\": \"...\", \"motivo\": \"...\", \"confianza\": 0.0}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "ai-agent-classify",
+      "name": "AI Agent - Clasifica",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "options": {
+          "maxTokens": 4096
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        160,
+        208
+      ],
+      "id": "openrouter-model-1",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "BfZd50u5fzJ2MxCL",
+          "name": "OpenRouter account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM expedientes WHERE email_contacto = $1 OR unaccent(nombre_contacto) ILIKE unaccent($2) LIMIT 5",
+        "options": {
+          "queryReplacement": "={{ $fromAI('email', '', 'string') }},={{ '%' + $fromAI('nombre', '', 'string') + '%' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        208
+      ],
+      "id": "postgres-tool-lookup",
+      "name": "Buscar Expediente (Postgres)",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"categoria\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"cliente_nuevo\",\n        \"expediente_existente\",\n        \"plazo\",\n        \"ruido\",\n        \"duda\"\n      ]\n    },\n    \"categoria_rival\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"cliente_nuevo\",\n        \"expediente_existente\",\n        \"plazo\",\n        \"ruido\",\n        \"duda\",\n        \"ninguna\"\n      ]\n    },\n    \"motivo\": {\n      \"type\": \"string\"\n    },\n    \"confianza\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    }\n  },\n  \"required\": [\n    \"categoria\",\n    \"categoria_rival\",\n    \"motivo\",\n    \"confianza\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        208
+      ],
+      "id": "output-parser-classify",
+      "name": "Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ACCION_POR_CATEGORIA = {\n  cliente_nuevo: 'ficha_creada',\n  expediente_existente: 'nota_expediente',\n  plazo: 'marcado_urgente',\n  ruido: 'archivado',\n  duda: 'revision_humana',\n};\n\n// Si el modelo reconoce una segunda categoría defendible, su propia confianza no puede\n// pasar de aquí. La confianza verbalizada de un LLM satura cerca de 1 (en la primera\n// evaluación, 27 de 28 casos cayeron en [0.9-1.0] incluidos los 4 errores), así que el\n// umbral solo protege si algo la baja. Lo que la baja es un hecho declarado por el propio\n// modelo — \"existe otra lectura defendible\" — no su sensación de seguridad.\nconst CONFIANZA_MAX_CON_RIVAL = 0.6;\n\nreturn $input.all().map((item, i) => {\n  let raw = item.json.output;\n  if (typeof raw === 'string') {\n    const match = raw.match(/\\{[\\s\\S]*\\}/);\n    raw = JSON.parse(match ? match[0] : raw);\n  }\n\n  // Normaliza confianza: si el modelo no la devuelve o no es numérica, fuerza 0.\n  // 0 siempre dispara revisión humana vía el umbral; nunca cuela el correo sin control.\n  let confianza = raw.confianza;\n  confianza = (typeof confianza === 'number' && Number.isFinite(confianza)) ? confianza : 0;\n\n  const categoria = raw.categoria;\n\n  // Rival ausente o mal formada se trata como 'ninguna': el prompt la pide, pero el sistema\n  // no puede caerse si el modelo la omite. Si la rival repite la categoría elegida no es\n  // rival de nada.\n  const rival = typeof raw.categoria_rival === 'string' ? raw.categoria_rival : 'ninguna';\n  const hay_rival = rival !== 'ninguna' && rival !== categoria;\n  if (hay_rival) confianza = Math.min(confianza, CONFIANZA_MAX_CON_RIVAL);\n\n  // Umbral asimétrico. Archivar como ruido es la única rama que no deja rastro: nadie va a\n  // volver a mirar ese correo, así que exige más confianza que las demás. Si la variable no\n  // está definida, Number(undefined) es NaN y se cae al umbral general.\n  const umbral_base = Number($env.TRIAGE_CONFIANZA_UMBRAL);\n  const umbral_ruido = Number($env.TRIAGE_CONFIANZA_UMBRAL_RUIDO);\n  const umbral = (categoria === 'ruido' && Number.isFinite(umbral_ruido)) ? umbral_ruido : umbral_base;\n\n  // Mismo operador (>=) y mismos operandos que usará 'IF Confianza Suficiente': el umbral\n  // aplicado viaja con el item (y por la fila de triage_log) para que el IF no tenga que\n  // recalcularlo y no puedan divergir. Si el umbral no es numérico, NaN hace la comparación\n  // false en ambos sitios: falla cerrado a revisión humana.\n  const confianza_ok = confianza >= umbral;\n\n  const accion = confianza_ok ? (ACCION_POR_CATEGORIA[categoria] || 'revision_humana') : 'revision_humana';\n  const decidido_por = confianza_ok ? 'sistema' : 'umbral';\n\n  return {\n    json: { ...raw, categoria_rival: rival, confianza, umbral_aplicado: umbral, accion, decidido_por },\n    pairedItem: { item: i },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -120
+      ],
+      "id": "parse-clasificacion",
+      "name": "Parsear Clasificación"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO triage_log (message_id, remitente, asunto, cuerpo, categoria, motivo, confianza, accion, decidido_por) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (message_id) DO NOTHING RETURNING *, $10::numeric AS umbral_aplicado",
+        "options": {
+          "queryReplacement": "={{ [ $('IMAP Email Trigger').item.json.metadata?.['message-id'] || $('IMAP Email Trigger').item.json.messageId || $('IMAP Email Trigger').item.json.headers?.['message-id'], $('IMAP Email Trigger').item.json.from, $('IMAP Email Trigger').item.json.subject, $('IMAP Email Trigger').item.json.textPlain, $json.categoria, $json.motivo, $json.confianza, $json.accion, $json.decidido_por, $json.umbral_aplicado ] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        -260
+      ],
+      "id": "log-idempotencia",
+      "name": "Log + Idempotencia (Postgres)",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ya-procesado",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        -260
+      ],
+      "id": "if-ya-procesado",
+      "name": "IF Ya Procesado"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        -340
+      ],
+      "id": "noop-duplicado",
+      "name": "Duplicado — ya procesado"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-confianza-suficiente",
+              "leftValue": "={{ Number($json.confianza) }}",
+              "rightValue": "={{ Number($json.umbral_aplicado) }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1180,
+        -180
+      ],
+      "id": "if-confianza-suficiente",
+      "name": "IF Confianza Suficiente"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.categoria }}",
+                    "rightValue": "cliente_nuevo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "cliente_nuevo"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.categoria }}",
+                    "rightValue": "expediente_existente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "expediente_existente"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.categoria }}",
+                    "rightValue": "plazo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "plazo"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.categoria }}",
+                    "rightValue": "ruido",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "ruido"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.categoria }}",
+                    "rightValue": "duda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "duda"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "switch-categoria",
+      "name": "Switch Categoría"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (INSERT INTO expedientes (nombre_contacto, email_contacto, estado, notas) VALUES ($1, $2, 'nuevo', $3) RETURNING *) SELECT ins.*, $4::text AS asunto_original FROM ins",
+        "options": {
+          "queryReplacement": "={{ [$('IMAP Email Trigger').item.json.from, $('IMAP Email Trigger').item.json.from, $json.motivo, $('IMAP Email Trigger').item.json.subject] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        -160
+      ],
+      "id": "postgres-insert-cliente-nuevo",
+      "name": "Crear Ficha Cliente Nuevo",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "n8n@example.com",
+        "toEmail": "borradores@despacho.local",
+        "subject": "=[BORRADOR — revisar antes de enviar] Re: {{ $json.asunto_original }}",
+        "text": "=Hemos recibido su consulta y un abogado se pondrá en contacto en las próximas 24-48h.\n\n(Borrador generado automáticamente — pendiente de revisión por un abogado antes de reenviar al cliente)",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1800,
+        -160
+      ],
+      "id": "email-acuse-cliente-nuevo",
+      "name": "Borrador Acuse Recibo",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Nunca autoenvío al cliente\nEste \"acuse\" es un borrador interno: va a borradores@despacho.local (nunca al remitente original) con el asunto marcado [BORRADOR — revisar antes de enviar]. Un abogado lo revisa y lo reenvía a mano si procede.",
+        "height": 220,
+        "width": 320,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        -420
+      ],
+      "id": "sticky-borrador-acuse",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO expediente_notas (expediente_email, nota) VALUES ($1, $2) RETURNING *",
+        "options": {
+          "queryReplacement": "={{ [$('IMAP Email Trigger').item.json.from, $json.motivo] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "postgres-append-nota",
+      "name": "Añadir Nota a Expediente",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH upd AS (\n  UPDATE expedientes SET urgente = true, notas = $1 WHERE email_contacto = $2 RETURNING *\n), ins AS (\n  INSERT INTO expedientes (nombre_contacto, email_contacto, estado, urgente, notas)\n  SELECT $2, $2, 'nuevo', true, $1\n  WHERE NOT EXISTS (SELECT 1 FROM upd)\n  RETURNING *\n)\nSELECT upd.*, $1::text AS motivo, $3::text AS asunto_original FROM upd\nUNION ALL\nSELECT ins.*, $1::text AS motivo, $3::text AS asunto_original FROM ins",
+        "options": {
+          "queryReplacement": "={{ [$json.motivo, $('IMAP Email Trigger').item.json.from, $('IMAP Email Trigger').item.json.subject] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        160
+      ],
+      "id": "postgres-marca-plazo",
+      "name": "Marca Plazo Urgente",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "abogado@despacho.example.com",
+        "subject": "=URGENTE: plazo detectado - {{ $json.asunto_original }}",
+        "text": "={{ $json.motivo }}",
+        "options": {},
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1800,
+        160
+      ],
+      "id": "email-alerta-plazo",
+      "name": "Notifica Plazo Urgente",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        320
+      ],
+      "id": "noop-ruido",
+      "name": "Archiva (ruido, sin acción)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO revision_humana (remitente, asunto, motivo_duda) VALUES ($1, $2, $3) RETURNING *",
+        "options": {
+          "queryReplacement": "={{ [$('IMAP Email Trigger').item.json.from, $('IMAP Email Trigger').item.json.subject, $json.motivo] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        480
+      ],
+      "id": "postgres-insert-duda",
+      "name": "Cola Revisión Humana",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@example.com",
+        "toEmail": "abogado@despacho.example.com",
+        "subject": "=Revisar: email dudoso - {{ $json.asunto }}",
+        "text": "=El sistema no pudo clasificar este email con confianza. Motivo: {{ $json.motivo_duda }}",
+        "options": {},
+        "emailFormat": "text"
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1800,
+        480
+      ],
+      "id": "email-alerta-duda",
+      "name": "Notifica Caso Dudoso",
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CRED_ID",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IMAP Email Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Clasifica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Clasifica",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Expediente (Postgres)": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Clasifica",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent - Clasifica",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Clasifica": {
+      "main": [
+        [
+          {
+            "node": "Parsear Clasificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Clasificación": {
+      "main": [
+        [
+          {
+            "node": "Log + Idempotencia (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log + Idempotencia (Postgres)": {
+      "main": [
+        [
+          {
+            "node": "IF Ya Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Ya Procesado": {
+      "main": [
+        [
+          {
+            "node": "Duplicado — ya procesado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Confianza Suficiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Confianza Suficiente": {
+      "main": [
+        [
+          {
+            "node": "Switch Categoría",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cola Revisión Humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Categoría": {
+      "main": [
+        [
+          {
+            "node": "Crear Ficha Cliente Nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Añadir Nota a Expediente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marca Plazo Urgente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Archiva (ruido, sin acción)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cola Revisión Humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cola Revisión Humana": {
+      "main": [
+        [
+          {
+            "node": "Notifica Caso Dudoso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Ficha Cliente Nuevo": {
+      "main": [
+        [
+          {
+            "node": "Borrador Acuse Recibo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marca Plazo Urgente": {
+      "main": [
+        [
+          {
+            "node": "Notifica Plazo Urgente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "2a89390fb7794f12"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "94314623b60e4441"
+}

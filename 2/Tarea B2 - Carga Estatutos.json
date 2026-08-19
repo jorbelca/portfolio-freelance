@@ -1,0 +1,318 @@
+{
+  "name": "Carga Estatutos Comunidad (previo a Demo 3)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Subir estatutos de una comunidad",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "comunidad_id",
+              "fieldType": "text",
+              "placeholder": "p.ej. CDP-001",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "documento",
+              "fieldType": "text",
+              "placeholder": "p.ej. Estatutos 2024",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "estatuto_file",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".md,.txt",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "form-upload-estatutos",
+      "name": "Subir Estatutos",
+      "webhookId": "demoB2-upload-estatutos"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "={{ Object.keys($binary)[0] }}",
+        "destinationKey": "texto",
+        "options": {
+          "keepSource": "json"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "extract-texto-estatutos",
+      "name": "Extraer Texto del Fichero"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-comunidad-id",
+              "name": "comunidad_id",
+              "type": "string",
+              "value": "={{ $json.comunidad_id }}"
+            },
+            {
+              "id": "assign-documento",
+              "name": "documento",
+              "type": "string",
+              "value": "={{ $json.documento }}"
+            },
+            {
+              "id": "assign-pagina",
+              "name": "pagina",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "id": "assign-texto",
+              "name": "texto",
+              "type": "string",
+              "value": "={{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        0
+      ],
+      "id": "set-metadata-estatutos",
+      "name": "Añade Metadata {comunidad_id,documento,pagina}"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH del AS (DELETE FROM documentos_comunidad WHERE metadata->>'comunidad_id' = $1 AND metadata->>'documento' = $2 RETURNING 1) SELECT $1::text AS comunidad_id, $2::text AS documento, $3::int AS pagina, $4::text AS texto",
+        "options": {
+          "queryReplacement": "={{ [$json.comunidad_id, $json.documento, $json.pagina, $json.texto] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "id": "dedup-delete-estatutos",
+      "name": "Borrar Versión Anterior (dedup)",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 100,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        440,
+        220
+      ],
+      "id": "text-splitter-estatutos",
+      "name": "Text Splitter"
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "jsonData": "={{ $json.texto }}",
+        "jsonMode": "expressionData",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "comunidad_id",
+                "value": "={{ $json.comunidad_id }}"
+              },
+              {
+                "name": "documento",
+                "value": "={{ $json.documento }}"
+              },
+              {
+                "name": "pagina",
+                "value": "={{ $json.pagina }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        220
+      ],
+      "id": "data-loader-estatutos",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        660,
+        380
+      ],
+      "id": "embeddings-b2",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gheJaqxnD1VwJSq6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "documentos_comunidad",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "pgvector-insert-estatutos",
+      "name": "Insertar en PGVector (Estatutos)",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CRED_ID",
+          "name": "Postgres n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## comunidad_id no puede quedar vacio\nEste campo del metadata es lo que despues sostiene TODO el aislamiento entre comunidades en el RAG de B1 (searchFilterJson filtra por el mismo comunidad_id). Por eso es un campo de texto obligatorio (requiredField) en el formulario, no se deriva del nombre del fichero ni de ningun otro dato adivinado.\n\nSi algun dia se automatiza esta carga sin formulario (lectura de disco, por ejemplo), hay que seguir garantizando por otra via que comunidad_id llega siempre relleno y correcto — de lo contrario la busqueda de estatutos de una comunidad puede devolver fragmentos de otra.\n\nEl contenedor de n8n de este proyecto no tiene montado el directorio 2/comunidades/ del host (unico mount: /home/node/.n8n), asi que la carga es por formulario y no por lectura directa de fichero en disco.",
+        "height": 320,
+        "width": 460,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        260
+      ],
+      "id": "sticky-comunidad-id-b2",
+      "name": "Sticky Note - comunidad_id Obligatorio"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Subir Estatutos": {
+      "main": [
+        [
+          {
+            "node": "Extraer Texto del Fichero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Texto del Fichero": {
+      "main": [
+        [
+          {
+            "node": "Añade Metadata {comunidad_id,documento,pagina}",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Añade Metadata {comunidad_id,documento,pagina}": {
+      "main": [
+        [
+          {
+            "node": "Borrar Versión Anterior (dedup)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Borrar Versión Anterior (dedup)": {
+      "main": [
+        [
+          {
+            "node": "Insertar en PGVector (Estatutos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insertar en PGVector (Estatutos)",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insertar en PGVector (Estatutos)",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "2a89390fb7794f12"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "b2ee472a8e629466"
+}
