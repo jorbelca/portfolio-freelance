@@ -65,6 +65,19 @@ services:
       retries: 10
 
   # -------------------------------------------------
+  # UI web para ver triage_log en pantalla (grabación de vídeo).
+  # Solo para la demo local: no forma parte del sistema real.
+  # -------------------------------------------------
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # -------------------------------------------------
   # Servidor de correo de pruebas SMTP+IMAP (GreenMail)
   # -------------------------------------------------
   greenmail:
