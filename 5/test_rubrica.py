@@ -6,7 +6,12 @@ gate_confianza (R13-R15 + regla dura). No toca Postgres ni llama a ningún model
 Cubre en particular que R8/R9 (gates de encaje) y R11/R12 (conteo) son ALCANZABLES -- el bug
 que corrigió la reordenación de la rúbrica el 2026-08-31.
 """
-from grafo_leads import _descalificar, aplicar_rubrica, gate_confianza
+from grafo_leads import _descalificar, _senales_con_evidencia, aplicar_rubrica, gate_confianza
+
+# Claves que un fragmento de senales_crudas DEBE traer -- el stub de investigacion_agente las
+# produce hoy; el bucle ReAct real (miércoles) tiene que producir las mismas, o la
+# auditabilidad de leads.senales se rompe en silencio (recuperado_en -> None).
+CLAVES_SENAL_CRUDA = {"snippet", "url", "recuperado_en"}
 
 FICHA_OK = {"pais": "UK", "sector": "software", "tipo_negocio": "producto", "tamano_estimado": 40}
 
@@ -82,12 +87,25 @@ def test_gate():
     assert g["resultado_log"] == "sin_cualificar"
 
 
+def test_evidencia_materializada():
+    crudas = [{"snippet": "raised Series A", "url": "http://n1", "recuperado_en": "2026-08-31"}]
+    assert CLAVES_SENAL_CRUDA <= set(crudas[0]), "fragmento de evidencia incompleto"
+    estado = {"senales_crudas": crudas,
+              "hallazgos": {"senales": [{"tipo": "S1", "valor": "Serie A", "ref": 0}]}}
+    out = _senales_con_evidencia(estado)
+    assert out[0]["snippet"] == "raised Series A" and out[0]["recuperado_en"] == "2026-08-31", out
+    # ref rota -> se materializa sin evidencia (la validación de trazabilidad ya lo habría parado)
+    estado["hallazgos"]["senales"][0]["ref"] = 9
+    assert _senales_con_evidencia(estado)[0]["url"] is None
+
+
 def demo():
     test_descalificadores()
     test_gates_de_encaje_alcanzables()
     test_conteo_de_senales()
     test_gate()
-    print("test_rubrica.py: OK (4 bloques)")
+    test_evidencia_materializada()
+    print("test_rubrica.py: OK (5 bloques)")
 
 
 if __name__ == "__main__":

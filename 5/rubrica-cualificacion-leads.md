@@ -104,14 +104,14 @@ confianza** (misma regla dura que la Demo 4):
 
 1. **Campos obligatorios**: nombre de empresa + email de contacto. Sin ellos no hay lead que cualificar, hay ruido.
 2. **Email sintácticamente válido.**
-3. **Deduplicación** por email y por empresa, en SQL (`UNIQUE` en `leads`). Segundo contacto de una empresa ya conocida → `cola_revision`, para que el comercial ya asignado decida — no es un lead nuevo.
+3. **Deduplicación** en SQL, no en Python (`UNIQUE` en `leads`). Por email de contacto (global) y por empresa **solo entre cuentas `caliente`/`tibio`** — las que un comercial trabaja. Un segundo contacto de una cuenta ya trabajada → `cola_revision` para que el comercial asignado decida. Una empresa `frio` no reserva el nombre: si más tarde llega un contacto mejor o la empresa deja de estar descalificada, se evalúa de cero.
 4. **Trazabilidad de las señales**: cada señal que el modelo cite en el motivo debe referenciar un fragmento realmente recuperado por `buscar_señales` (`snippet` + `url` + `recuperado_en`, guardados en `señales`). Una señal sin respaldo en la evidencia → `sin_cualificar` / cola. El modelo no se vigila a sí mismo desde el prompt (lección de la Demo 3, `2/README-detallado.md`): lo comprueba el nodo.
 
 ## 5. Zona gris declarada
 
 - **"Producto vs servicios" (R3)** no siempre es nítido: una empresa puede vender un SaaS y además hacer implantación a medida. Criterio operativo: si el SaaS es el negocio principal y la fuente de ingresos recurrente, es producto. En la frontera → R13 (tibio + cola).
 - **Los umbrales de tamaño (R5, R6)** son números redondos sin calibrar. En producción salen de los datos de conversión del cliente; aquí son un punto de partida, no una frontera verificada.
-- **"Competidor" (R7)** depende de una lista que el cliente mantiene y que cambia. La rúbrica no la fija.
+- **Las listas de R4 (sectores excluidos) y R7 (competidores)** dependen del cliente y cambian. Hoy viven como constantes en `grafo_leads.py` (`SECTORES_EXCLUIDOS`, `COMPETIDORES`); la rúbrica no las fija. R7 hace *match* por subcadena sobre el nombre — suficiente para la demo, con falsos positivos posibles (una empresa con un token de competidor en el nombre).
 - **Recencia de las señales web**: `buscar_señales` puede devolver una noticia de financiación de hace tres años como si fuera actual. La ventana de 12 meses de S1 depende de que el fragmento recuperado lleve fecha; si no la lleva, la señal no cuenta.
 - **La antigüedad de constitución no es un descalificador propio.** Se consideró (empresa demasiado madura → probablemente ya tiene solución, demasiado nueva → sin presupuesto), pero solo entra indirectamente vía R5/R6 (tamaño) y S1 (financiación). Una regla de antigüedad aislada descartaría empresas correctas que llevan años en un plateau y acaban de levantar ronda.
 

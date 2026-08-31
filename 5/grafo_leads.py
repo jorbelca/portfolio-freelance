@@ -187,6 +187,8 @@ def _descalificar(ficha: dict, hallazgos: dict):
     if isinstance(tam, int) and tam < 8 and not tiene_s1:
         return "R6", "demasiado pronto, sin presupuesto"
     nombre = (ficha.get("nombre") or ficha.get("empresa") or "").lower()
+    # ponytail: match por subcadena. Falso positivo posible (token de competidor en otro
+    # nombre); upgrade a match sobre dominio/registro si el cliente aporta lista real.
     if any(c in nombre for c in COMPETIDORES):
         return "R7", "competidor"
     return None

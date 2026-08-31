@@ -48,11 +48,14 @@ CREATE TABLE IF NOT EXISTS leads (
   borrador_message_id TEXT,     -- id del correo en GreenMail si se redactó borrador
   creado_en TIMESTAMPTZ DEFAULT now(),
   -- Dedup: única fuente de verdad, sin pre-check en Python (mismo criterio que el UNIQUE de
-  -- 4/facturas). Por email de contacto y por empresa. El segundo contacto de una empresa ya
-  -- en leads no es un lead nuevo -- el UniqueViolation se reconduce a cola_revision para que
-  -- el comercial ya asignado decida, en vez de abrir un segundo hilo sobre la misma cuenta.
-  UNIQUE (contacto_email),
-  UNIQUE (empresa_normalizada)
+  -- 4/facturas). El UniqueViolation se reconduce a cola_revision con motivo 'duplicado'.
+  --  - contacto_email: global. Un contacto es un contacto, esté como esté clasificado.
+  --  - empresa_normalizada: PARCIAL, solo caliente/tibio (ver índice al final). Una cuenta que
+  --    un comercial trabaja no debe abrirse dos veces; pero una empresa 'frio' (p.ej. fuera de
+  --    UK) no reserva el nombre -- si más tarde llega un contacto mejor o la empresa abre
+  --    entidad UK, ese lead se evalúa de cero en vez de chocar con un 'duplicado' que
+  --    escondería el motivo real.
+  UNIQUE (contacto_email)
 );
 
 -- cola_revision: mismo contrato de campos que leads, sin los UNIQUE (un lead puede llegar aquí
@@ -108,5 +111,11 @@ CREATE TABLE IF NOT EXISTS cualificacion_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cualificacion_log_lead_ref ON cualificacion_log (lead_ref);
+
+-- Dedup de empresa: solo entre las cuentas que un comercial trabaja (caliente/tibio). Ver el
+-- comentario en la tabla leads. Índice único parcial -> el UniqueViolation salta igual y
+-- persistir_ok lo reconduce a cola.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_leads_empresa_trabajada
+  ON leads (empresa_normalizada) WHERE etiqueta IN ('caliente', 'tibio');
 
 -- --- ALTERs idempotentes posteriores -------------------------------------------------------
