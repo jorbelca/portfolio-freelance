@@ -75,14 +75,20 @@ Tools de `investigacion_agente` (2, no más):
       apiladas). Verificado e2e: `--sin-llm` 30/30, `run_eval` 100 %/100 %, 4 caliente →
       borrador + asignación.
 
+## Verificado contra el Postgres real compartido (2026-08-31, docker de `../1/`)
+
+- `--sin-llm` 30/30 · `run_eval.py` 100 %/100 % · Demo 4 (`cola_revision`, `v_cola_pendiente`) intacta.
+- **Ruta de éxito del borrador**: 4 correos `caliente` enviados a `borradores@nubeforge.local`
+  en GreenMail (`enviado = t`), visibles por IMAP. Antes solo se había probado la ruta de fallo.
+- **Medición con modelo real (`SALTAR_INVESTIGACION`)**: `dots-3-note-preview:free` demasiado
+  lento/flaky para 30 leads limpios (2/30 en ~5 min, 1 ok 1 error). Otros `:free` dan 404.
+
 ## Pendiente W36
 
-- [ ] **Mar–Jue** — buffer (todo el build adelantado). Pendiente real:
-      **medir el modo `SALTAR_INVESTIGACION` con `OPENROUTER_API_KEY`** (modelo sobre evidencia
-      fija) y anotar el número del vídeo; falsar los `hallazgos` de `l06`/`l07`; **probar la
-      ruta de éxito del borrador**: `docker compose up` en `../1/`, un lead `caliente`, y
-      verificar que el correo aparece en Roundcube (`:8081`) — hasta ahora solo se ha probado
-      la ruta de fallo de SMTP.
+- [ ] **Antes de grabar** — corrida de referencia del modo `SALTAR_INVESTIGACION` con un
+      modelo **de pago** (o partial documentado, como Demo 3/4) → el número del vídeo;
+      falsar los `hallazgos` de `l06`/`l07` con ese modelo; probar el bucle ReAct en vivo
+      (`buscar_señales` real) con 3 empresas UK reales — ver `GUION-video.md`.
 - [ ] **Sáb 5** — 1 vídeo, 2 actos + subir a Malt/LinkedIn.
 
 **Escape hatch.** Si el jueves va justo: se publica V1 solo el sábado, la cola V2 pasa a W37.
