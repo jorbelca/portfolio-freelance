@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "leads": "./grafo_leads.py:construir_grafo"
+  }
+}

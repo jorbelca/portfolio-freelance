@@ -49,12 +49,23 @@ Tools de `investigacion_agente` (2, no más):
       post-PMF). Esquema (`init-leads-tables.sql`): `leads` / `cola_revision` /
       `cualificacion_log`, mismo reparto que la Demo 4, dedup por email y empresa en SQL,
       verificado con Postgres efímero (idempotente, CHECK y UNIQUE disparan).
+- [x] **Lun 31 (adelantado el core de Mar)** — `grafo_leads.py`: 8 nodos
+      (ingesta → investigación → cualificación → aplicar_rúbrica → validación → gate →
+      {persistir | cola}), log en todo camino. R1–R12 en Python (`aplicar_rubrica` /
+      `_descalificar`), el modelo solo devuelve juicio sin etiqueta. `validaciones.py`
+      (email, trazabilidad de señales, `normalizar_empresa`). `procesar_leads.py`
+      (`--sin-llm` + `SALTAR_INVESTIGACION`). `test_rubrica.py` (alcanzabilidad R8/R9/R11/R12,
+      regla dura, R13–R15). `langgraph.json`, `.env.example`, `diagrama.py`, `grafo_leads.mmd`.
+      `investigacion_agente` real = stub que lanza `NotImplementedError` (Mié). Verificado
+      end-to-end contra Postgres efímero: caliente→leads, frío→leads, sin_cualificar→cola,
+      duplicado→cola.
 
 ## Pendiente W36
 
-- [ ] **Mar 1** — Core: copiar el grafo de la Demo 4, adaptar nodos, loader de rúbrica,
-      validaciones, gate, Postgres.
-- [ ] **Mié 2** — `investigacion_agente` + las 2 tools + criterio de parada. Dataset 25–30
+- [ ] **Mar 1** — (core adelantado) libre para: 2ª pasada de la rúbrica, pulido de motivos,
+      o adelantar dataset.
+- [ ] **Mié 2** — `investigacion_agente` real: bucle ReAct + 2 tools + criterio de parada.
+      Dataset 25–30
       leads con ground truth (cada fila: payload de `ficha_empresa` + fragmentos de
       `buscar_señales` + `etiqueta_esperada` + `regla_esperada`).
 - [ ] **Jue 3** — Cola V2 (dict + 1 llamada de redacción + borrador GreenMail) +

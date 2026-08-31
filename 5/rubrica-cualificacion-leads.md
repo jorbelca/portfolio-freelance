@@ -93,7 +93,7 @@ Señales, cada una vale 1:
 | # | Condición | Resultado |
 |---|---|---|
 | R13 | El modelo nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_revision` con ambas lecturas. El recorte lo hace el nodo — no se le pide al prompt una "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
-| R14 | `ficha_empresa` no da datos suficientes para evaluar R1–R7, o `buscar_señales` no devuelve nada | `sin_cualificar` → `cola_revision`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa** |
+| R14 | `ficha_empresa` no devuelve datos suficientes para evaluar R1–R7 (la clasificación no se apoyaría en nada) | `sin_cualificar` → `cola_revision`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa.** Una ficha válida sin ninguna señal de timing **no** es R14 — es R12 |
 | R15 | Confianza declarada del modelo < `LEADS_CONFIANZA_UMBRAL` (def. 0.7) en la etiqueta elegida | `cola_revision`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal |
 | R16 | Etiqueta final = `caliente` | Asignación de comercial (dict estático) + redacción del primer email (V2). El borrador **siempre** queda en `cola_revision` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
 
