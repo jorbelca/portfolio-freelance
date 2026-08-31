@@ -85,7 +85,7 @@ class Estado(TypedDict, total=False):
     confianza: float
     errores_validacion: list
     decision: str                 # 'persistir_ok' | 'cola_revision'
-    resultado_log: str            # 'cualificado' | 'cola_revision' | 'sin_cualificar'
+    resultado_log: str            # 'cualificado' | 'cola_leads' | 'sin_cualificar'
     lead_id: Optional[int]
     cola_id: Optional[int]
     # V2 (solo caliente que pasa el gate).
@@ -300,7 +300,7 @@ def gate_confianza(estado: Estado) -> dict:
 
     # Regla dura: errores deterministas ganan siempre, sin mirar la confianza.
     if estado.get("errores_validacion"):
-        return {"decision": "cola_revision", "resultado_log": "cola_revision",
+        return {"decision": "cola_revision", "resultado_log": "cola_leads",
                 "etiqueta": estado.get("etiqueta"), "motivo": "; ".join(estado["errores_validacion"])}
 
     # R14: sin evidencia para cualificar. Ausencia de datos no es señal negativa -> no se fuerza frio.
@@ -313,12 +313,12 @@ def gate_confianza(estado: Estado) -> dict:
     # R13: el modelo nombra una etiqueta rival defendible -> se toma la más baja y va a cola.
     if rival in ORDEN_ETIQUETA and rival != etiqueta:
         baja = min((etiqueta, rival), key=lambda x: ORDEN_ETIQUETA[x])
-        return {"decision": "cola_revision", "resultado_log": "cola_revision", "etiqueta": baja,
+        return {"decision": "cola_revision", "resultado_log": "cola_leads", "etiqueta": baja,
                 "motivo": f"frontera {estado.get('regla')}: {etiqueta} vs {rival} (rival declarada) — se toma {baja}"}
 
     # R15: umbral de confianza. El último y el más débil.
     if estado.get("confianza", 0.0) < UMBRAL_DEFECTO:
-        return {"decision": "cola_revision", "resultado_log": "cola_revision", "etiqueta": etiqueta,
+        return {"decision": "cola_revision", "resultado_log": "cola_leads", "etiqueta": etiqueta,
                 "motivo": f"confianza baja ({estado.get('confianza', 0.0):.2f} < {UMBRAL_DEFECTO})"}
 
     return {"decision": "persistir_ok", "resultado_log": "cualificado", "etiqueta": etiqueta,
@@ -335,7 +335,7 @@ def _dsn():
 
 def _senales_con_evidencia(estado: Estado) -> list:
     """Resuelve cada `ref` a su fragmento recuperado. Lo que se guarda en leads.senales /
-    cola_revision.senales -- un motivo cuya señal cita evidencia que ya no está es
+    cola_leads.senales -- un motivo cuya señal cita evidencia que ya no está es
     inauditable, así que la evidencia se materializa junto a la señal."""
     crudas = estado.get("senales_crudas") or []
     out = []
@@ -361,7 +361,7 @@ def _fila_comun(estado: Estado) -> tuple:
 
 def _insertar_cola(cur, estado: Estado, motivo: str, tipo: str = "cualificacion") -> int:
     cur.execute(
-        """INSERT INTO cola_revision (empresa, empresa_normalizada, contacto_nombre, contacto_email,
+        """INSERT INTO cola_leads (empresa, empresa_normalizada, contacto_nombre, contacto_email,
            contacto_cargo, canal_origen, pais, sector, tipo_negocio, tamano_estimado,
            antiguedad_anios, etiqueta, senales, confianza, motivo, tipo)
            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
@@ -401,9 +401,9 @@ def persistir_ok(estado: Estado) -> dict:
             conn.rollback()
             cur = conn.cursor()
             cola_id = _insertar_cola(cur, estado, "duplicado (email o empresa ya en leads)")
-            _log(cur, estado, "cola_revision", "duplicado (email o empresa ya en leads)", cola_id=cola_id)
+            _log(cur, estado, "cola_leads", "duplicado (email o empresa ya en leads)", cola_id=cola_id)
             conn.commit()
-            return {"decision": "cola_revision", "resultado_log": "cola_revision",
+            return {"decision": "cola_revision", "resultado_log": "cola_leads",
                     "motivo": "duplicado (email o empresa ya en leads)", "cola_id": cola_id}
     finally:
         conn.close()
@@ -414,7 +414,7 @@ def cola_revision_nodo(estado: Estado) -> dict:
     try:
         cur = conn.cursor()
         cola_id = _insertar_cola(cur, estado, estado.get("motivo") or "(sin motivo)")
-        _log(cur, estado, estado.get("resultado_log", "cola_revision"), estado.get("motivo"), cola_id=cola_id)
+        _log(cur, estado, estado.get("resultado_log", "cola_leads"), estado.get("motivo"), cola_id=cola_id)
         conn.commit()
         return {"cola_id": cola_id}
     finally:
@@ -509,7 +509,7 @@ def redaccion_borrador(estado: Estado) -> dict:
     try:
         cur = conn.cursor()
         cola_id = _insertar_cola(cur, estado, "borrador pendiente de revisión", tipo="borrador")
-        cur.execute("UPDATE cola_revision SET borrador_message_id = %s WHERE id = %s", (msg_id, cola_id))
+        cur.execute("UPDATE cola_leads SET borrador_message_id = %s WHERE id = %s", (msg_id, cola_id))
         cur.execute(
             "UPDATE leads SET asignado_a = %s, followup_sugerido = %s, borrador_message_id = %s WHERE id = %s",
             (estado.get("asignado_a"), estado.get("followup_sugerido"), msg_id, estado.get("lead_id")))

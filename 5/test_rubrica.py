@@ -76,7 +76,7 @@ def test_gate():
 
     # Regla dura: error determinista -> cola aunque la confianza sea alta
     g = gate_confianza({**base, "errores_validacion": ["contacto_email: email sintácticamente inválido"]})
-    assert g["decision"] == "cola_revision" and g["resultado_log"] == "cola_revision"
+    assert g["decision"] == "cola_revision" and g["resultado_log"] == "cola_leads"
 
     # R13: rival declarada -> se toma la más baja
     g = gate_confianza({**base, "etiqueta_rival": "tibio"})

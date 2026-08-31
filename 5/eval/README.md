@@ -10,7 +10,7 @@
 - `hallazgos` — el juicio "verdad" del modelo (señales con `ref`, encaje, decisor, confianza,
   etiqueta rival). Se inyecta solo en `--sin-llm`.
 - `esperado` — `{etiqueta, regla, resultado_log, en_cola, motivo_contiene?}`. `en_cola` es
-  "la clasificación mandó el lead a revisión", **no** "existe una fila en `cola_revision`": un
+  "la clasificación mandó el lead a revisión", **no** "existe una fila en `cola_leads`": un
   `caliente` tiene `en_cola: false` aunque V2 le cree una fila `tipo='borrador'` (esa cola es
   otra cosa — el borrador de email esperando visto bueno, no una duda).
 
@@ -21,7 +21,7 @@ python3 eval/run_eval.py --dry-run          # estructural, sin Postgres
 # tras procesar_leads.py contra Postgres:
 python3 eval/run_eval.py                     # lee cualificacion_log y compara
 # antes de re-medir, vaciar (si no, corridas apiladas -> run_eval aborta):
-psql ... -c "TRUNCATE leads, cola_revision, cualificacion_log RESTART IDENTITY;"
+psql ... -c "TRUNCATE leads, cola_leads, cualificacion_log RESTART IDENTITY;"
 ```
 
 ## Dos modos, dos números — no se promedian

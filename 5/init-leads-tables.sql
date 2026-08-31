@@ -3,10 +3,10 @@
 -- idempotente al final, no editando los CREATE de arriba (mismo convenio que
 -- 4/init-facturas-tables.sql).
 --
--- Tres tablas, mismo reparto que 4/init-facturas-tables.sql (facturas / cola_revision /
+-- Tres tablas, mismo reparto que 4/init-facturas-tables.sql (facturas / cola_leads /
 -- extraccion_log):
 --   leads             -> cualificados, dato limpio, lo que leería el CRM o el panel.
---   cola_revision     -> dudosos, sin evidencia suficiente, o borradores de email pendientes
+--   cola_leads     -> dudosos, sin evidencia suficiente, o borradores de email pendientes
 --                        de revisar antes de enviarse.
 --   cualificacion_log -> TODO camino (incluido el feliz) escribe aquí. La trazabilidad no es
 --                        una rama del grafo, es una propiedad suya: sin esto no se puede
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS leads (
   -- Resultado de la cualificación.
   etiqueta TEXT NOT NULL CHECK (etiqueta IN ('caliente', 'tibio', 'frio')),
   -- motivo: texto libre (el vocabulario lo fija la rúbrica y crece sin migración de esquema,
-  -- mismo criterio que motivo en 4/cola_revision). regla es el identificador exacto (R8,
+  -- mismo criterio que motivo en 4/cola_leads). regla es el identificador exacto (R8,
   -- R10...) para poder agrupar y auditar por regla.
   motivo TEXT NOT NULL,
   regla TEXT,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS leads (
   borrador_message_id TEXT,     -- id del correo en GreenMail si se redactó borrador
   creado_en TIMESTAMPTZ DEFAULT now(),
   -- Dedup: única fuente de verdad, sin pre-check en Python (mismo criterio que el UNIQUE de
-  -- 4/facturas). El UniqueViolation se reconduce a cola_revision con motivo 'duplicado'.
+  -- 4/facturas). El UniqueViolation se reconduce a cola_leads con motivo 'duplicado'.
   --  - contacto_email: global. Un contacto es un contacto, esté como esté clasificado.
   --  - empresa_normalizada: PARCIAL, solo caliente/tibio (ver índice al final). Una cuenta que
   --    un comercial trabaja no debe abrirse dos veces; pero una empresa 'frio' (p.ej. fuera de
@@ -58,11 +58,11 @@ CREATE TABLE IF NOT EXISTS leads (
   UNIQUE (contacto_email)
 );
 
--- cola_revision: mismo contrato de campos que leads, sin los UNIQUE (un lead puede llegar aquí
+-- cola_leads: mismo contrato de campos que leads, sin los UNIQUE (un lead puede llegar aquí
 -- precisamente por ser un duplicado). etiqueta es nullable: si el caso es sin_cualificar, el
 -- modelo no llegó a proponer una. tipo distingue las dos clases de cola: la cualificación
 -- dudosa y el borrador de email de un 'caliente' esperando visto bueno humano (V2).
-CREATE TABLE IF NOT EXISTS cola_revision (
+CREATE TABLE IF NOT EXISTS cola_leads (
   id SERIAL PRIMARY KEY,
   empresa TEXT,
   empresa_normalizada TEXT,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS cola_revision (
 );
 
 -- cualificacion_log: registro único de toda decisión del grafo, una fila por lead procesado.
--- resultado distingue las tres salidas: cualificado (a leads), cola_revision (dudoso), y
+-- resultado distingue las tres salidas: cualificado (a leads), cola_leads (dudoso), y
 -- sin_cualificar (el modelo no devolvió nada aprovechable o no había evidencia -- mismo caso
 -- que 'error_extraccion' en la Demo 4: el fallo no puede hacer desaparecer el lead).
 -- lead_id / cola_id son nullable y mutuamente excluyentes según resultado; no se impone con
@@ -99,14 +99,14 @@ CREATE TABLE IF NOT EXISTS cualificacion_log (
   -- id estable del lead en la entrada (equivalente al message_id / pdf_origen de las otras
   -- demos). El eval empareja por aquí e impone un rastro como máximo por lead y ejecución.
   lead_ref TEXT NOT NULL,
-  resultado TEXT NOT NULL CHECK (resultado IN ('cualificado', 'cola_revision', 'sin_cualificar')),
+  resultado TEXT NOT NULL CHECK (resultado IN ('cualificado', 'cola_leads', 'sin_cualificar')),
   etiqueta TEXT,
   motivo TEXT,
   regla TEXT,
   senales JSONB,
   confianza NUMERIC(4,3),
   lead_id INTEGER REFERENCES leads(id),
-  cola_id INTEGER REFERENCES cola_revision(id),
+  cola_id INTEGER REFERENCES cola_leads(id),
   creado_en TIMESTAMPTZ DEFAULT now()
 );
 

@@ -8,7 +8,7 @@
 
 Criterio con el que el nodo `cualificacion_llm` asigna a cada lead entrante una de tres
 etiquetas —`caliente`, `tibio`, `frio`— y el motivo que la produjo, citando la regla concreta
-de esta rúbrica. La etiqueta y el motivo se escriben en `leads`, o en `cola_revision` si el
+de esta rúbrica. La etiqueta y el motivo se escriben en `leads`, o en `cola_leads` si el
 caso es dudoso; un humano revisa antes de que salga ningún correo.
 
 **Esto es criterio comercial inventado para la demo.** No hay fuente externa que lo valide
@@ -92,10 +92,10 @@ Señales, cada una vale 1:
 
 | # | Condición | Resultado |
 |---|---|---|
-| R13 | El modelo nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_revision` con ambas lecturas. El recorte lo hace el nodo — no se le pide al prompt una "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
-| R14 | `ficha_empresa` no devuelve datos suficientes para evaluar R1–R7 (la clasificación no se apoyaría en nada) | `sin_cualificar` → `cola_revision`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa.** Una ficha válida sin ninguna señal de timing **no** es R14 — es R12 |
-| R15 | Confianza declarada del modelo < `LEADS_CONFIANZA_UMBRAL` (def. 0.7) en la etiqueta elegida | `cola_revision`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal |
-| R16 | Etiqueta final = `caliente` | Asignación de comercial (dict estático) + redacción del primer email (V2). El borrador **siempre** queda en `cola_revision` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
+| R13 | El modelo nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_leads` con ambas lecturas. El recorte lo hace el nodo — no se le pide al prompt una "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
+| R14 | `ficha_empresa` no devuelve datos suficientes para evaluar R1–R7 (la clasificación no se apoyaría en nada) | `sin_cualificar` → `cola_leads`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa.** Una ficha válida sin ninguna señal de timing **no** es R14 — es R12 |
+| R15 | Confianza declarada del modelo < `LEADS_CONFIANZA_UMBRAL` (def. 0.7) en la etiqueta elegida | `cola_leads`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal |
+| R16 | Etiqueta final = `caliente` | Asignación de comercial (dict estático) + redacción del primer email (V2). El borrador **siempre** queda en `cola_leads` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
 
 ## 4. Qué es determinista y vive fuera de esta rúbrica
 
@@ -104,7 +104,7 @@ confianza** (misma regla dura que la Demo 4):
 
 1. **Campos obligatorios**: nombre de empresa + email de contacto. Sin ellos no hay lead que cualificar, hay ruido.
 2. **Email sintácticamente válido.**
-3. **Deduplicación** en SQL, no en Python (`UNIQUE` en `leads`). Por email de contacto (global) y por empresa **solo entre cuentas `caliente`/`tibio`** — las que un comercial trabaja. Un segundo contacto de una cuenta ya trabajada → `cola_revision` para que el comercial asignado decida. Una empresa `frio` no reserva el nombre: si más tarde llega un contacto mejor o la empresa deja de estar descalificada, se evalúa de cero.
+3. **Deduplicación** en SQL, no en Python (`UNIQUE` en `leads`). Por email de contacto (global) y por empresa **solo entre cuentas `caliente`/`tibio`** — las que un comercial trabaja. Un segundo contacto de una cuenta ya trabajada → `cola_leads` para que el comercial asignado decida. Una empresa `frio` no reserva el nombre: si más tarde llega un contacto mejor o la empresa deja de estar descalificada, se evalúa de cero.
 4. **Trazabilidad de las señales**: cada señal que el modelo cite en el motivo debe referenciar un fragmento realmente recuperado por `buscar_señales` (`snippet` + `url` + `recuperado_en`, guardados en `señales`). Una señal sin respaldo en la evidencia → `sin_cualificar` / cola. El modelo no se vigila a sí mismo desde el prompt (lección de la Demo 3, `2/README-detallado.md`): lo comprueba el nodo.
 
 ## 5. Zona gris declarada

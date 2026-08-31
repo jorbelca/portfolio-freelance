@@ -13,11 +13,11 @@ ingesta_lead
   → cualificacion_llm (rúbrica versionada, rubrica-cualificacion-leads.md)
   → validacion_determinista (campos, email, dedup SQL, trazabilidad de señales)
   → gate_confianza
-      ├─ cola_revision  ───────────────────────────────┐
+      ├─ cola_leads  ───────────────────────────────┐
       └─ persistir_ok → Postgres                       │
             → enrutado (dict estático)     [V2 cola]    │
             → redaccion_outreach (1 llamada LLM)        │
-            → cola_revision (tipo='borrador') ──────────┤
+            → cola_leads (tipo='borrador') ──────────┤
             → email_borrador (GreenMail, sin enviar)    │
                                                         ↓
                               log de motivos en TODOS los caminos
@@ -46,7 +46,7 @@ Tools de `investigacion_agente` (2, no más):
       16 reglas R1–R16, prelación first-match-wins en 4 bloques (descalificadores → gates de
       encaje → conteo de señales → comprobaciones sobre la etiqueta elegida). ICP ficticio
       "Nubeforge" (SaaS de observabilidad de coste/pipelines cloud → startups de producto UK
-      post-PMF). Esquema (`init-leads-tables.sql`): `leads` / `cola_revision` /
+      post-PMF). Esquema (`init-leads-tables.sql`): `leads` / `cola_leads` /
       `cualificacion_log`, mismo reparto que la Demo 4, dedup por email y empresa en SQL,
       verificado con Postgres efímero (idempotente, CHECK y UNIQUE disparan).
 - [x] **Lun 31 (adelantado el core de Mar)** — `grafo_leads.py`: 8 nodos

@@ -26,7 +26,7 @@ except ImportError:
     psycopg2 = None
 
 ETIQUETAS = ["caliente", "tibio", "frio", None]  # None == sin_cualificar
-RESULTADOS = ("cualificado", "cola_revision", "sin_cualificar")
+RESULTADOS = ("cualificado", "cola_leads", "sin_cualificar")
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -72,7 +72,7 @@ def leer_log(dsn):
     if multi:
         print(f"ERROR: {len(multi)} lead_ref con mas de una fila en cualificacion_log: {multi}")
         print("Hay resultados de mas de una corrida mezclados; el numero no seria fiable.")
-        print('Vacia y repite:  psql ... -c "TRUNCATE leads, cola_revision, cualificacion_log RESTART IDENTITY;"')
+        print('Vacia y repite:  psql ... -c "TRUNCATE leads, cola_leads, cualificacion_log RESTART IDENTITY;"')
         sys.exit(1)
     return {k: v[0] for k, v in por_ref.items()}
 
