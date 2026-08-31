@@ -36,7 +36,7 @@ def main():
     grafo = construir_grafo()
     filas = cargar_dataset(args.dataset)
     print(f"Procesando {len(filas)} leads ({'--sin-llm' if args.sin_llm else 'modelo real'}, "
-          f"investigación {'inyectada' if saltar_inv else 'real'})...")
+          f"web {'inyectada del dataset' if saltar_inv else 'real'}; ficha SIEMPRE del mock)...")
 
     for d in filas:
         estado = {
@@ -48,7 +48,7 @@ def main():
             "canal_origen": d["lead"].get("canal_origen"),
         }
         if saltar_inv:
-            estado["canned_ficha"] = d.get("ficha") or {}
+            # Solo la mitad web. La ficha la resuelve investigacion_agente vía ficha_empresa().
             estado["canned_senales"] = d.get("senales_crudas") or []
         if args.sin_llm:
             estado["canned_hallazgos"] = d.get("hallazgos") or {"senales": [], "confianza": 0.9}

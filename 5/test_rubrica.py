@@ -6,7 +6,12 @@ gate_confianza (R13-R15 + regla dura). No toca Postgres ni llama a ningún model
 Cubre en particular que R8/R9 (gates de encaje) y R11/R12 (conteo) son ALCANZABLES -- el bug
 que corrigió la reordenación de la rúbrica el 2026-08-31.
 """
+import json
+from pathlib import Path
+
 from grafo_leads import _descalificar, _senales_con_evidencia, aplicar_rubrica, gate_confianza
+from tools import ficha_empresa
+from validaciones import validar_lead
 
 # Claves que un fragmento de senales_crudas DEBE traer -- el stub de investigacion_agente las
 # produce hoy; el bucle ReAct real (miércoles) tiene que producir las mismas, o la
@@ -99,13 +104,45 @@ def test_evidencia_materializada():
     assert _senales_con_evidencia(estado)[0]["url"] is None
 
 
+def test_dataset_replay():
+    """Replay del núcleo determinista sobre eval/dataset.jsonl (ficha real del mock +
+    hallazgos inyectados), sin Postgres ni modelo. Debe dar 30/30 -- si no, o hay un bug en
+    las reglas o una etiqueta del dataset está mal. La dedup (l25/l26) necesita SQL: se
+    comprueba solo que el gate llegaría a persistir antes de chocar."""
+    filas = [json.loads(l) for l in open(Path(__file__).parent / "eval" / "dataset.jsonl") if l.strip()]
+    assert len(filas) == len({f["id"] for f in filas}) == 30
+    emails = [f["lead"]["contacto_email"] for f in filas]
+    assert len(emails) - len(set(emails)) == 1, "el dataset debe tener exactamente 1 email duplicado (l25)"
+
+    for f in filas:
+        lead, hz, esp = f["lead"], f["hallazgos"], f["esperado"]
+        ficha = ficha_empresa(lead["empresa"])
+        est = {"empresa": lead["empresa"], "contacto_email": lead["contacto_email"], "ficha": ficha,
+               "hallazgos": hz, "confianza": hz.get("confianza", 0.9),
+               "etiqueta_rival": hz.get("etiqueta_rival"), "senales_crudas": f["senales_crudas"]}
+        est.update(aplicar_rubrica(est))
+        est["errores_validacion"] = validar_lead(
+            {"empresa": lead["empresa"], "contacto_email": lead["contacto_email"]}, hz, f["senales_crudas"])
+        g = gate_confianza(est)
+
+        if esp.get("motivo_contiene") == "duplicado":
+            assert g["decision"] == "persistir_ok", f"{f['id']}: esperaba llegar a persistir antes de la dedup, {g}"
+            continue
+        assert g.get("resultado_log") == esp["resultado_log"], f"{f['id']}: resultado {g.get('resultado_log')} != {esp['resultado_log']}"
+        assert g.get("etiqueta") == esp["etiqueta"], f"{f['id']}: etiqueta {g.get('etiqueta')} != {esp['etiqueta']}"
+        assert est.get("regla") == esp["regla"], f"{f['id']}: regla {est.get('regla')} != {esp['regla']}"
+        if "motivo_contiene" in esp:
+            assert esp["motivo_contiene"] in (g.get("motivo") or ""), f"{f['id']}: motivo '{g.get('motivo')}' sin '{esp['motivo_contiene']}'"
+
+
 def demo():
     test_descalificadores()
     test_gates_de_encaje_alcanzables()
     test_conteo_de_senales()
     test_gate()
     test_evidencia_materializada()
-    print("test_rubrica.py: OK (5 bloques)")
+    test_dataset_replay()
+    print("test_rubrica.py: OK (6 bloques)")
 
 
 if __name__ == "__main__":

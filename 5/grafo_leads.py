@@ -35,10 +35,12 @@ import psycopg2
 import psycopg2.errors
 from langgraph.graph import END, START, StateGraph
 
+from tools import buscar_senales, ficha_empresa
 from validaciones import normalizar_empresa, validar_lead
 
 AQUI = Path(__file__).resolve().parent
 UMBRAL_DEFECTO = float(os.environ.get("LEADS_CONFIANZA_UMBRAL", "0.7"))
+MAX_BUSQUEDAS = int(os.environ.get("LEADS_MAX_BUSQUEDAS", "3"))
 ORDEN_ETIQUETA = {"frio": 0, "tibio": 1, "caliente": 2}
 
 # Listas del criterio comercial (ver §5 de la rúbrica: son del cliente y cambian; aquí van
@@ -60,12 +62,12 @@ class Estado(TypedDict, total=False):
     canal_origen: Optional[str]
     empresa_normalizada: str
     # Inyectados en modo SALTAR_INVESTIGACION / --sin-llm (ver procesar_leads.py).
-    canned_ficha: Optional[dict]
-    canned_senales: Optional[list]
-    canned_hallazgos: Optional[dict]
+    canned_senales: Optional[list]     # sustituye solo la mitad web (no reproducible)
+    canned_hallazgos: Optional[dict]   # --sin-llm: además salta el modelo
     # Producidos por los nodos.
     ficha: dict
     senales_crudas: list          # [{"snippet": ..., "url": ..., "recuperado_en": ...}]
+    investigacion_pasos: list     # traza del bucle ReAct, para el log / la demo
     hallazgos: dict               # juicio del modelo, SIN etiqueta
     _error_cualificacion: Optional[str]
     etiqueta: Optional[str]
@@ -87,17 +89,33 @@ def ingesta_lead(estado: Estado) -> dict:
 
 
 def investigacion_agente(estado: Estado) -> dict:
-    """El bucle ReAct real (tools ficha_empresa + buscar_señales, criterio de parada) llega el
-    miércoles. Hoy: si el estado trae ficha/señales inyectadas se usan tal cual. La forma que
-    se produce aquí -- `ficha` dict, `senales_crudas` lista de {snippet,url,recuperado_en} --
-    es la que tendrá que devolver el bucle real, para que sea un swap y no una reescritura."""
-    if estado.get("canned_ficha") is not None:
-        return {"ficha": estado["canned_ficha"],
-                "senales_crudas": estado.get("canned_senales") or []}
-    raise NotImplementedError(
-        "investigacion_agente real pendiente (W36 miércoles). Para probar el resto del grafo, "
-        "ejecuta procesar_leads.py con SALTAR_INVESTIGACION=1 -- inyecta ficha y señales del "
-        "dataset, mismo patrón que --sin-llm en la Demo 4.")
+    """`ficha_empresa` es determinista (lookup en el registro) y siempre se llama -- no hay
+    juicio en decidir consultarla. El juicio es la parte web: qué buscar y cuándo parar. Eso
+    es el bucle ReAct: el modelo ve la ficha + lo encontrado hasta ahora y decide la siguiente
+    query o `parar`, hasta MAX_BUSQUEDAS.
+
+    En modo SALTAR_INVESTIGACION / --sin-llm el estado trae `canned_senales`: se sustituye SOLO
+    la mitad web (la no reproducible); la ficha se sigue sacando del mock, para que ese camino
+    y el vídeo no puedan divergir (una sola fuente de ficha)."""
+    ficha = ficha_empresa(estado.get("empresa", ""))
+    if estado.get("canned_senales") is not None:
+        return {"ficha": ficha, "senales_crudas": estado["canned_senales"], "investigacion_pasos": []}
+
+    nombre = estado.get("empresa", "")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("Falta OPENROUTER_API_KEY para el bucle de investigación. "
+                           "Usa procesar_leads.py --sin-llm o SALTAR_INVESTIGACION=1.")
+    senales, pasos = [], []
+    for _ in range(MAX_BUSQUEDAS):
+        d = _paso_investigacion(nombre, ficha, senales, api_key)
+        pasos.append(d)
+        if d.get("accion") != "buscar" or not d.get("query"):
+            break
+        nuevas = buscar_senales(d["query"])
+        vistos = {s["url"] for s in senales}
+        senales.extend(s for s in nuevas if s.get("url") not in vistos)
+    return {"ficha": ficha, "senales_crudas": senales, "investigacion_pasos": pasos}
 
 
 def _llamar_openrouter(prompt: str, modelo: str, api_key: str) -> str:
@@ -112,6 +130,32 @@ def _llamar_openrouter(prompt: str, modelo: str, api_key: str) -> str:
         timeout=60,
     )
     return resp.choices[0].message.content
+
+
+def _paso_investigacion(nombre: str, ficha: dict, senales: list, api_key: str) -> dict:
+    """Un paso del bucle ReAct: el modelo ve la ficha y lo encontrado, y devuelve
+    {"accion": "buscar"|"parar", "query": <str>, "razonamiento": <str>}. Un fallo de
+    parseo se trata como 'parar' -- no bloquear la investigación por un JSON torcido."""
+    encontrado = "\n".join(f"- {s['snippet'][:200]}" for s in senales) or "(nada aún)"
+    prompt = (
+        f"Investigas si '{nombre}' es un buen lead para Nubeforge (SaaS de observabilidad de "
+        "coste y fiabilidad de pipelines de datos en la nube). Buscas señales de TIMING: ronda "
+        "de financiación reciente, contratación de ingeniería/plataforma/data, stack "
+        "cloud-native, menciones públicas de dolor con coste de nube o fiabilidad de datos.\n\n"
+        f"FICHA DE REGISTRO:\n{json.dumps(ficha, ensure_ascii=False)}\n\n"
+        f"SEÑALES ENCONTRADAS HASTA AHORA ({len(senales)}):\n{encontrado}\n\n"
+        "Decide el siguiente paso. Devuelve SOLO un JSON:\n"
+        '  {"accion": "buscar" | "parar", "query": "<consulta web si buscas>", "razonamiento": "<breve>"}\n'
+        "Para cuando tengas señales suficientes para cualificar, o cuando dos búsquedas "
+        "seguidas no aporten nada nuevo. No repitas una query ya usada."
+    )
+    try:
+        datos = json.loads(_llamar_openrouter(
+            prompt, os.environ.get("LEADS_MODELO", "dots-studio/dots-3-note-preview:free"), api_key))
+        return {"accion": datos.get("accion", "parar"), "query": datos.get("query"),
+                "razonamiento": datos.get("razonamiento")}
+    except Exception as e:
+        return {"accion": "parar", "query": None, "razonamiento": f"paso abortado: {e}"}
 
 
 def cualificacion_llm(estado: Estado) -> dict:
