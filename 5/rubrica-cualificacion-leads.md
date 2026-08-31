@@ -32,18 +32,26 @@ etiquetado como tal.
 | `ficha_empresa(nombre)` | Hechos de registro: país de constitución, estado (activa / disuelta / *dormant*), tipo de negocio (producto vs servicios), antigüedad, tamaño estimado, pertenencia a grupo | **Mock sobre dataset sintético**, etiquetado como tal. Es lo que en producción vendría de un registro mercantil |
 | `buscar_señales(nombre)` | Señales de *timing* e intención: ronda de financiación reciente, vacantes de ingeniería abiertas, menciones públicas de dolor (coste cloud, fiabilidad de datos) | **Búsqueda web real** (1 API pública gratis). Es el dato "en vivo" del vídeo |
 
-Regla de reparto: **los descalificadores (R1–R7) se evalúan contra `ficha_empresa`; las
-señales de tier (S1–S4, reglas R8–R12) se evalúan contra `buscar_señales`.** Si `ficha_empresa`
-no devuelve datos suficientes, ver R14 — no se fuerza `frio`.
+Regla de reparto: **los descalificadores (R1–R7) se evalúan contra `ficha_empresa`; los gates
+de encaje (R8–R9) y el conteo de señales (R10–R12) se evalúan contra `buscar_señales`.** Única
+excepción: **R6 cruza las dos fuentes** (tamaño de `ficha_empresa` + ausencia de S1 de
+`buscar_señales`) y es deliberado — una empresa de cinco personas que acaba de levantar ronda
+sí es lead. Si `ficha_empresa` no devuelve datos suficientes, ver R14 — no se fuerza `frio`.
+
+**`SALTAR_INVESTIGACION=1` no salta estas fuentes: inyecta una `ficha_empresa` y unos
+fragmentos de `buscar_señales` predefinidos por caso** (igual que `canned_extraccion` en
+`4/grafo_facturas.py`), para que el eval mida la clasificación con evidencia fija y
+reproducible. Cada fila del dataset lleva su payload de ficha + señales junto a la etiqueta
+esperada.
 
 ## 3. Prelación — lista ordenada, gana la primera regla que encaja
 
-El nodo recorre las reglas **en orden** y para en la primera que aplica. La etiqueta y el
-motivo salen de esa regla, citada por su identificador (`R7`, `R11`…). No se acumulan reglas:
-una sola produce la decisión. §14.4 lo pide explícito — *la etiqueta más el motivo citando la
-regla que la produjo*, en singular.
+El nodo recorre R1–R12 **en orden** y para en la primera que aplica; R13–R16 son
+comprobaciones que se aplican **después**, sobre la etiqueta ya elegida. La etiqueta y el
+motivo salen de una sola regla, citada por su identificador (`R6`, `R11`…). §14.4 lo pide
+explícito — *la etiqueta más el motivo citando la regla que la produjo*, en singular.
 
-### Descalificadores (contra `ficha_empresa`) — la primera que encaja → `frio`
+### 3.1 Descalificadores → `frio` (contra `ficha_empresa`)
 
 | # | Condición | Motivo registrado |
 |---|---|---|
@@ -52,34 +60,42 @@ regla que la produjo*, en singular.
 | R3 | Negocio de servicios a cliente (agencia, consultora, integrador) sin producto propio | `no es empresa de producto` |
 | R4 | Sector en la lista de exclusión comercial (defensa, juego, adulto, crypto pura) | `sector excluido` |
 | R5 | > 250 empleados, o filial de un grupo cotizado | `cuenta enterprise — fuera del motion self-serve` |
-| R6 | < 8 empleados **y** ninguna señal de financiación (S1) | `demasiado pronto, sin presupuesto` |
+| R6 | < 8 empleados **y** ninguna señal de financiación (S1) — *única regla que cruza ficha + web* | `demasiado pronto, sin presupuesto` |
 | R7 | Competidor directo conocido (lista mantenida aparte) | `competidor` |
 
-### Cualificación positiva (contra `buscar_señales`)
+### 3.2 Gates de encaje → `tibio` (se evalúan antes de contar señales)
 
-Señales de timing (cada una vale 1):
+Un lead que pasó R1–R7 pero falla el encaje cualitativo es `tibio` **aunque tenga señales de
+timing** — por eso van antes del conteo, no como una fila más de la tabla de conteo.
+
+| # | Condición | Motivo |
+|---|---|---|
+| R8 | Producto no cloud-native, o dominio solo adyacente al de Nubeforge | `encaje de producto débil` |
+| R9 | Contacto claramente junior / sin capacidad de decisión aparente y sin S1 | `contacto sin poder de decisión` |
+
+### 3.3 Conteo de señales de timing (contra `buscar_señales`)
+
+Señales, cada una vale 1:
 
 - **S1** — Ronda de financiación (Seed ≥ £1M, Serie A o Serie B) anunciada en los últimos 12 meses
 - **S2** — ≥ 2 vacantes abiertas de ingeniería / plataforma / data, o mención explícita de "scaling the team"
-- **S3** — Stack cloud-native visible (AWS/GCP/Azure + orquestación de datos o Kubernetes) → encaje de producto directo
+- **S3** — Stack cloud-native visible (AWS/GCP/Azure + orquestación de datos o Kubernetes)
 - **S4** — Mención pública de dolor en el dominio de Nubeforge: coste de nube, fiabilidad de pipelines, observabilidad de datos
 
-| # | Condición (ningún descalificador aplicó) | Etiqueta | Motivo |
+| # | Condición (pasó R1–R9) | Etiqueta | Motivo |
 |---|---|---|---|
-| R8 | ≥ 2 señales de timing | `caliente` | `encaje ICP + N señales de timing: <listadas>` |
-| R9 | Exactamente 1 señal de timing, ICP encaja | `tibio` | `una sola señal de timing (<cuál>) — no basta para caliente` |
-| R10 | 0 señales de timing, ICP encaja (UK, producto, tamaño 8–250) | `tibio` | `encaja perfil, sin disparador de timing` |
-| R11 | Hay señales de timing pero el encaje de producto es débil (no cloud-native, dominio adyacente) | `tibio` | `timing sí, encaje de producto débil` |
-| R12 | ICP encaja y hay señales, pero el contacto es claramente junior / sin capacidad de decisión y no hay S1 | `tibio` | `empresa correcta, contacto sin poder de decisión` |
+| R10 | ≥ 2 señales | `caliente` | `encaje ICP + N señales: <listadas>` |
+| R11 | Exactamente 1 señal | `tibio` | `una sola señal (<cuál>) — no basta para caliente` |
+| R12 | 0 señales, ICP encaja (UK, producto, tamaño 8–250) | `tibio` | `encaja perfil, sin disparador de timing` |
 
-### Gobierno del criterio
+### 3.4 Comprobaciones sobre la etiqueta elegida (R13–R16)
 
 | # | Condición | Resultado |
 |---|---|---|
-| R13 | Empate o caso en la frontera entre dos etiquetas con la misma evidencia | La etiqueta **más baja**, y a `cola_revision` con las dos lecturas anotadas |
-| R14 | `ficha_empresa` no da datos suficientes para evaluar los descalificadores, o `buscar_señales` no devuelve nada | `sin_cualificar` → `cola_revision`, motivo `sin evidencia para cualificar`. **No se fuerza `frio`: ausencia de datos no es señal negativa** |
-| R15 | Confianza del modelo por debajo del umbral (`LEADS_CONFIANZA_UMBRAL`, def. 0.7) en la etiqueta elegida | `cola_revision`, motivo `confianza baja (<valor>)`. Se aplica **después** de que R1–R12 hayan elegido etiqueta |
-| R16 | Etiqueta = `caliente` que pasa el gate | Sigue a asignación de comercial + redacción del primer email (V2). El borrador **siempre** queda en `cola_revision` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
+| R13 | El modelo nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_revision` con ambas lecturas. El recorte lo hace el nodo — no se le pide al prompt una "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
+| R14 | `ficha_empresa` no da datos suficientes para evaluar R1–R7, o `buscar_señales` no devuelve nada | `sin_cualificar` → `cola_revision`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa** |
+| R15 | Confianza declarada del modelo < `LEADS_CONFIANZA_UMBRAL` (def. 0.7) en la etiqueta elegida | `cola_revision`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal |
+| R16 | Etiqueta final = `caliente` | Asignación de comercial (dict estático) + redacción del primer email (V2). El borrador **siempre** queda en `cola_revision` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
 
 ## 4. Qué es determinista y vive fuera de esta rúbrica
 

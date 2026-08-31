@@ -9,9 +9,10 @@ pasan el gate se asignan a un comercial y se les redacta el primer email citando
 encaje; el borrador queda en GreenMail, sin enviar. Log de motivos en todos los caminos.
 
 Un solo repo, un solo grafo, dos actos: V1 (investigación + cualificación + cola) y V2 (V1 +
-la cola de asignación/redacción de 2 nodos). `SALTAR_INVESTIGACION=1` desactiva las dos tools
-para que el eval mida la clasificación aislada y sea reproducible (mismo patrón que el
-`--sin-llm` de la Demo 4). Lo que se vende es el patrón, no el caso.
+la cola de asignación/redacción de 2 nodos). `SALTAR_INVESTIGACION=1` inyecta una ficha de
+empresa y unos fragmentos de búsqueda predefinidos por caso en vez de llamar a las tools, para
+que el eval mida la clasificación con evidencia fija y reproducible (mismo patrón que el
+`canned_extraccion` del `--sin-llm` de la Demo 4). Lo que se vende es el patrón, no el caso.
 
 Construido con LangGraph, Postgres (reutiliza `../1/docker-compose.yml`), GreenMail y modelos
 vía OpenRouter.
