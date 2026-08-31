@@ -65,15 +65,22 @@ Tools de `investigacion_agente` (2, no más):
       8 encaje claro / 7 frío 1-por-regla / 6 sin ficha R14 / 4 frontera / 2 dup).
       `eval/README.md` (dos modos, dos números). `test_rubrica.py::test_dataset_replay` 30/30.
       Verificado `--sin-llm` completo contra Postgres efímero: 30/30 (leads 18, cola 12).
+- [x] **Lun 31 (adelantado Jue)** — Cola V2: `enrutado` (dict sector→comercial + followup
+      "3 días") → `redaccion_borrador` (1 llamada al modelo, o plantilla marcada; email a
+      `borradores@nubeforge.local`, nunca al prospecto; sin SMTP → `borrador_message_id` NULL
+      pero la fila de cola `tipo='borrador'` igual se crea). `_rama_persistir`: solo `caliente`
+      pasa a redacción (R16). `panel/panel.sql` (6 vistas; `v_cola_pendiente` filtra
+      `tipo='cualificacion'`, `v_borradores_pendientes` aparte). `eval/run_eval.py` (patrón
+      `1/eval`; `--dry-run` + real; bucket propio para `regla`; aborta si hay corridas
+      apiladas). Verificado e2e: `--sin-llm` 30/30, `run_eval` 100 %/100 %, 4 caliente →
+      borrador + asignación.
 
 ## Pendiente W36
 
-- [ ] **Mar 1** — (Lun+Mar adelantados) buffer: 2ª pasada de rúbrica, prueba del bucle ReAct
-      con `OPENROUTER_API_KEY` real, o adelantar la cola V2.
-- [ ] **Mié 2** — (adelantado) → medir el modo `SALTAR_INVESTIGACION` (modelo real sobre
-      evidencia fija) y anotar el número que va al vídeo.
-- [ ] **Jue 3** — Cola V2 (dict + 1 llamada de redacción + borrador GreenMail) +
-      `eval/run_eval.py` (patrón `1/eval`) + panel SQL.
+- [ ] **Mar–Jue** — buffer (todo el build adelantado). Pendiente real:
+      **medir el modo `SALTAR_INVESTIGACION` con `OPENROUTER_API_KEY`** (modelo sobre evidencia
+      fija) y anotar el número del vídeo; falsar los `hallazgos` de `l06`/`l07`; probar el
+      bucle ReAct en vivo contra GreenMail levantado.
 - [ ] **Sáb 5** — 1 vídeo, 2 actos + subir a Malt/LinkedIn.
 
 **Escape hatch.** Si el jueves va justo: se publica V1 solo el sábado, la cola V2 pasa a W37.
