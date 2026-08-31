@@ -1,0 +1,77 @@
+# Plan Demo 5 — Cualificación de leads → asignación → primer contacto
+
+**No son dos proyectos.** V2 = V1 + una cola de 2 nodos. Un solo repo, un solo grafo, un solo
+vídeo con dos actos. Reutiliza casi entero el grafo de la Demo 4 y el `docker-compose.yml` de
+`../1/`. Semana W36 (2026-08-31 → 2026-09-05).
+
+## Arquitectura — un grafo, cola opcional
+
+```
+ingesta_lead
+  → investigacion_agente        [V1: bucle ReAct]
+        loop: ficha_empresa → buscar_señales → ¿bastante? → sigue | para
+  → cualificacion_llm (rúbrica versionada, rubrica-cualificacion-leads.md)
+  → validacion_determinista (campos, email, dedup SQL, trazabilidad de señales)
+  → gate_confianza
+      ├─ cola_revision  ───────────────────────────────┐
+      └─ persistir_ok → Postgres                       │
+            → enrutado (dict estático)     [V2 cola]    │
+            → redaccion_outreach (1 llamada LLM)        │
+            → cola_revision (tipo='borrador') ──────────┤
+            → email_borrador (GreenMail, sin enviar)    │
+                                                        ↓
+                              log de motivos en TODOS los caminos
+```
+
+`SALTAR_INVESTIGACION=1` inyecta una `ficha_empresa` y unos fragmentos de `buscar_señales`
+predefinidos por caso (patrón `canned_extraccion` de la Demo 4) — el eval mide la
+clasificación con evidencia fija. Única perilla.
+
+Tools de `investigacion_agente` (2, no más):
+1. `ficha_empresa(nombre)` → mock sobre dataset sintético etiquetado como tal (hechos de registro)
+2. `buscar_señales(nombre)` → búsqueda web real, 1 API pública gratis (señales de timing; el dato "en vivo" del vídeo)
+
+## V2 reducida — qué se corta
+
+| Cortado | Sustituto |
+|---|---|
+| Integración de calendario / `programar_followup` | Campo `followup_sugerido: "3 días"` en el log. Sin API. |
+| Enrutado por carga / round-robin | Dict estático `{territorio/producto → comercial}`. ~10 líneas. |
+| Notificación multicanal (Slack + tarea CRM + email) | Solo el email borrador en GreenMail. |
+| Secuencia de outreach (varios emails) | Solo el primer email. |
+
+## Hecho
+
+- [x] **Lun 31** — Alcance escrito (`README.md`). Rúbrica v0.1 (`rubrica-cualificacion-leads.md`):
+      16 reglas R1–R16, prelación first-match-wins en 4 bloques (descalificadores → gates de
+      encaje → conteo de señales → comprobaciones sobre la etiqueta elegida). ICP ficticio
+      "Nubeforge" (SaaS de observabilidad de coste/pipelines cloud → startups de producto UK
+      post-PMF). Esquema (`init-leads-tables.sql`): `leads` / `cola_revision` /
+      `cualificacion_log`, mismo reparto que la Demo 4, dedup por email y empresa en SQL,
+      verificado con Postgres efímero (idempotente, CHECK y UNIQUE disparan).
+
+## Pendiente W36
+
+- [ ] **Mar 1** — Core: copiar el grafo de la Demo 4, adaptar nodos, loader de rúbrica,
+      validaciones, gate, Postgres.
+- [ ] **Mié 2** — `investigacion_agente` + las 2 tools + criterio de parada. Dataset 25–30
+      leads con ground truth (cada fila: payload de `ficha_empresa` + fragmentos de
+      `buscar_señales` + `etiqueta_esperada` + `regla_esperada`).
+- [ ] **Jue 3** — Cola V2 (dict + 1 llamada de redacción + borrador GreenMail) +
+      `eval/run_eval.py` (patrón `1/eval`) + panel SQL.
+- [ ] **Sáb 5** — 1 vídeo, 2 actos + subir a Malt/LinkedIn.
+
+**Escape hatch.** Si el jueves va justo: se publica V1 solo el sábado, la cola V2 pasa a W37.
+V1 cierra el hueco de perfil (tool-loop LangGraph); V2 es brillo. Nunca al revés.
+
+## Vídeo — ~90 s, 2 actos
+
+1. (35 s) **Acto V1**: entra un lead. El agente investiga en vivo — ficha, señales de hiring,
+   ronda de financiación. Clasifica `tibio` con la evidencia y las fuentes citadas.
+2. (20 s) **La discrepancia**: segundo lead, empresa sin rastro. El agente busca, no encuentra,
+   manda a cola. "Cuando no hay con qué decidir, no decide."
+3. (25 s) **Acto V2**: tercer lead, `caliente`. Se asigna a la comercial de su territorio, se
+   redacta el primer email citando por qué encaja, aparece en GreenMail como borrador. Nada se
+   envía solo.
+4. (10 s) **Cierre**: "Clasifica con evidencia, redacta el primer contacto, y para cuando no
+   está seguro."
