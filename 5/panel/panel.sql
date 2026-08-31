@@ -18,7 +18,10 @@ CREATE OR REPLACE VIEW v_borradores_pendientes AS
 SELECT c.id, c.empresa, c.contacto_email, l.asignado_a, l.followup_sugerido,
        c.borrador_message_id, c.creado_en
 FROM cola_revision c
-LEFT JOIN leads l ON l.empresa_normalizada = c.empresa_normalizada
+-- Join por contacto_email (UNIQUE global en leads) -- NO por empresa_normalizada: ese índice
+-- es parcial (solo caliente/tibio), así que varios 'frio' comparten empresa y el join se
+-- multiplicaría.
+LEFT JOIN leads l ON l.contacto_email = c.contacto_email
 WHERE c.tipo = 'borrador' AND NOT c.resuelto
 ORDER BY c.creado_en DESC;
 

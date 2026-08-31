@@ -140,6 +140,8 @@ def informe(dataset, log):
             escalados_de_mas.append(d["id"])
         if en_cola_obt:
             cat = (mo or "").split(":")[0].split(" (")[0]
+            if cat.startswith("frontera"):  # "frontera R10" / "frontera R12" -> un solo bucket (R13)
+                cat = "frontera (R13)"
             motivos_cola[cat] = motivos_cola.get(cat, 0) + 1
 
     print("\n=== 2. Acierto de ETIQUETA ===")

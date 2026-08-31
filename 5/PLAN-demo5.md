@@ -79,8 +79,10 @@ Tools de `investigacion_agente` (2, no más):
 
 - [ ] **Mar–Jue** — buffer (todo el build adelantado). Pendiente real:
       **medir el modo `SALTAR_INVESTIGACION` con `OPENROUTER_API_KEY`** (modelo sobre evidencia
-      fija) y anotar el número del vídeo; falsar los `hallazgos` de `l06`/`l07`; probar el
-      bucle ReAct en vivo contra GreenMail levantado.
+      fija) y anotar el número del vídeo; falsar los `hallazgos` de `l06`/`l07`; **probar la
+      ruta de éxito del borrador**: `docker compose up` en `../1/`, un lead `caliente`, y
+      verificar que el correo aparece en Roundcube (`:8081`) — hasta ahora solo se ha probado
+      la ruta de fallo de SMTP.
 - [ ] **Sáb 5** — 1 vídeo, 2 actos + subir a Malt/LinkedIn.
 
 **Escape hatch.** Si el jueves va justo: se publica V1 solo el sábado, la cola V2 pasa a W37.
