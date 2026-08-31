@@ -136,14 +136,16 @@ def investigacion_agente(estado: Estado) -> dict:
 def _llamar_openrouter(prompt: str, modelo: str, api_key: str) -> str:
     from openai import OpenAI
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
-    resp = client.chat.completions.create(
-        model=modelo,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096,          # margen para el scratchpad del modelo, no solo el JSON (lección Demo 3 i21)
-        temperature=0,
-        response_format={"type": "json_object"},
-        timeout=60,
-    )
+    kwargs = dict(model=modelo, messages=[{"role": "user", "content": prompt}],
+                  max_tokens=4096,  # margen para el scratchpad, no solo el JSON (lección Demo 3 i21)
+                  temperature=0, timeout=60)
+    if os.environ.get("LEADS_JSON_MODE", "1") == "1":
+        kwargs["response_format"] = {"type": "json_object"}  # algún modelo free lo rechaza -> LEADS_JSON_MODE=0
+    resp = client.chat.completions.create(**kwargs)
+    # Guard de la lección i21 / bug 1 de la Demo 4: una respuesta de error de OpenRouter llega
+    # con choices=None. Sin esto, resp.choices[0] tira un TypeError críptico en vez de un motivo.
+    if not getattr(resp, "choices", None):
+        raise RuntimeError(f"OpenRouter sin choices: {getattr(resp, 'error', None) or str(resp)[:200]}")
     return resp.choices[0].message.content
 
 
