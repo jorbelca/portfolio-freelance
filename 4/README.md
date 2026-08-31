@@ -10,7 +10,9 @@ y modelos vía OpenRouter. Por qué LangGraph y no n8n como las demos 1-3: ver �
 `demos-portfolio-exposicion-2026` (sustrato de implementación / hueco de aprendizaje del perfil,
 no una carencia de n8n — n8n también puede hacer llamadas agénticas, ver AI Agent node).
 
-## Estado actual: pipeline + dataset + eval completos, probado con `--sin-llm` y con LLM real
+## Estado actual
+
+Pipeline, dataset y eval completos; probado con `--sin-llm` y con LLM real.
 
 Lo que YA funciona de punta a punta contra Postgres real:
 - 30 facturas sintéticas (`generar_facturas.py`), 3 layouts distintos (estándar/compacta/tabla): 2 con aritmética rota, 2 con NIF inválido, 1 sin número, 1 duplicado, 1 IVA 10% normal, 1 IVA 4% normal, 1 escaneo ruidoso, 1 multipágina, 19 de relleno limpias variadas
@@ -89,20 +91,6 @@ subida, no de descarga pública. Decisión (2026-08-24): seguir solo con sintét
 - Decidir si 83.3% es aceptable para el vídeo tal cual (con nota de fiabilidad de modelo gratis)
   o si se prueba un modelo de pago para la corrida de referencia
 - Guion de vídeo / conexión al precio (§14.3 lo pide, aún no escrito)
-
-## Para el vídeo: 3 ganchos visuales, cero UI nueva
-
-- **Diagrama del grafo**: `python3 diagrama.py` escribe `grafo_facturas.mmd` (Mermaid). Pégalo en
-  mermaid.live, Obsidian o un README de GitHub para abrir el vídeo con el pipeline dibujado. Se
-  usó `draw_mermaid()` y no `draw_mermaid_png()` porque esta última pide red (mermaid.ink) o
-  graphviz local; la de texto ya viene con langgraph.
-- **Cola/panel en vivo**: Adminer ya corre en `../1/docker-compose.yml` (http://127.0.0.1:8082,
-  servidor `postgres`, usuario/clave de `../1/.env`). Apunta a las vistas de `panel/panel.sql`
-  (`v_cola_pendiente`, `v_importe_retenido`) y navega/graba ahí — no se construyó panel HTML
-  propio, mismo criterio que las demos 1-3.
-- **Escaneo ruidoso**: `generar_facturas.py` ahora conserva `facturas_pdf/f10.png` (antes se
-  borraba tras montarlo en el PDF). Enséñalo junto a la fila de `f10` en `v_cola_pendiente`
-  (motivo "confianza baja") — imagen con ruido → extracción degradada, el hueco de OCR en vivo.
 
 ## Cómo correrlo
 
