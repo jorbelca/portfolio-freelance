@@ -21,6 +21,16 @@
 El modo sin ninguna variable corre el bucle ReAct real (`buscar_señales` en vivo) — para la
 grabación, no para medir.
 
+**`regla` es la métrica que más importa**, más que el acierto de etiqueta: tres reglas
+distintas (R8, R11, R12) producen `tibio`, y solo `regla` las distingue. `run_eval.py` la
+reporta en su propio bucket (mismo criterio que "fundamento equivocado con imputación
+correcta" en la Demo 3).
+
+**Pendiente antes de grabar:** los `hallazgos` del dataset son "verdad" asumida. Falta una
+corrida `SALTAR_INVESTIGACION=1` sobre `l06` (encaje débil → R8) y `l07` (contacto junior →
+R9) con modelo real: si el modelo no deriva `encaje_producto: "debil"` / `contacto_decisor:
+false` de los snippets escritos, hay que reforzar el snippet, no la regla.
+
 ## Distribución del dataset
 
 - 8 con encaje claro y señales → `caliente`/`tibio` (`l01`–`l07`, `l28`, `l29`)

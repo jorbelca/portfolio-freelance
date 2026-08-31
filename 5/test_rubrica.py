@@ -39,7 +39,9 @@ def test_descalificadores():
     # R6 cruza ficha + hallazgos: 5 personas sin S1 -> frío; con S1 -> pasa
     assert _descalificar({"pais": "UK", "tamano_estimado": 5}, h())[0] == "R6"
     assert _descalificar({"pais": "UK", "tamano_estimado": 5}, h([{"tipo": "S1", "ref": 0}])) is None
-    assert _descalificar({"pais": "UK", "nombre": "Datadog UK"}, h())[0] == "R7"
+    assert _descalificar({"pais": "UK", "nombre": "Pipewatch Ltd"}, h())[0] == "R7"
+    # R6 por tamaño aunque haya una señal no-S1 (distingue de R6-por-vacío)
+    assert _descalificar({"pais": "UK", "tamano_estimado": 4}, h([{"tipo": "S2", "ref": 0}]))[0] == "R6"
     assert _descalificar(FICHA_OK, h()) is None
 
 

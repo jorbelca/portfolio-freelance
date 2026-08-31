@@ -46,7 +46,9 @@ ORDEN_ETIQUETA = {"frio": 0, "tibio": 1, "caliente": 2}
 # Listas del criterio comercial (ver §5 de la rúbrica: son del cliente y cambian; aquí van
 # como constantes del módulo, no como config, porque no hay un valor "por entorno").
 SECTORES_EXCLUIDOS = ("defensa", "armamento", "gambling", "juego", "casino", "adulto", "adult")
-COMPETIDORES = ("datadog", "grafana labs", "new relic", "observe inc")
+# Competidores ficticios de Nubeforge -- el universo de la demo es sintético entero, no se
+# mezclan marcas reales. En producción esta lista la aporta el cliente (§5 de la rúbrica).
+COMPETIDORES = ("pipewatch", "cloudsentry", "stackgauge", "nimbusmetrics")
 
 
 def _cargar_rubrica() -> str:
@@ -104,6 +106,9 @@ def investigacion_agente(estado: Estado) -> dict:
     nombre = estado.get("empresa", "")
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
+        # Error de configuración, no fallo de tool en runtime -> se falla rápido (mismo
+        # criterio que extraccion_llm en la Demo 4). Un fallo de buscar_senales EN MEDIO del
+        # bucle sí degrada a [] (ver tools.py) y el lead cae a R14, que es lo correcto en vivo.
         raise RuntimeError("Falta OPENROUTER_API_KEY para el bucle de investigación. "
                            "Usa procesar_leads.py --sin-llm o SALTAR_INVESTIGACION=1.")
     senales, pasos = [], []
