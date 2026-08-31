@@ -9,7 +9,8 @@ que corrigió la reordenación de la rúbrica el 2026-08-31.
 import json
 from pathlib import Path
 
-from grafo_leads import _descalificar, _senales_con_evidencia, aplicar_rubrica, gate_confianza
+from grafo_leads import (_descalificar, _rama_persistir, _senales_con_evidencia, aplicar_rubrica,
+                         gate_confianza)
 from tools import ficha_empresa
 from validaciones import validar_lead
 
@@ -106,6 +107,15 @@ def test_evidencia_materializada():
     assert _senales_con_evidencia(estado)[0]["url"] is None
 
 
+def test_rama_v2():
+    # R16: solo caliente que pasó el gate va a redacción de borrador.
+    assert _rama_persistir({"decision": "persistir_ok", "etiqueta": "caliente"}) == "outreach"
+    assert _rama_persistir({"decision": "persistir_ok", "etiqueta": "tibio"}) == "fin"
+    assert _rama_persistir({"decision": "persistir_ok", "etiqueta": "frio"}) == "fin"
+    # el camino de duplicado ya lo cerró persistir_ok, no vuelve a redacción
+    assert _rama_persistir({"decision": "cola_revision", "etiqueta": "caliente"}) == "fin"
+
+
 def test_dataset_replay():
     """Replay del núcleo determinista sobre eval/dataset.jsonl (ficha real del mock +
     hallazgos inyectados), sin Postgres ni modelo. Debe dar 30/30 -- si no, o hay un bug en
@@ -143,8 +153,9 @@ def demo():
     test_conteo_de_senales()
     test_gate()
     test_evidencia_materializada()
+    test_rama_v2()
     test_dataset_replay()
-    print("test_rubrica.py: OK (6 bloques)")
+    print("test_rubrica.py: OK (7 bloques)")
 
 
 if __name__ == "__main__":

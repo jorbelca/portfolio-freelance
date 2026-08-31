@@ -13,17 +13,22 @@ graph TD;
 	gate_confianza(gate_confianza)
 	persistir_ok(persistir_ok)
 	cola_revision(cola_revision)
+	enrutado(enrutado)
+	redaccion_borrador(redaccion_borrador)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> ingesta_lead;
 	aplicar_rubrica --> validacion_determinista;
 	cualificacion_llm --> aplicar_rubrica;
+	enrutado --> redaccion_borrador;
 	gate_confianza -.-> cola_revision;
 	gate_confianza -.-> persistir_ok;
 	ingesta_lead --> investigacion_agente;
 	investigacion_agente --> cualificacion_llm;
+	persistir_ok -. &nbsp;fin&nbsp; .-> __end__;
+	persistir_ok -. &nbsp;outreach&nbsp; .-> enrutado;
 	validacion_determinista --> gate_confianza;
 	cola_revision --> __end__;
-	persistir_ok --> __end__;
+	redaccion_borrador --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc

@@ -50,6 +50,12 @@ SECTORES_EXCLUIDOS = ("defensa", "armamento", "gambling", "juego", "casino", "ad
 # mezclan marcas reales. En producción esta lista la aporta el cliente (§5 de la rúbrica).
 COMPETIDORES = ("pipewatch", "cloudsentry", "stackgauge", "nimbusmetrics")
 
+# --- V2: enrutado + primer email -------------------------------------------------------
+# Dict estático sector -> comercial (§14 del plan: "~10 líneas", no round-robin ni carga).
+COMERCIALES = {"fintech": "Dana Ruiz", "saas": "Marco Vidal", "software": "Marco Vidal"}
+COMERCIAL_DEFECTO = "Aisha Kern"
+FOLLOWUP_SUGERIDO = os.environ.get("LEADS_FOLLOWUP", "3 días")  # solo texto en el log, sin calendario
+
 
 def _cargar_rubrica() -> str:
     return (AQUI / "rubrica-cualificacion-leads.md").read_text(encoding="utf-8")
@@ -82,6 +88,10 @@ class Estado(TypedDict, total=False):
     resultado_log: str            # 'cualificado' | 'cola_revision' | 'sin_cualificar'
     lead_id: Optional[int]
     cola_id: Optional[int]
+    # V2 (solo caliente que pasa el gate).
+    asignado_a: Optional[str]
+    followup_sugerido: Optional[str]
+    borrador_message_id: Optional[str]
 
 
 # --- Nodos --------------------------------------------------------------------------------
@@ -349,14 +359,14 @@ def _fila_comun(estado: Estado) -> tuple:
             f.get("antiguedad_anios"))
 
 
-def _insertar_cola(cur, estado: Estado, motivo: str) -> int:
+def _insertar_cola(cur, estado: Estado, motivo: str, tipo: str = "cualificacion") -> int:
     cur.execute(
         """INSERT INTO cola_revision (empresa, empresa_normalizada, contacto_nombre, contacto_email,
            contacto_cargo, canal_origen, pais, sector, tipo_negocio, tamano_estimado,
            antiguedad_anios, etiqueta, senales, confianza, motivo, tipo)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'cualificacion') RETURNING id""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (*_fila_comun(estado), estado.get("etiqueta"), json.dumps(_senales_con_evidencia(estado)),
-         estado.get("confianza"), motivo))
+         estado.get("confianza"), motivo, tipo))
     return cur.fetchone()[0]
 
 
@@ -415,13 +425,116 @@ def _rama_gate(estado: Estado) -> str:
     return estado["decision"]
 
 
+# --- V2: enrutado + redacción del primer email ----------------------------------------
+
+def enrutado(estado: Estado) -> dict:
+    """Asigna comercial por sector (dict estático) y fija el followup sugerido. Sin API de
+    calendario: `followup_sugerido` es solo texto que un humano lee en la cola."""
+    sector = (estado.get("ficha") or {}).get("sector", "")
+    return {"asignado_a": COMERCIALES.get(sector, COMERCIAL_DEFECTO),
+            "followup_sugerido": FOLLOWUP_SUGERIDO}
+
+
+def _redactar_email(estado: Estado, api_key: Optional[str]):
+    """Devuelve (asunto, cuerpo, es_plantilla). Con key: 1 llamada al modelo. Sin key (o si
+    falla): plantilla, MARCADA como tal en el cuerpo -- no se hace pasar una plantilla por
+    texto de modelo (mismo criterio que §14.5 sobre el resumen de la Demo 6)."""
+    empresa = estado.get("empresa") or "la empresa"
+    contacto = estado.get("contacto_nombre") or "equipo"
+    motivo = estado.get("motivo") or ""
+    senales = "; ".join(f"{s['tipo']}: {s.get('valor') or (s.get('snippet') or '')[:80]}"
+                        for s in _senales_con_evidencia(estado)) or "encaje de perfil ICP"
+
+    def plantilla():
+        cuerpo = (
+            "[BORRADOR GENERADO POR PLANTILLA — sin modelo. Reescribir antes de enviar.]\n\n"
+            f"Hola {contacto},\n\n"
+            f"He visto que {empresa} encaja con lo que hacemos en Nubeforge: ayudamos a equipos "
+            "de datos a controlar el coste y la fiabilidad de sus pipelines en la nube.\n\n"
+            f"Motivo de encaje: {motivo}.\n"
+            f"Señales: {senales}.\n\n"
+            "¿Te viene bien una llamada corta esta semana?\n\nUn saludo")
+        return f"{empresa}: primer contacto", cuerpo, True
+
+    if not api_key:
+        return plantilla()
+    prompt = (
+        f"Redacta el PRIMER email de contacto de un comercial de Nubeforge (SaaS de "
+        f"observabilidad de coste y fiabilidad de pipelines de datos en la nube) a {contacto} "
+        f"de {empresa}. Cita explícitamente por qué encaja: {motivo}. Señales encontradas: "
+        f"{senales}. Tono directo, 5-7 frases, sin promesas exageradas, con una llamada a la "
+        f'acción clara. Devuelve SOLO un JSON: {{"asunto": "...", "cuerpo": "..."}}.')
+    try:
+        d = json.loads(_llamar_openrouter(
+            prompt, os.environ.get("LEADS_MODELO", "dots-studio/dots-3-note-preview:free"), api_key))
+        return d["asunto"], d["cuerpo"], False
+    except Exception:
+        return plantilla()
+
+
+def _enviar_greenmail(asunto: str, cuerpo: str, estado: Estado) -> Optional[str]:
+    """Deja el borrador en GreenMail (SMTP de ../1/docker-compose.yml). SIEMPRE a
+    borradores@nubeforge.local, NUNCA al prospecto real. Sin servidor -> None, y el borrador
+    igual queda en la cola para revisar (degradar, no romper)."""
+    import smtplib
+    from email.message import EmailMessage
+    from email.utils import make_msgid
+    msg = EmailMessage()
+    msg_id = make_msgid(domain="nubeforge.local")
+    msg["Message-ID"] = msg_id
+    msg["From"] = "sdr@nubeforge.local"
+    msg["To"] = "borradores@nubeforge.local"
+    msg["Subject"] = asunto
+    msg["X-Lead-Empresa"] = estado.get("empresa") or ""
+    msg["X-Lead-Contacto-Real"] = estado.get("contacto_email") or ""
+    msg["X-Lead-Comercial"] = estado.get("asignado_a") or ""
+    msg.set_content(cuerpo)
+    try:
+        with smtplib.SMTP(os.environ.get("LEADS_SMTP_HOST", "127.0.0.1"),
+                          int(os.environ.get("LEADS_SMTP_PORT", "3025")), timeout=10) as s:
+            s.send_message(msg)
+        return msg_id
+    except Exception:
+        return None
+
+
+def redaccion_borrador(estado: Estado) -> dict:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    asunto, cuerpo, es_plantilla = _redactar_email(estado, api_key)
+    marca = " [plantilla]" if es_plantilla else ""
+    asunto_final = f"[BORRADOR — revisar antes de enviar]{marca} {asunto} — {estado.get('asignado_a')}"
+    msg_id = _enviar_greenmail(asunto_final, cuerpo, estado)
+
+    conn = psycopg2.connect(_dsn())
+    try:
+        cur = conn.cursor()
+        cola_id = _insertar_cola(cur, estado, "borrador pendiente de revisión", tipo="borrador")
+        cur.execute("UPDATE cola_revision SET borrador_message_id = %s WHERE id = %s", (msg_id, cola_id))
+        cur.execute(
+            "UPDATE leads SET asignado_a = %s, followup_sugerido = %s, borrador_message_id = %s WHERE id = %s",
+            (estado.get("asignado_a"), estado.get("followup_sugerido"), msg_id, estado.get("lead_id")))
+        conn.commit()
+        return {"cola_id": cola_id, "borrador_message_id": msg_id}
+    finally:
+        conn.close()
+
+
+def _rama_persistir(estado: Estado) -> str:
+    """Solo `caliente` que pasó el gate va a redacción (R16). El camino de duplicado ya lo
+    resolvió persistir_ok (insertó cola + logueó); tibio/frio se quedan en leads."""
+    if estado.get("decision") != "cola_revision" and estado.get("etiqueta") == "caliente":
+        return "outreach"
+    return "fin"
+
+
 def construir_grafo():
     g = StateGraph(Estado)
     for nombre, fn in (("ingesta_lead", ingesta_lead), ("investigacion_agente", investigacion_agente),
                        ("cualificacion_llm", cualificacion_llm), ("aplicar_rubrica", aplicar_rubrica),
                        ("validacion_determinista", validacion_determinista),
                        ("gate_confianza", gate_confianza), ("persistir_ok", persistir_ok),
-                       ("cola_revision", cola_revision_nodo)):
+                       ("cola_revision", cola_revision_nodo), ("enrutado", enrutado),
+                       ("redaccion_borrador", redaccion_borrador)):
         g.add_node(nombre, fn)
 
     g.add_edge(START, "ingesta_lead")
@@ -432,6 +545,9 @@ def construir_grafo():
     g.add_edge("validacion_determinista", "gate_confianza")
     g.add_conditional_edges("gate_confianza", _rama_gate,
                             {"persistir_ok": "persistir_ok", "cola_revision": "cola_revision"})
-    g.add_edge("persistir_ok", END)
+    g.add_conditional_edges("persistir_ok", _rama_persistir,
+                            {"outreach": "enrutado", "fin": END})
+    g.add_edge("enrutado", "redaccion_borrador")
+    g.add_edge("redaccion_borrador", END)
     g.add_edge("cola_revision", END)
     return g.compile()
