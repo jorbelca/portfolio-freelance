@@ -56,18 +56,22 @@ Tools de `investigacion_agente` (2, no más):
       (email, trazabilidad de señales, `normalizar_empresa`). `procesar_leads.py`
       (`--sin-llm` + `SALTAR_INVESTIGACION`). `test_rubrica.py` (alcanzabilidad R8/R9/R11/R12,
       regla dura, R13–R15). `langgraph.json`, `.env.example`, `diagrama.py`, `grafo_leads.mmd`.
-      `investigacion_agente` real = stub que lanza `NotImplementedError` (Mié). Verificado
-      end-to-end contra Postgres efímero: caliente→leads, frío→leads, sin_cualificar→cola,
-      duplicado→cola.
+      Verificado end-to-end contra Postgres efímero.
+- [x] **Lun 31 (adelantado Mié)** — `tools.py` (`ficha_empresa` mock sobre `fichas.json` /
+      `buscar_senales` DuckDuckGo real, fallo→[]). `investigacion_agente` real: `ficha_empresa`
+      siempre; la parte web es el bucle ReAct (modelo elige query o `parar`, hasta
+      `LEADS_MAX_BUSQUEDAS`). `canned_ficha` eliminado — `SALTAR_INVESTIGACION` solo sustituye
+      la mitad web. `fichas.json` (22 empresas). `eval/dataset.jsonl` (30 leads con `esperado`;
+      8 encaje claro / 7 frío 1-por-regla / 6 sin ficha R14 / 4 frontera / 2 dup).
+      `eval/README.md` (dos modos, dos números). `test_rubrica.py::test_dataset_replay` 30/30.
+      Verificado `--sin-llm` completo contra Postgres efímero: 30/30 (leads 18, cola 12).
 
 ## Pendiente W36
 
-- [ ] **Mar 1** — (core adelantado) libre para: 2ª pasada de la rúbrica, pulido de motivos,
-      o adelantar dataset.
-- [ ] **Mié 2** — `investigacion_agente` real: bucle ReAct + 2 tools + criterio de parada.
-      Dataset 25–30
-      leads con ground truth (cada fila: payload de `ficha_empresa` + fragmentos de
-      `buscar_señales` + `etiqueta_esperada` + `regla_esperada`).
+- [ ] **Mar 1** — (Lun+Mar adelantados) buffer: 2ª pasada de rúbrica, prueba del bucle ReAct
+      con `OPENROUTER_API_KEY` real, o adelantar la cola V2.
+- [ ] **Mié 2** — (adelantado) → medir el modo `SALTAR_INVESTIGACION` (modelo real sobre
+      evidencia fija) y anotar el número que va al vídeo.
 - [ ] **Jue 3** — Cola V2 (dict + 1 llamada de redacción + borrador GreenMail) +
       `eval/run_eval.py` (patrón `1/eval`) + panel SQL.
 - [ ] **Sáb 5** — 1 vídeo, 2 actos + subir a Malt/LinkedIn.
