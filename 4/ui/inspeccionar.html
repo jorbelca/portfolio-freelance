@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inspeccionar BBD — Demo 4 Facturas</title>
+<style>
+  :root{
+    --bg:#050a08; --surface:#0a1310; --surface-2:#0f1c17; --border:#1e3a2e;
+    --text:#c9f2d9; --text-muted:#5f9b7d;
+    --accent:#4da6ff; --accent-soft:#0d2136;
+    --ok:#39ff9e; --ok-soft:#0c2a1a;
+    --warn:#ffcc66; --warn-soft:#332608;
+    --bad:#ff5f56; --bad-soft:#33110f;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html{background:#000; font-size:16px;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:var(--font-mono); padding:2rem 1rem;}
+  .term-window{
+    max-width:78rem; margin:0 auto; border:1px solid var(--border); border-radius:0.6rem;
+    background:var(--bg); box-shadow:0 0 0 1px #000, 0 20px 60px -20px rgba(77,166,255,0.18);
+    overflow:hidden;
+  }
+  .term-titlebar{
+    display:flex; align-items:center; gap:0.5rem; padding:0.6rem 0.9rem;
+    background:var(--surface-2); border-bottom:1px solid var(--border);
+  }
+  .term-titlebar .dot{width:0.7rem; height:0.7rem; border-radius:50%; display:inline-block;}
+  .dot-red{background:#ff5f56;} .dot-yellow{background:#ffbd2e;} .dot-green{background:#27c93f;}
+  .term-titletext{margin-left:0.5rem; font-size:0.75rem; color:var(--text-muted); letter-spacing:0.02em;}
+  .page{max-width:78rem; margin:0 auto; display:flex; flex-direction:column; gap:1.5rem; padding:1.75rem 1.5rem 2.5rem;}
+  .eyebrow{font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  .eyebrow::before{content:"❯ ";}
+  h1{font-size:1.7rem; margin:0.3rem 0 0.2rem; letter-spacing:-0.01em; color:var(--ok);}
+  .subhead{color:var(--text-muted); font-size:0.88rem;}
+
+  .controls{display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;}
+  select, button{
+    font-family:var(--font-mono); font-size:0.85rem; border-radius:0.25rem; border:1px solid var(--border);
+    padding:0.55rem 0.85rem; background:var(--surface); color:var(--text);
+  }
+  select{min-width:14rem;}
+  button{background:transparent; color:var(--accent); font-weight:700; border:1px solid var(--accent); cursor:pointer;}
+  button:hover{background:var(--accent-soft);}
+
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:0.35rem; padding:1.1rem 1.3rem;}
+  .card h2{font-size:0.82rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin:0 0 0.7rem;}
+  .card h2::before{content:"❯ "; opacity:0.7;}
+
+  .table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:0.25rem;}
+  table{border-collapse:collapse; width:100%; min-width:46rem; font-size:0.8rem;}
+  thead th{
+    text-align:left; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+    color:var(--text-muted); background:var(--surface-2);
+    padding:0.5rem 0.6rem; border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  tbody td{padding:0.42rem 0.6rem; border-bottom:1px solid var(--border); white-space:nowrap; max-width:16rem; overflow:hidden; text-overflow:ellipsis;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--accent-soft);}
+  tbody td.null{color:var(--border); font-style:italic;}
+
+  .term-tabs{display:flex; gap:0.3rem; margin-left:0.75rem;}
+  .term-tab{
+    font-size:0.72rem; padding:0.25rem 0.7rem; border-radius:0.2rem 0.2rem 0 0;
+    color:var(--text-muted); text-decoration:none; border:1px solid transparent;
+  }
+  .term-tab.active{background:var(--bg); color:var(--accent); border-color:var(--border); border-bottom-color:var(--bg);}
+  .term-tab:not(.active):hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="term-window">
+  <div class="term-titlebar">
+    <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
+    <span class="term-titletext">inspeccionar@demo4 — zsh</span>
+    <div class="term-tabs">
+      <a href="tablero.html" class="term-tab">tablero.html</a>
+      <a href="inspeccionar.html" class="term-tab active">inspeccionar.html</a>
+    </div>
+  </div>
+  <div class="page">
+    <div>
+      <div class="eyebrow">Demo 4 · Facturas</div>
+      <h1>Inspeccionar BBD</h1>
+      <p class="subhead">SELECT * de las tablas reales, solo lectura, últimas 50 filas. No sustituye a Adminer (127.0.0.1:8082) para queries de verdad, es un vistazo rápido.</p>
+    </div>
+
+    <div class="controls">
+      <select id="tabla">
+        <option value="facturas">facturas</option>
+        <option value="cola_revision">cola_revision</option>
+        <option value="extraccion_log">extraccion_log</option>
+      </select>
+      <button id="refrescar">Refrescar ▸</button>
+      <span class="subhead" id="msg"></span>
+    </div>
+
+    <div class="card">
+      <h2 id="titulo-tabla">facturas</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function cargar(){
+  const tabla = document.getElementById("tabla").value;
+  const msgEl = document.getElementById("msg");
+  const thead = document.getElementById("thead");
+  const tbody = document.getElementById("tbody");
+  document.getElementById("titulo-tabla").textContent = tabla;
+  msgEl.textContent = "cargando…";
+  try{
+    const r = await fetch(`/api/tabla?tabla=${encodeURIComponent(tabla)}`);
+    const d = await r.json();
+    if(!d.ok){ msgEl.textContent = "error: " + d.error; return; }
+    thead.innerHTML = d.columnas.map(c=>`<th>${c}</th>`).join("");
+    tbody.innerHTML = d.filas.map(fila =>
+      "<tr>" + fila.map(v => v === null
+        ? '<td class="null">null</td>'
+        : `<td title="${String(v).replace(/"/g,'&quot;')}">${String(v)}</td>`
+      ).join("") + "</tr>"
+    ).join("") || `<tr><td colspan="${d.columnas.length}" class="null">sin filas</td></tr>`;
+    msgEl.textContent = `${d.filas.length} fila(s) (máx. 50, más reciente primero)`;
+  }catch(e){
+    msgEl.textContent = "error: " + e.message + " — ¿está 'tablero' arriba? (docker compose up -d)";
+  }
+}
+document.getElementById("refrescar").addEventListener("click", cargar);
+document.getElementById("tabla").addEventListener("change", cargar);
+cargar();
+</script>
+</body>
+</html>

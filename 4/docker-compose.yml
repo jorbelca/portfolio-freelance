@@ -1,0 +1,41 @@
+# Compose propio SOLO para tooling de desarrollo de la Demo 4 (servidor del grafo + tablero
+# web) -- no reemplaza ni duplica ../1/docker-compose.yml (Postgres/n8n/adminer siguen ahí).
+# Se conecta al Postgres de 1/ vía host.docker.internal. El resto de la Demo 4
+# (procesar_facturas.py, eval/) sigue sin compose propio (ver README).
+services:
+  studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.studio
+    ports:
+      - "127.0.0.1:2024:2024"
+    volumes:
+      - ./facturas_pdf:/app/facturas_pdf:ro
+    environment:
+      - OPENROUTER_API_KEY
+      - GEMINI_API_KEY
+      - PGHOST=host.docker.internal
+      - PGPORT=5432
+      - PGDATABASE=n8n
+      - PGUSER=n8n_user
+      - PGPASSWORD
+
+  # Tablero propio (HTML+JS plano, sin framework) -- habla directo con `studio` vía
+  # /runs/stream, sin pasar por LangGraph Studio (que exige cuenta LangSmith, ver README).
+  # server.py en vez de `python3 -m http.server` a secas: añade POST /reset (botón "Limpiar
+  # BBD") además de servir tablero.html/facturas_pdf estático, mismas credenciales que studio.
+  tablero:
+    build:
+      context: .
+      dockerfile: Dockerfile.tablero
+    volumes:
+      - ./ui:/ui
+      - ./facturas_pdf:/ui/facturas_pdf:ro
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - PGHOST=host.docker.internal
+      - PGPORT=5432
+      - PGDATABASE=n8n
+      - PGUSER=n8n_user
+      - PGPASSWORD

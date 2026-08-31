@@ -1,0 +1,25 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	ingesta_pdf(ingesta_pdf)
+	extraccion_llm(extraccion_llm)
+	validacion_determinista(validacion_determinista)
+	gate_confianza(gate_confianza)
+	persistir_ok(persistir_ok)
+	cola_revision(cola_revision)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> ingesta_pdf;
+	extraccion_llm --> validacion_determinista;
+	gate_confianza -.-> cola_revision;
+	gate_confianza -.-> persistir_ok;
+	ingesta_pdf --> extraccion_llm;
+	validacion_determinista --> gate_confianza;
+	cola_revision --> __end__;
+	persistir_ok --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

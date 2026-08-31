@@ -1,0 +1,5 @@
+FROM python:3.13-slim
+RUN pip install --no-cache-dir psycopg2-binary
+WORKDIR /ui
+EXPOSE 8090
+CMD ["python3", "server.py"]

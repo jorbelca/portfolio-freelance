@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "facturas": "./grafo_facturas.py:construir_grafo"
+  }
+}
