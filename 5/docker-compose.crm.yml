@@ -1,0 +1,35 @@
+# CRM local de la Demo 5: NocoDB sobre la base `crm` del Postgres de ../1/.
+# Lo levanta tablero.sh (solo si hay NC_ADMIN_PASSWORD en ../1/.env). UI en :8091.
+#
+#   docker compose -f docker-compose.crm.yml up -d
+#
+# NC_DB = base `nocodb` (solo metadatos de NocoDB). La tabla del CRM vive en la base `crm`,
+# que tablero.sh conecta como "data source" externo vía API (crm-nocodb-init.sh) -- NocoDB
+# 2026.x ya no adopta el esquema de NC_DB, hay que conectar la base aparte.
+# NC_ALLOW_LOCAL_EXTERNAL_DBS: sin esto NocoDB bloquea conectar a un host de red privada
+# (SSRF) -> "Connection to internal hosts is not allowed". (nocodb/nocodb#13583)
+
+services:
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: 5-nocodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8091:8080"
+    environment:
+      NC_DB: "pg://postgres:5432?u=n8n_user&p=${DB_POSTGRESDB_PASSWORD:-secure_password}&d=nocodb"
+      NC_ADMIN_EMAIL: "${NC_ADMIN_EMAIL:-demo@nubeforge.local}"
+      NC_ADMIN_PASSWORD: "${NC_ADMIN_PASSWORD}"
+      NC_ALLOW_LOCAL_EXTERNAL_DBS: "true"
+      NC_DISABLE_TELE: "true"
+      NC_PUBLIC_URL: "http://127.0.0.1:8091"
+    volumes:
+      - nocodb_data:/usr/app/data
+
+volumes:
+  nocodb_data:
+
+networks:
+  default:
+    external: true
+    name: 1_default

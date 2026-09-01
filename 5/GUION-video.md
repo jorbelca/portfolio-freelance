@@ -5,12 +5,19 @@ se paró y esperó a un humano vale más que los 20 que se clasificaron solos.
 
 ## Antes de grabar
 
-- `docker compose up -d` en `../1/` (Postgres + GreenMail + Roundcube + Adminer).
-- `psql ... -f init-leads-tables.sql -f panel/panel.sql`
-- `TRUNCATE leads, cola_leads, cualificacion_log RESTART IDENTITY;`
-- Decidir el modo de Act 1 (ver nota abajo).
-- Pestañas abiertas: terminal · Roundcube (`:8081`, login `borradores@nubeforge.local`) ·
-  Adminer (`:8082`) o `./ver.sh`.
+- **`cd 5 && ./tablero.sh`** — levanta docker de `../1/`, aplica el esquema, abre
+  `http://127.0.0.1:8095`. Nada más.
+- Vaciar con el botón "Vaciar BBD" del tablero.
+- Pestañas: **tablero (`:8095`)** en primer plano · Roundcube (`:8081`, login `borradores@nubeforge.local`) para enseñar el borrador entrando.
+
+## El tablero (`ui/`)
+
+Formulario (empresa + contacto) o desplegable "cargar caso" (los 30 del dataset). Tres modos:
+**Rápido** (juicio inyectado del caso, instantáneo — para los casos difíciles), **Con modelo**
+(evidencia fija, el modelo clasifica), **Investigación real** (ficha + `buscar_señales` en vivo).
+Al cualificar pinta: traza del bucle ReAct → chip de etiqueta + regla + motivo → señales con su
+URL → y si es caliente, el borrador de email con el comercial asignado. Las tres tablas
+(leads / cola / borradores) se refrescan solas.
 
 **Nota — investigación en vivo vs. inyectada.** Las 22 empresas de `fichas.json` son ficticias,
 así que `buscar_señales` (DuckDuckGo real) no devuelve nada útil sobre ellas. Dos opciones para

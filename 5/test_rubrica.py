@@ -9,8 +9,8 @@ que corrigió la reordenación de la rúbrica el 2026-08-31.
 import json
 from pathlib import Path
 
-from grafo_leads import (_descalificar, _rama_persistir, _senales_con_evidencia, aplicar_rubrica,
-                         gate_confianza)
+from grafo_leads import (_dedup_senales, _descalificar, _rama_persistir, _senales_con_evidencia,
+                         aplicar_rubrica, cualificacion_llm, gate_confianza, revision_llm)
 from tools import ficha_empresa
 from validaciones import validar_lead
 
@@ -47,8 +47,9 @@ def test_descalificadores():
 
 
 def test_gates_de_encaje_alcanzables():
-    # R8 gana aunque haya 2 señales (por eso va antes del conteo)
-    r = rubrica(FICHA_OK, h([{"tipo": "S1", "ref": 0}, {"tipo": "S2", "ref": 1}], encaje="debil"))
+    # R8 gana aunque haya 2 señales (por eso va antes del conteo) -- ficha de dominio adyacente
+    fin = {"pais": "UK", "sector": "fintech", "tipo_negocio": "producto", "tamano_estimado": 40}
+    r = rubrica(fin, h([{"tipo": "S1", "ref": 0}, {"tipo": "S2", "ref": 1}], encaje="debil"))
     assert (r["etiqueta"], r["regla"]) == ("tibio", "R8"), r
     # R9: contacto sin poder de decisión y sin S1
     r = rubrica(FICHA_OK, h([{"tipo": "S3", "ref": 0}], decisor=False))
@@ -56,6 +57,40 @@ def test_gates_de_encaje_alcanzables():
     # R9 no aplica si hay S1 (una ronda pesa más que el cargo del contacto)
     r = rubrica(FICHA_OK, h([{"tipo": "S1", "ref": 0}], decisor=False))
     assert r["regla"] == "R11", r
+
+
+def test_guardas_deterministas():
+    # dedup por ref: dos señales sobre el mismo fragmento cuentan como una
+    assert len(_dedup_senales([{"tipo": "S1", "ref": 0}, {"tipo": "S4", "ref": 0}])) == 1
+    # y el canned path deduplica antes de contar -> R11, no R10
+    out = cualificacion_llm({"canned_hallazgos": h([{"tipo": "S1", "ref": 0}, {"tipo": "S4", "ref": 0}])})
+    r = rubrica(FICHA_OK, out["hallazgos"])
+    assert r["regla"] == "R11", r
+    # R9 por cargo aunque el modelo diga que el contacto decide
+    r = aplicar_rubrica({"ficha": FICHA_OK, "contacto_cargo": "Junior Developer",
+                         "hallazgos": h([{"tipo": "S3", "ref": 0}], decisor=True)})
+    assert (r["etiqueta"], r["regla"]) == ("tibio", "R9"), r
+    # R8 no se dispara sola contra ficha de ICP + S3 (stack cloud-native contradice "no cloud-native")
+    r = rubrica(FICHA_OK, h([{"tipo": "S3", "ref": 0}], encaje="debil"))
+    assert r["regla"] != "R8", r
+    # ...pero sí se dispara si la ficha no es ICP (dominio adyacente)
+    r = rubrica({**FICHA_OK, "sector": "accounting"}, h([{"tipo": "S3", "ref": 0}], encaje="debil"))
+    assert r["regla"] == "R8", r
+
+
+def test_segunda_lectura():
+    # revision_llm (canned): caliente/tibio con rival canned -> propaga la rival
+    out = revision_llm({"etiqueta": "caliente", "regla": "R10",
+                        "canned_hallazgos": {"etiqueta_rival": "tibio", "confianza": 0.7}})
+    assert out == {"confianza": 0.7, "etiqueta_rival": "tibio"}, out
+    # frio no se reconsidera: confianza 1.0, sin rival, sin llamada
+    out = revision_llm({"etiqueta": "frio", "regla": "R1"})
+    assert out == {"confianza": 1.0, "etiqueta_rival": None}, out
+    # rival == etiqueta actual -> se descarta (no es una segunda lectura)
+    out = revision_llm({"etiqueta": "tibio", "canned_hallazgos": {"etiqueta_rival": "tibio", "confianza": 0.9}})
+    assert out["etiqueta_rival"] is None, out
+    # cualificación ya fallida -> no toca nada
+    assert revision_llm({"_error_cualificacion": "x", "etiqueta": None}) == {}
 
 
 def test_conteo_de_senales():
@@ -129,7 +164,8 @@ def test_dataset_replay():
     for f in filas:
         lead, hz, esp = f["lead"], f["hallazgos"], f["esperado"]
         ficha = ficha_empresa(lead["empresa"])
-        est = {"empresa": lead["empresa"], "contacto_email": lead["contacto_email"], "ficha": ficha,
+        est = {"empresa": lead["empresa"], "contacto_email": lead["contacto_email"],
+               "contacto_cargo": lead.get("contacto_cargo"), "ficha": ficha,
                "hallazgos": hz, "confianza": hz.get("confianza", 0.9),
                "etiqueta_rival": hz.get("etiqueta_rival"), "senales_crudas": f["senales_crudas"]}
         est.update(aplicar_rubrica(est))
@@ -150,12 +186,14 @@ def test_dataset_replay():
 def demo():
     test_descalificadores()
     test_gates_de_encaje_alcanzables()
+    test_guardas_deterministas()
+    test_segunda_lectura()
     test_conteo_de_senales()
     test_gate()
     test_evidencia_materializada()
     test_rama_v2()
     test_dataset_replay()
-    print("test_rubrica.py: OK (7 bloques)")
+    print("test_rubrica.py: OK (9 bloques)")
 
 
 if __name__ == "__main__":

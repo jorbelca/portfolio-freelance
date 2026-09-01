@@ -1,6 +1,16 @@
 # Rúbrica de cualificación de leads — Demo 5
 
-**Versión:** 0.1 · **Fecha:** 2026-08-31 · **Ámbito:** Demo 5 — Cualificación de leads → asignación → primer contacto
+**Versión:** 0.3 · **Fecha:** 2026-09-01 · **Ámbito:** Demo 5 — Cualificación de leads → asignación → primer contacto
+
+**Cambios v0.1 → v0.2** (tras la primera corrida contra `eval/`): S1 admite "seed" sin importe
+y excluye explícitamente pre-seed/angel; S2 aclara que una oferta con ≥2 puestos cuenta y una
+vacante suelta no; una señal por fragmento de evidencia (deduplicación); R8 no se dispara si la
+ficha sitúa a la empresa de lleno en el ICP; R9 usa una lista determinista de cargos.
+
+**Cambios v0.2 → v0.3:** R13 y R15 se alimentan de un paso aparte (`revision_llm`, "segunda
+lectura") — una segunda llamada al modelo con foco único: dada la etiqueta ya derivada,
+¿debería revisarla un humano? Antes eran dos claves más en el JSON de cualificación. R15
+ahora es un sí/no del modelo ("¿hay un hueco que verificar?"), no una probabilidad calibrada.
 
 ---
 
@@ -70,15 +80,30 @@ timing** — por eso van antes del conteo, no como una fila más de la tabla de 
 
 | # | Condición | Motivo |
 |---|---|---|
-| R8 | Producto no cloud-native, o dominio solo adyacente al de Nubeforge | `encaje de producto débil` |
+| R8 | Producto no cloud-native, o dominio solo adyacente al de Nubeforge (automatización contable, compliance…) | `encaje de producto débil` |
 | R9 | Contacto claramente junior / sin capacidad de decisión aparente y sin S1 | `contacto sin poder de decisión` |
+
+**R8** la propone el juicio del modelo (`encaje_producto: "debil"`), pero el nodo la **ignora**
+cuando la ficha sitúa a la empresa de lleno en el ICP (`tipo_negocio = producto` y sector de
+software / SaaS / data / infra): "no cloud-native o dominio adyacente" no se sostiene contra el
+registro, y una falta real de tracción se refleja sola en el conteo de señales (R11/R12), no en
+un veto del modelo. R8 queda para dominios de verdad adyacentes (fintech de automatización
+contable, compliance…). **R9** la dispara una lista determinista de cargos ("junior", "intern",
+"trainee"…) además del juicio del modelo — el cargo es un campo estructurado del lead, no hace
+falta preguntárselo al modelo.
 
 ### 3.3 Conteo de señales de timing (contra `buscar_señales`)
 
-Señales, cada una vale 1:
+Señales, **cada una vale 1, y un mismo fragmento de evidencia respalda como mucho una señal**
+(el nodo deduplica por fragmento antes de contar):
 
-- **S1** — Ronda de financiación (Seed ≥ £1M, Serie A o Serie B) anunciada en los últimos 12 meses
-- **S2** — ≥ 2 vacantes abiertas de ingeniería / plataforma / data, o mención explícita de "scaling the team"
+- **S1** — Ronda de financiación anunciada en los últimos 12 meses: Seed, Serie A o Serie B —
+  incluido un "seed extension" o un "seed round" sin importe declarado. **No** cuentan
+  pre-seed, angel, *friends & family*, ni un importe declarado < £1M.
+- **S2** — Contratación de ingeniería *a escala*: una oferta que menciona **≥ 2 puestos**
+  ("hiring 4 platform engineers"), **≥ 2 ofertas** distintas de ingeniería / plataforma /
+  data, **o** lenguaje explícito de crecimiento de equipo ("scaling the team", "to support
+  rapid growth"). Una **sola** vacante concreta ("hiring a data engineer") **no** es S2.
 - **S3** — Stack cloud-native visible (AWS/GCP/Azure + orquestación de datos o Kubernetes)
 - **S4** — Mención pública de dolor en el dominio de Nubeforge: coste de nube, fiabilidad de pipelines, observabilidad de datos
 
@@ -90,11 +115,18 @@ Señales, cada una vale 1:
 
 ### 3.4 Comprobaciones sobre la etiqueta elegida (R13–R16)
 
+R13 y R15 se alimentan de un **paso aparte** (`revision_llm`, "segunda lectura"): una segunda
+llamada al modelo que recibe la etiqueta que ya derivó la rúbrica y su regla, y responde a dos
+cosas — (1) ¿hay una etiqueta rival defendible con la misma evidencia? y (2) ¿hay algún hueco
+que un humano debería verificar? (sí/no, no una probabilidad — el booleano es más fiable). Se
+separó de la cualificación a propósito: ese juicio calibra mejor como pregunta propia que como
+una clave más en un JSON de cinco. Solo corre para `caliente`/`tibio`.
+
 | # | Condición | Resultado |
 |---|---|---|
-| R13 | El modelo nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_leads` con ambas lecturas. El recorte lo hace el nodo — no se le pide al prompt una "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
+| R13 | La segunda lectura nombra una **etiqueta rival defendible** con la misma evidencia | Se toma la más baja de las dos y va a `cola_leads` con ambas lecturas. El recorte lo hace el nodo — el prompt de cualificación nunca ve la palabra "confianza" (lección de la Demo 3, `2/README-detallado.md`: preguntar confianza directa la saturó arriba en 27/28 casos, los 4 errores incluidos) |
 | R14 | `ficha_empresa` no devuelve datos suficientes para evaluar R1–R7 (la clasificación no se apoyaría en nada) | `sin_cualificar` → `cola_leads`, motivo `sin evidencia para cualificar`. **Ausencia de datos no es señal negativa.** Una ficha válida sin ninguna señal de timing **no** es R14 — es R12 |
-| R15 | Confianza declarada del modelo < `LEADS_CONFIANZA_UMBRAL` (def. 0.7) en la etiqueta elegida | `cola_leads`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal |
+| R15 | La segunda lectura marca un **hueco a verificar** (mapea a confianza < `LEADS_CONFIANZA_UMBRAL`, def. 0.7) | `cola_leads`, motivo `confianza baja (<valor>)`. Débil por sí sola (ver R13); es el umbral duro mínimo, no la salvaguarda principal. En `--sin-llm` la confianza viene fija del dataset |
 | R16 | Etiqueta final = `caliente` | Asignación de comercial (dict estático) + redacción del primer email (V2). El borrador **siempre** queda en `cola_leads` (`tipo = 'borrador'`) para revisión humana antes de enviarse — nada sale solo |
 
 ## 4. Qué es determinista y vive fuera de esta rúbrica

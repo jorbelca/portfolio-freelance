@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Grafo LangGraph de la Demo 5: ingesta_lead -> investigacion_agente -> cualificacion_llm
--> aplicar_rubrica -> validacion_determinista -> gate_confianza -> {persistir_ok | cola_revision}.
-Todo camino escribe cualificacion_log.
+-> aplicar_rubrica -> revision_llm -> validacion_determinista -> gate_confianza
+-> {persistir_ok | cola_revision}. Todo camino escribe cualificacion_log.
 
 Reparto de responsabilidad, no negociable al tocar este fichero (mismo criterio que
 4/grafo_facturas.py, confirmado con advisor):
 
 1. Las reglas R1-R12 de la rúbrica NO las decide el modelo. `cualificacion_llm` devuelve solo
-   juicio: qué señales encontró y con qué evidencia (`ref` a un fragmento recuperado), si el
-   encaje de producto es fuerte o débil, si el contacto decide, y una etiqueta rival si la ve.
-   La etiqueta la deriva `aplicar_rubrica` en Python -- descalificadores R1-R7 sobre la ficha,
-   gates de encaje R8-R9, conteo de señales R10-R12 -- de forma que `regla` es reproducible:
-   el comprador re-deriva la etiqueta desde `senales` + `ficha` guardadas, sin fiarse del
-   modelo. El esquema de salida del modelo NO tiene campo `etiqueta` a propósito.
+   juicio factual: qué señales encontró y con qué evidencia (`ref` a un fragmento recuperado),
+   si el encaje de producto es fuerte o débil, si el contacto decide. La etiqueta la deriva
+   `aplicar_rubrica` en Python -- descalificadores R1-R7 sobre la ficha, gates de encaje
+   R8-R9, conteo de señales R10-R12 -- de forma que `regla` es reproducible: el comprador
+   re-deriva la etiqueta desde `senales` + `ficha` guardadas, sin fiarse del modelo. El
+   esquema de salida del modelo NO tiene campo `etiqueta` a propósito.
+
+1b. `revision_llm` es una SEGUNDA llamada, separada a propósito: recibe la etiqueta
+   provisional que ya derivó `aplicar_rubrica` y su porqué, y hace una sola pregunta --
+   ¿debería revisar esto un humano? Devuelve una etiqueta rival defendible (o null) y una
+   confianza. Ese juicio de "esto es frontera" calibra mejor cuando es su propia pregunta y
+   no una clave más en un JSON de cinco. Solo corre para caliente/tibio -- un frio por
+   descalificador o un sin_cualificar no tienen nada que reconsiderar.
 
 2. Regla dura (de la Demo 4): si `validacion_determinista` encontró errores, la decisión es
    cola_revision pase lo que pase con la confianza. La confianza declarada por el modelo no
@@ -23,8 +30,13 @@ Reparto de responsabilidad, no negociable al tocar este fichero (mismo criterio 
 3. Orden del gate: errores deterministas -> R14 sin evidencia -> R13 recorte por rival ->
    R15 umbral de confianza. R15 el último y el más débil, la propia rúbrica lo dice.
 
-La rúbrica vive en rubrica-cualificacion-leads.md (versionada, se ve en el diff), no en el
-string del prompt: se carga y se inyecta como contexto.
+La rúbrica vive en rubrica-cualificacion-leads.md (versionada, se ve en el diff) y ahí es la
+referencia para humanos (comprador, revisor) y para R1-R16, que son código, no prompt. El
+contrato del modelo es mucho más estrecho que el documento entero -- señales S1-S4 (§3.3) +
+encaje_producto (§3.2), nada de R1-R9/R13-R16 ni la narrativa de venta -- así que NO se inyecta
+el .md completo en el prompt de `cualificacion_llm`: solo el resumen de esas dos secciones,
+escrito a mano ahí mismo. Si §3.2/§3.3 cambian, ese resumen se actualiza a mano también; el
+.md sigue siendo la fuente de verdad de la que ese resumen es un extracto, no al revés.
 """
 import json
 import os
@@ -41,6 +53,7 @@ from validaciones import normalizar_empresa, validar_lead
 AQUI = Path(__file__).resolve().parent
 UMBRAL_DEFECTO = float(os.environ.get("LEADS_CONFIANZA_UMBRAL", "0.7"))
 MAX_BUSQUEDAS = int(os.environ.get("LEADS_MAX_BUSQUEDAS", "3"))
+MODELO = os.environ.get("LEADS_MODELO", "poolside/laguna-s-2.1:free")  # vía OpenRouter
 ORDEN_ETIQUETA = {"frio": 0, "tibio": 1, "caliente": 2}
 
 # Listas del criterio comercial (ver §5 de la rúbrica: son del cliente y cambian; aquí van
@@ -50,15 +63,39 @@ SECTORES_EXCLUIDOS = ("defensa", "armamento", "gambling", "juego", "casino", "ad
 # mezclan marcas reales. En producción esta lista la aporta el cliente (§5 de la rúbrica).
 COMPETIDORES = ("pipewatch", "cloudsentry", "stackgauge", "nimbusmetrics")
 
+# Cargos que, por sí solos, indican que el contacto no decide una compra (R9). El modelo
+# también devuelve `contacto_decisor`, pero satura arriba (lección Demo 3): esta lista manda.
+CARGOS_SIN_PODER = ("junior", "intern", "becari", "trainee", "graduate", "student",
+                    "apprentice", "assistant", "prácticas", "practicas")
+# Sectores del ICP de Nubeforge. Si la ficha sitúa a la empresa de lleno aquí (y es de
+# producto), R8 ("encaje débil") no se dispara solo con el juicio del modelo.
+SECTORES_ICP = ("software", "saas", "data", "devtools", "developer tools", "cloud",
+                "infrastructure", "infraestructura", "analytics", "analítica", "platform")
+
+
+def _cargo_sin_poder(cargo: Optional[str]) -> bool:
+    return any(k in (cargo or "").lower() for k in CARGOS_SIN_PODER)
+
+
+def _dedup_senales(senales: list) -> list:
+    """Un fragmento de evidencia (`ref`) respalda como mucho UNA señal contada. El modelo a
+    veces emite dos señales sobre el mismo fragmento (un post de blog leído como dos hechos)
+    e infla el conteo hacia R10. Se deduplica en el origen para que conteo, validación y lo
+    que se guarda vean la misma lista."""
+    vistos, out = set(), []
+    for s in senales or []:
+        if s.get("ref") in vistos:
+            continue
+        vistos.add(s.get("ref"))
+        out.append(s)
+    return out
+
+
 # --- V2: enrutado + primer email -------------------------------------------------------
 # Dict estático sector -> comercial (§14 del plan: "~10 líneas", no round-robin ni carga).
 COMERCIALES = {"fintech": "Dana Ruiz", "saas": "Marco Vidal", "software": "Marco Vidal"}
 COMERCIAL_DEFECTO = "Aisha Kern"
 FOLLOWUP_SUGERIDO = os.environ.get("LEADS_FOLLOWUP", "3 días")  # solo texto en el log, sin calendario
-
-
-def _cargar_rubrica() -> str:
-    return (AQUI / "rubrica-cualificacion-leads.md").read_text(encoding="utf-8")
 
 
 class Estado(TypedDict, total=False):
@@ -82,6 +119,7 @@ class Estado(TypedDict, total=False):
     regla: Optional[str]
     motivo: Optional[str]
     etiqueta_rival: Optional[str]
+    motivo_duda: Optional[str]   # de revision_llm: qué haría dudar a un humano
     confianza: float
     errores_validacion: list
     decision: str                 # 'persistir_ok' | 'cola_revision'
@@ -92,6 +130,8 @@ class Estado(TypedDict, total=False):
     asignado_a: Optional[str]
     followup_sugerido: Optional[str]
     borrador_message_id: Optional[str]
+    borrador_asunto: Optional[str]
+    borrador_cuerpo: Optional[str]
 
 
 # --- Nodos --------------------------------------------------------------------------------
@@ -114,7 +154,7 @@ def investigacion_agente(estado: Estado) -> dict:
         return {"ficha": ficha, "senales_crudas": estado["canned_senales"], "investigacion_pasos": []}
 
     nombre = estado.get("empresa", "")
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = _api_key()
     if not api_key:
         # Error de configuración, no fallo de tool en runtime -> se falla rápido (mismo
         # criterio que extraccion_llm en la Demo 4). Un fallo de buscar_senales EN MEDIO del
@@ -133,20 +173,55 @@ def investigacion_agente(estado: Estado) -> dict:
     return {"ficha": ficha, "senales_crudas": senales, "investigacion_pasos": pasos}
 
 
+def _api_key() -> Optional[str]:
+    """LEADS_LLM_API_KEY, o GEMINI_API_KEY (ya en ../1/.env para otras demos), o OPENROUTER_API_KEY."""
+    return (os.environ.get("LEADS_LLM_API_KEY") or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("OPENROUTER_API_KEY"))
+
+
 def _llamar_openrouter(prompt: str, modelo: str, api_key: str) -> str:
-    from openai import OpenAI
-    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+    import time
+
+    from openai import InternalServerError, OpenAI, RateLimitError
+    # Por defecto OpenRouter. LEADS_LLM_BASE_URL apunta el mismo cliente OpenAI a otro proveedor
+    # compatible -- p.ej. la API de Gemini de Google AI Studio (tier gratis con cuota propia, no
+    # un pool compartido): https://generativelanguage.googleapis.com/v1beta/openai/
+    client = OpenAI(base_url=os.environ.get("LEADS_LLM_BASE_URL", "https://openrouter.ai/api/v1"),
+                    api_key=api_key)
     kwargs = dict(model=modelo, messages=[{"role": "user", "content": prompt}],
-                  max_tokens=4096,  # margen para el scratchpad, no solo el JSON (lección Demo 3 i21)
-                  temperature=0, timeout=60)
+                  # margen para el scratchpad, no solo el JSON (lección Demo 3 i21). Los modelos
+                  # de razonamiento :free gastan miles de tokens pensando antes del JSON -> alto.
+                  max_tokens=int(os.environ.get("LEADS_MAX_TOKENS", "8192")),
+                  temperature=0, timeout=int(os.environ.get("LEADS_TIMEOUT", "120")))
     if os.environ.get("LEADS_JSON_MODE", "1") == "1":
         kwargs["response_format"] = {"type": "json_object"}  # algún modelo free lo rechaza -> LEADS_JSON_MODE=0
-    resp = client.chat.completions.create(**kwargs)
-    # Guard de la lección i21 / bug 1 de la Demo 4: una respuesta de error de OpenRouter llega
-    # con choices=None. Sin esto, resp.choices[0] tira un TypeError críptico en vez de un motivo.
-    if not getattr(resp, "choices", None):
-        raise RuntimeError(f"OpenRouter sin choices: {getattr(resp, 'error', None) or str(resp)[:200]}")
-    return resp.choices[0].message.content
+    # Los modelos :free devuelven vacío / 429 (pool compartido) de forma intermitente. Reintento
+    # con backoff -- temperatura 0, así que no cambia el resultado bueno.
+    intentos = int(os.environ.get("LEADS_REINTENTOS", "3"))
+    ultimo = ""
+    for i in range(intentos):
+        try:
+            resp = client.chat.completions.create(**kwargs)
+        except RateLimitError as e:
+            # pool :free de OpenRouter, o cuota por minuto del tier gratis de Gemini. Backoff.
+            ultimo = f"429 rate limit ({str(e)[:120]})"
+            time.sleep(2 * (i + 1))
+            continue
+        except InternalServerError as e:
+            # 503 "high demand" -- típico de un modelo recién lanzado. Transitorio, mismo backoff.
+            ultimo = f"5xx del proveedor ({str(e)[:120]})"
+            time.sleep(2 * (i + 1))
+            continue
+        # Guard de la lección i21 / bug 1 de la Demo 4: una respuesta de error de OpenRouter llega
+        # con choices=None. Sin esto, resp.choices[0] tira un TypeError críptico en vez de un motivo.
+        if not getattr(resp, "choices", None):
+            ultimo = f"OpenRouter sin choices: {getattr(resp, 'error', None) or str(resp)[:200]}"
+            continue
+        contenido = resp.choices[0].message.content
+        if contenido and contenido.strip():
+            return contenido
+        ultimo = f"respuesta vacía (finish_reason={getattr(resp.choices[0], 'finish_reason', '?')})"
+    raise RuntimeError(f"el modelo no devolvió respuesta utilizable tras {intentos} intento(s): {ultimo}")
 
 
 def _paso_investigacion(nombre: str, ficha: dict, senales: list, api_key: str) -> dict:
@@ -168,7 +243,7 @@ def _paso_investigacion(nombre: str, ficha: dict, senales: list, api_key: str) -
     )
     try:
         datos = json.loads(_llamar_openrouter(
-            prompt, os.environ.get("LEADS_MODELO", "dots-studio/dots-3-note-preview:free"), api_key))
+            prompt, MODELO, api_key))
         return {"accion": datos.get("accion", "parar"), "query": datos.get("query"),
                 "razonamiento": datos.get("razonamiento")}
     except Exception as e:
@@ -176,55 +251,128 @@ def _paso_investigacion(nombre: str, ficha: dict, senales: list, api_key: str) -
 
 
 def cualificacion_llm(estado: Estado) -> dict:
-    """Devuelve `hallazgos` (juicio SIN etiqueta), `confianza` y `etiqueta_rival`. En
-    --sin-llm usa canned_hallazgos y no llama a ninguna API. Un fallo de parseo NO hace
-    desaparecer el lead: se propaga como _error_cualificacion y el gate lo manda a
-    sin_cualificar (lección Demo 3 i21 / bug 5 de la Demo 4)."""
+    """Devuelve `hallazgos` (juicio factual SIN etiqueta). La confianza y la etiqueta rival
+    salen de `revision_llm`, un paso aparte. En --sin-llm usa canned_hallazgos y no llama a
+    ninguna API. Un fallo de parseo NO hace desaparecer el lead: se propaga como
+    _error_cualificacion y el gate lo manda a sin_cualificar (lección Demo 3 i21 / bug 5 de
+    la Demo 4)."""
     if estado.get("canned_hallazgos") is not None:
-        h = estado["canned_hallazgos"]
-        return {"hallazgos": h, "confianza": float(h.get("confianza", 0.9)),
-                "etiqueta_rival": h.get("etiqueta_rival")}
+        h = dict(estado["canned_hallazgos"])
+        h["senales"] = _dedup_senales(h.get("senales") or [])
+        return {"hallazgos": h}
 
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = _api_key()
     if not api_key:
         raise RuntimeError(
-            "Falta OPENROUTER_API_KEY (añádela a ../1/.env). Para probar el grafo sin clave, "
-            "usa procesar_leads.py --sin-llm.")
+            "Falta la clave del modelo (OPENROUTER_API_KEY o LEADS_LLM_API_KEY, en ../1/.env). "
+            "Para probar el grafo sin clave, usa procesar_leads.py --sin-llm.")
 
     ficha = estado.get("ficha") or {}
     crudas = estado.get("senales_crudas") or []
     evidencia = "\n".join(f"[{i}] {s.get('snippet', '')} ({s.get('url', 's/url')})"
                           for i, s in enumerate(crudas)) or "(sin resultados)"
     prompt = (
-        "Eres el nodo de cualificación de un pipeline de leads para Nubeforge. Aplica la "
-        "rúbrica de abajo, pero devuelve SOLO tu juicio -- la etiqueta la deriva otro paso "
-        "determinista a partir de lo que devuelvas.\n\n"
-        f"=== RÚBRICA ===\n{_cargar_rubrica()}\n\n"
+        "Eres el nodo de cualificación de un pipeline de leads para Nubeforge (SaaS de "
+        "observabilidad de coste y fiabilidad de pipelines de datos en la nube; ICP: empresas "
+        "de producto software UK, post-PMF, escalando ingeniería). Extrae SOLO juicio factual "
+        "según los criterios de abajo -- la etiqueta la deriva otro paso determinista a partir "
+        "de lo que devuelvas, no la decides tú.\n\n"
         f"=== FICHA DE EMPRESA (de ficha_empresa) ===\n{json.dumps(ficha, ensure_ascii=False, indent=2)}\n\n"
         f"=== EVIDENCIA WEB (de buscar_señales, numerada) ===\n{evidencia}\n\n"
+        "=== CÓMO CONTAR SEÑALES (un fragmento respalda como mucho UNA señal) ===\n"
+        "S1 — ronda de financiación anunciada (~12 meses): seed, Serie A o Serie B. Un 'seed' "
+        "sin importe cuenta; pre-seed, angel o importe declarado < £1M, NO.\n"
+        "S2 — contratación de ingeniería a escala: un fragmento que cita un número de puestos "
+        "≥ 2, o varias ofertas distintas de ingeniería/plataforma/data, o lenguaje explícito "
+        "de crecimiento de equipo. Una sola vacante concreta NO es S2.\n"
+        "S3 — stack cloud-native visible: nube gestionada (AWS/GCP/Azure) + Kubernetes u "
+        "orquestación de datos, mencionados en la evidencia.\n"
+        "S4 — dolor público en el dominio de Nubeforge: coste de nube, fiabilidad de "
+        "pipelines de datos u observabilidad de datos, dicho por la empresa.\n"
+        "Si un fragmento no encaja claramente en S1–S4, NO lo cuentes.\n\n"
+        "`encaje_producto` = 'debil' SOLO si el producto no es cloud-native o el dominio es "
+        "meramente adyacente (automatización contable, compliance…). Una empresa de software "
+        "de producto dentro del ICP se considera 'fuerte'.\n\n"
         "Devuelve SOLO un JSON con estas claves:\n"
         '  "senales": lista de {"tipo": "S1"|"S2"|"S3"|"S4", "valor": "<qué dice>", "ref": <índice del fragmento de evidencia que la respalda>}\n'
         '  "encaje_producto": "fuerte" | "debil"\n'
         '  "contacto_decisor": true | false\n'
-        '  "etiqueta_rival": null | "caliente" | "tibio" | "frio"  (segunda lectura defendible con la misma evidencia, o null)\n'
-        '  "confianza": 0.0-1.0\n'
         "Cada señal DEBE tener un `ref` a un fragmento real de la evidencia. No inventes señales."
     )
 
     try:
         contenido = _llamar_openrouter(
-            prompt, os.environ.get("LEADS_MODELO", "dots-studio/dots-3-note-preview:free"), api_key)
+            prompt, MODELO, api_key)
         datos = json.loads(contenido)
         h = {
-            "senales": list(datos.get("senales") or []),
+            "senales": _dedup_senales(datos.get("senales") or []),
             "encaje_producto": datos.get("encaje_producto"),
             "contacto_decisor": bool(datos.get("contacto_decisor", True)),
         }
-        rival = datos.get("etiqueta_rival")
-        return {"hallazgos": h, "confianza": float(datos.get("confianza", 0.0)),
-                "etiqueta_rival": rival if rival in ORDEN_ETIQUETA else None}
+        return {"hallazgos": h}
     except (json.JSONDecodeError, KeyError, TypeError, ValueError, AttributeError, RuntimeError) as e:
         return {"_error_cualificacion": str(e), "hallazgos": {}, "confianza": 0.0}
+
+
+def revision_llm(estado: Estado) -> dict:
+    """Segunda lectura (ver punto 1b de la cabecera). Una sola llamada, foco único: dada la
+    etiqueta provisional, ¿debería mirarla un humano? Devuelve `etiqueta_rival` (o None), una
+    `confianza` derivada de un sí/no ("¿hay un hueco que verificar?" -- un booleano es más
+    fiable que pedirle al modelo una probabilidad calibrada) y `motivo_duda`. Corre solo para
+    caliente/tibio. En --sin-llm lee de canned_hallazgos. Un fallo NO tumba el lead: sin rival
+    y confianza 0.0 -> el gate lo manda a cola por R15 (fallar hacia la revisión humana)."""
+    if estado.get("_error_cualificacion"):
+        return {}
+    etiqueta = estado.get("etiqueta")
+    if etiqueta not in ("caliente", "tibio"):
+        return {"confianza": 1.0, "etiqueta_rival": None}
+
+    if estado.get("canned_hallazgos") is not None:
+        ch = estado["canned_hallazgos"]
+        rival = ch.get("etiqueta_rival")
+        return {"confianza": float(ch.get("confianza", 0.9)),
+                "etiqueta_rival": rival if rival in ORDEN_ETIQUETA and rival != etiqueta else None}
+
+    api_key = _api_key()
+    if not api_key:
+        raise RuntimeError("Falta la clave del modelo (OPENROUTER_API_KEY o LEADS_LLM_API_KEY).")
+
+    h = estado.get("hallazgos") or {}
+    ficha = estado.get("ficha") or {}
+    crudas = estado.get("senales_crudas") or []
+    evidencia = "\n".join(f"[{i}] {s.get('snippet', '')}" for i, s in enumerate(crudas)) or "(sin resultados)"
+    senales_txt = "\n".join(f"- {s.get('tipo')}: {s.get('valor')}" for s in h.get("senales") or []) or "(ninguna)"
+    prompt = (
+        "Eres el paso de SEGUNDA LECTURA de un pipeline de leads para Nubeforge (SaaS de "
+        "observabilidad de coste y fiabilidad de pipelines de datos en la nube; ICP: empresas "
+        "de producto software UK, post-PMF, escalando ingeniería).\n\n"
+        f"Un paso determinista ya clasificó este lead como **{etiqueta}** (regla "
+        f"{estado.get('regla')}): {estado.get('motivo')}\n\n"
+        f"FICHA:\n{json.dumps(ficha, ensure_ascii=False)}\n\n"
+        f"EVIDENCIA:\n{evidencia}\n\n"
+        f"SEÑALES CONTADAS:\n{senales_txt}\n\n"
+        "Tu único trabajo: decidir si un humano debería mirar esto antes de actuar. No "
+        "re-clasifiques; evalúa la clasificación que ya hay.\n"
+        "1. ¿Hay una lectura alternativa DEFENDIBLE de la MISMA evidencia que daría otra "
+        "etiqueta? (p.ej. la ronda financia un pivote fuera del ICP; el encaje es más flojo "
+        "de lo que aparenta; meses de silencio público pese a ficha activa). Si la "
+        "clasificación es sólida, null.\n"
+        "2. ¿Hay algún HUECO que un humano debería verificar antes de actuar sobre esta "
+        "etiqueta? (evidencia sin confirmar, señales viejas o estancadas, un dato que falta). "
+        "Responde sí/no — un booleano es más fiable que una probabilidad.\n\n"
+        "Devuelve SOLO un JSON:\n"
+        '  "etiqueta_rival": null | "caliente" | "tibio" | "frio"\n'
+        '  "revisar": true | false\n'
+        '  "motivo_duda": "<una frase: la lectura rival o el hueco a verificar, o \'ninguna\'>"\n'
+    )
+    try:
+        datos = json.loads(_llamar_openrouter(prompt, MODELO, api_key))
+        rival = datos.get("etiqueta_rival")
+        return {"confianza": 0.5 if bool(datos.get("revisar", False)) else 0.9,
+                "etiqueta_rival": rival if rival in ORDEN_ETIQUETA and rival != etiqueta else None,
+                "motivo_duda": datos.get("motivo_duda")}
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError, AttributeError, RuntimeError) as e:
+        return {"confianza": 0.0, "etiqueta_rival": None, "motivo_duda": f"segunda lectura falló: {e}"}
 
 
 def _descalificar(ficha: dict, hallazgos: dict):
@@ -271,10 +419,20 @@ def aplicar_rubrica(estado: Estado) -> dict:
         return {"etiqueta": "frio", "regla": desc[0], "motivo": desc[1]}
 
     senales = h.get("senales") or []
-    if h.get("encaje_producto") == "debil":
-        return {"etiqueta": "tibio", "regla": "R8", "motivo": "encaje de producto débil"}
     tiene_s1 = any(s.get("tipo") == "S1" for s in senales)
-    if not h.get("contacto_decisor", True) and not tiene_s1:
+
+    # R8: el modelo propone "encaje débil", pero el nodo la ignora cuando la ficha sitúa a la
+    # empresa de lleno en el ICP (producto + sector software/SaaS/data). En ese caso "no
+    # cloud-native / dominio adyacente" no se sostiene contra el registro, y si de verdad le
+    # falta tracción se refleja solo en el conteo de señales (R11/R12), no en un veto del modelo.
+    ficha_icp = ((ficha.get("tipo_negocio") or "").lower() == "producto"
+                 and any(x in (ficha.get("sector") or "").lower() for x in SECTORES_ICP))
+    if h.get("encaje_producto") == "debil" and not ficha_icp:
+        return {"etiqueta": "tibio", "regla": "R8", "motivo": "encaje de producto débil"}
+
+    # R9: cargo sin poder de decisión (lista determinista) o juicio del modelo, y sin S1.
+    if (_cargo_sin_poder(estado.get("contacto_cargo")) or not h.get("contacto_decisor", True)) \
+            and not tiene_s1:
         return {"etiqueta": "tibio", "regla": "R9", "motivo": "contacto sin poder de decisión"}
 
     n = len(senales)
@@ -468,7 +626,7 @@ def _redactar_email(estado: Estado, api_key: Optional[str]):
         f'acción clara. Devuelve SOLO un JSON: {{"asunto": "...", "cuerpo": "..."}}.')
     try:
         d = json.loads(_llamar_openrouter(
-            prompt, os.environ.get("LEADS_MODELO", "dots-studio/dots-3-note-preview:free"), api_key))
+            prompt, MODELO, api_key))
         return d["asunto"], d["cuerpo"], False
     except Exception:
         return plantilla()
@@ -501,7 +659,9 @@ def _enviar_greenmail(asunto: str, cuerpo: str, estado: Estado) -> Optional[str]
 
 
 def redaccion_borrador(estado: Estado) -> dict:
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    # --sin-llm (canned_hallazgos) = ningún camino llama al modelo, este tampoco: usa plantilla.
+    # Sin canned -> el modelo redacta si hay clave.
+    api_key = None if estado.get("canned_hallazgos") is not None else _api_key()
     asunto, cuerpo, es_plantilla = _redactar_email(estado, api_key)
     marca = " [plantilla]" if es_plantilla else ""
     asunto_final = f"[BORRADOR — revisar antes de enviar]{marca} {asunto} — {estado.get('asignado_a')}"
@@ -516,7 +676,8 @@ def redaccion_borrador(estado: Estado) -> dict:
             "UPDATE leads SET asignado_a = %s, followup_sugerido = %s, borrador_message_id = %s WHERE id = %s",
             (estado.get("asignado_a"), estado.get("followup_sugerido"), msg_id, estado.get("lead_id")))
         conn.commit()
-        return {"cola_id": cola_id, "borrador_message_id": msg_id}
+        return {"cola_id": cola_id, "borrador_message_id": msg_id,
+                "borrador_asunto": asunto_final, "borrador_cuerpo": cuerpo}
     finally:
         conn.close()
 
@@ -533,6 +694,7 @@ def construir_grafo():
     g = StateGraph(Estado)
     for nombre, fn in (("ingesta_lead", ingesta_lead), ("investigacion_agente", investigacion_agente),
                        ("cualificacion_llm", cualificacion_llm), ("aplicar_rubrica", aplicar_rubrica),
+                       ("revision_llm", revision_llm),
                        ("validacion_determinista", validacion_determinista),
                        ("gate_confianza", gate_confianza), ("persistir_ok", persistir_ok),
                        ("cola_revision", cola_revision_nodo), ("enrutado", enrutado),
@@ -543,7 +705,8 @@ def construir_grafo():
     g.add_edge("ingesta_lead", "investigacion_agente")
     g.add_edge("investigacion_agente", "cualificacion_llm")
     g.add_edge("cualificacion_llm", "aplicar_rubrica")
-    g.add_edge("aplicar_rubrica", "validacion_determinista")
+    g.add_edge("aplicar_rubrica", "revision_llm")
+    g.add_edge("revision_llm", "validacion_determinista")
     g.add_edge("validacion_determinista", "gate_confianza")
     g.add_conditional_edges("gate_confianza", _rama_gate,
                             {"persistir_ok": "persistir_ok", "cola_revision": "cola_revision"})
