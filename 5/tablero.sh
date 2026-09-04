@@ -13,14 +13,65 @@ export OPENROUTER_API_KEY="$(grep -m1 '^OPENROUTER_API_KEY=' "$ENV1" | cut -d= -
 export NC_ADMIN_PASSWORD="$(grep -m1 '^NC_ADMIN_PASSWORD=' "$ENV1" | cut -d= -f2-)"
 export NC_ADMIN_EMAIL="$(grep -m1 '^NC_ADMIN_EMAIL=' "$ENV1" | cut -d= -f2-)"
 export GEMINI_API_KEY="$(grep -m1 '^GEMINI_API_KEY=' "$ENV1" | cut -d= -f2-)"
-# Si hay GEMINI_API_KEY y nadie fijó ya LEADS_LLM_BASE_URL, usar Gemini de AI Studio (cuota
-# propia, no el pool :free de OpenRouter) en vez del default. `LEADS_MODELO=...` antes de
-# llamar a este script gana igual, por si se quiere otro modelo de Gemini.
-if [ -n "$GEMINI_API_KEY" ] && [ -z "$LEADS_LLM_BASE_URL" ]; then
+# Proveedor: Gemini de AI Studio por defecto (LEADS_MODELO manda). OpenRouter como
+# alternativa con LEADS_OPENROUTER=1 -- ojo, el tier gratis de AI Studio es por modelo/día.
+if [ "$LEADS_OPENROUTER" != "1" ] && [ -n "$GEMINI_API_KEY" ] && [ -z "$LEADS_LLM_BASE_URL" ]; then
   export LEADS_LLM_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
-  export LEADS_MODELO="${LEADS_MODELO:-gemini-2.5-flash}"
+  export LEADS_MODELO="${LEADS_MODELO:-gemini-3.6-flash}"
   export LEADS_REINTENTOS="${LEADS_REINTENTOS:-6}"
+else
+  unset GEMINI_API_KEY   # _clave() la prefiere sobre OPENROUTER_API_KEY
+  export LEADS_LLM_BASE_URL="${LEADS_LLM_BASE_URL:-https://openrouter.ai/api/v1}"
+  export LEADS_MODELO="${LEADS_MODELO:-nvidia/nemotron-3-ultra-550b-a55b:free}"
+  export LEADS_REINTENTOS="${LEADS_REINTENTOS:-6}"   # pool :free -> 429 intermitente
+  export LEADS_TIMEOUT="${LEADS_TIMEOUT:-300}"       # ~17 s/llamada, razona antes de responder
 fi
+
+# Un LEADS_MODELO malo hace fallar CADA llamada -> la corrida de los 30 sale 0/30 y el error
+# queda enterrado como `sin_cualificar`. Dos comprobaciones, solo en la ruta Gemini:
+#   1. ¿existe en el catálogo?  (curl al listado, gratis) -> caza typos
+#   2. ¿devuelve algo usable?   (1 llamada real) -> caza modelos que existen pero rechazan
+#      json_object, truncan pensando, o tienen la cuota agotada. Como cuesta 1 llamada, solo
+#      corre si el modelo NO es el default conocido-bueno, o si LEADS_SMOKE=1.
+case "$LEADS_LLM_BASE_URL" in
+  *generativelanguage.googleapis.com*)
+    _cat=$(curl -s -m 10 "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY" 2>/dev/null || true)
+    if printf '%s' "$_cat" | grep -q '"name"'; then
+      if ! printf '%s' "$_cat" | grep -q "\"models/$LEADS_MODELO\""; then
+        echo "ERROR: LEADS_MODELO='$LEADS_MODELO' no está en el catálogo de Gemini AI Studio." >&2
+        echo "       Disponibles (flash):" >&2
+        printf '%s' "$_cat" | grep -o '"models/gemini-[a-z0-9.-]*flash[a-z0-9.-]*"' | sort -u | sed 's/^/         /' >&2
+        exit 1
+      fi
+    else
+      echo "   (aviso: no se pudo verificar LEADS_MODELO contra Gemini; sigo)"
+    fi
+    if [ "$LEADS_MODELO" != "gemini-3.6-flash" ] || [ "$LEADS_SMOKE" = "1" ]; then
+      echo "0/4  probando LEADS_MODELO='$LEADS_MODELO' (1 llamada)..."
+      _smoke=$(curl -s -m 30 "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" \
+        -H "Authorization: Bearer $GEMINI_API_KEY" -H 'Content-Type: application/json' \
+        -d "{\"model\":\"$LEADS_MODELO\",\"messages\":[{\"role\":\"user\",\"content\":\"Responde solo con el JSON {\\\"ok\\\":true}\"}],\"temperature\":0,\"max_tokens\":8192,\"response_format\":{\"type\":\"json_object\"}}" 2>/dev/null || true)
+      if ! printf '%s' "$_smoke" | grep -q '"content"[[:space:]]*:[[:space:]]*"[^"]'; then
+        echo "ERROR: '$LEADS_MODELO' no devolvió respuesta usable. Respuesta del proveedor:" >&2
+        printf '%s\n' "$_smoke" | head -c 600 >&2; echo >&2
+        echo "       Prueba LEADS_MODELO=gemini-3.6-flash" >&2
+        exit 1
+      fi
+    fi
+    ;;
+  *openrouter.ai*)
+    echo "0/4  probando LEADS_MODELO='$LEADS_MODELO' en OpenRouter (1 llamada)..."
+    _smoke=$(curl -s -m 60 "https://openrouter.ai/api/v1/chat/completions" \
+      -H "Authorization: Bearer $OPENROUTER_API_KEY" -H 'Content-Type: application/json' \
+      -d "{\"model\":\"$LEADS_MODELO\",\"messages\":[{\"role\":\"user\",\"content\":\"Responde solo con el JSON {\\\"ok\\\":true}\"}],\"temperature\":0,\"max_tokens\":2048,\"response_format\":{\"type\":\"json_object\"}}" 2>/dev/null || true)
+    if ! printf '%s' "$_smoke" | grep -q '"content"[[:space:]]*:[[:space:]]*"[^"]'; then
+      echo "ERROR: '$LEADS_MODELO' no devolvió respuesta usable en OpenRouter:" >&2
+      printf '%s\n' "$_smoke" | head -c 600 >&2; echo >&2
+      echo "       Si dice 'guardrail': permite el modelo en https://openrouter.ai/workspaces/default/guardrails" >&2
+      exit 1
+    fi
+    ;;
+esac
 
 echo "1/4  docker (postgres + greenmail + roundcube + adminer)..."
 docker compose -f ../1/docker-compose.yml up -d postgres greenmail roundcube adminer >/dev/null

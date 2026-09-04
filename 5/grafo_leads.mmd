@@ -9,6 +9,7 @@ graph TD;
 	investigacion_agente(investigacion_agente)
 	cualificacion_llm(cualificacion_llm)
 	aplicar_rubrica(aplicar_rubrica)
+	revision_llm(revision_llm)
 	validacion_determinista(validacion_determinista)
 	gate_confianza(gate_confianza)
 	persistir_ok(persistir_ok)
@@ -17,7 +18,7 @@ graph TD;
 	redaccion_borrador(redaccion_borrador)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> ingesta_lead;
-	aplicar_rubrica --> validacion_determinista;
+	aplicar_rubrica --> revision_llm;
 	cualificacion_llm --> aplicar_rubrica;
 	enrutado --> redaccion_borrador;
 	gate_confianza -.-> cola_revision;
@@ -26,6 +27,7 @@ graph TD;
 	investigacion_agente --> cualificacion_llm;
 	persistir_ok -. &nbsp;fin&nbsp; .-> __end__;
 	persistir_ok -. &nbsp;outreach&nbsp; .-> enrutado;
+	revision_llm --> validacion_determinista;
 	validacion_determinista --> gate_confianza;
 	cola_revision --> __end__;
 	redaccion_borrador --> __end__;

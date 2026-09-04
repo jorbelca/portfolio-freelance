@@ -8,8 +8,8 @@ Modos (los dos inyectan evidencia del dataset, ninguno llama a red):
   --sin-llm                      -> además inyecta hallazgos; salta también el modelo. Para
                                     probar grafo/rúbrica/gate/persistencia/log sin OPENROUTER_API_KEY.
 
-Sin ninguno, investigacion_agente lanza NotImplementedError (el bucle ReAct real llega el
-miércoles W36).
+Sin ninguno, investigacion_agente corre el bucle ReAct real (buscar_senales sobre DuckDuckGo);
+necesita una clave del modelo (LEADS_LLM_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY).
 """
 import argparse
 import json

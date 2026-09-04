@@ -35,6 +35,7 @@ from grafo_leads import MODELO, UMBRAL_DEFECTO, construir_grafo  # noqa: E402
 GRAFO = construir_grafo()
 PUERTO = int(os.environ.get("LEADS_UI_PUERTO", "8095"))
 DATASET = AQUI.parent / "eval" / "dataset.jsonl"
+RUBRICA = AQUI.parent / "rubrica-cualificacion-leads.md"
 
 
 def _dsn():
@@ -165,6 +166,11 @@ def _correr_eval():
             et = r.get("etiqueta") or None
             rg = r.get("regla") or None
             en_cola_obt = (r.get("resultado_log") or "cualificado") != "cualificado"
+            # Un fallo de la llamada al modelo (modelo inexistente, 429 agotado, timeout) sale
+            # por aquí: sin él, `sin_cualificar` parece un resultado de clasificación y esconde
+            # un error de config (p.ej. LEADS_MODELO mal escrito -> los 30 a 0/30).
+            err = r.get("_error_cualificacion") or (
+                r.get("motivo_duda") if "falló" in (r.get("motivo_duda") or "") else None)
             EVAL["filas"].append({
                 "id": c["id"], "empresa": c["lead"].get("empresa", ""),
                 "esp_etiqueta": e["etiqueta"] or "sin_cualificar",
@@ -173,6 +179,7 @@ def _correr_eval():
                 "esp_cola": e["en_cola"], "obt_cola": en_cola_obt,
                 "et_ok": et == e["etiqueta"], "rg_ok": rg == e["regla"],
                 "cola_ok": en_cola_obt == e["en_cola"],
+                "error": err,
             })
             EVAL["hechos"] += 1
         f = EVAL["filas"]
@@ -181,6 +188,7 @@ def _correr_eval():
             "etiqueta_ok": sum(x["et_ok"] for x in f),
             "regla_ok": sum(x["rg_ok"] for x in f),
             "cola_ok": sum(x["cola_ok"] for x in f),
+            "errores": sum(1 for x in f if x["error"]),
         }
     except Exception as e:
         import traceback
@@ -300,6 +308,10 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, estado_bbd())
             except Exception as e:
                 return self._send(500, {"error": str(e)})
+        if ruta in ("/rubrica", "/rubrica.html"):
+            return self._send(200, (AQUI / "rubrica.html").read_bytes(), "text/html; charset=utf-8")
+        if ruta == "/api/rubrica":
+            return self._send(200, RUBRICA.read_bytes(), "text/plain; charset=utf-8")
         if ruta == "/api/eval":
             return self._send(200, EVAL)
         if ruta == "/api/config":

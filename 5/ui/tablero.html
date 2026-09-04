@@ -26,27 +26,39 @@
   .hdr-actions{display:flex;align-items:center;gap:4px;flex:none}
 
   /* diagrama del pipeline */
-  .diagram{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  .diagram{background:#e7ecf6;border:1px solid #ccd6ea;border-radius:var(--radius);
        box-shadow:var(--shadow);padding:20px 22px;margin-bottom:20px}
-  .diagram .legend{font-size:11.5px;color:var(--dim);margin-bottom:15px}
+  .diagram summary{list-style:none;cursor:pointer;font-size:13px;font-weight:650;
+       display:flex;align-items:center;gap:8px;color:var(--ink);user-select:none}
+  .diagram summary::-webkit-details-marker{display:none}
+  .diagram summary::before{content:"▾";font-size:11px;color:var(--dim);transition:transform .15s}
+  .diagram:not([open]) summary::before{transform:rotate(-90deg)}
+  .diagram:not([open]){padding:12px 22px}
+  .diagram summary .sum-hint{font-weight:400;color:var(--dim);font-size:12px}
+  .diagram .legend{margin-top:14px;font-size:11.5px;color:var(--dim);margin-bottom:15px}
   .diagram .legend b{font-weight:600;color:#4338ca}
   .diagram .legend code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;background:#eef2ff;
        color:#4338ca;border:1px solid #dfe3f6;border-radius:5px;padding:1px 5px;margin:0 2px}
-  .rail{display:flex;align-items:center;flex-wrap:wrap;gap:7px 1px}
-  .dnode{display:inline-flex;align-items:baseline;gap:6px;border:1px solid var(--line);border-radius:8px;
-       padding:5px 10px;font-size:12.5px;font-weight:600;background:#fff;white-space:nowrap;line-height:1.15}
-  .dnode.ai{border-color:#c7d2fe;background:#eef2ff;color:#4338ca}
-  .dnode .cap{font-size:10.5px;font-weight:400;color:var(--dim);letter-spacing:.01em}
-  .dnode.ai .cap{color:#7c78e8}
-  .darr{flex:none;color:#b3bac4;font-size:12px;padding:0 2px}
-  .dforklabel{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-       color:var(--dim);margin:18px 0 11px}
-  .dbranch{display:flex;align-items:center;gap:7px 1px;flex-wrap:wrap;padding:4px 0}
-  .dbranch + .dbranch{margin-top:2px}
-  .dbranch .tag{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
-       padding:3px 9px;border-radius:6px;margin-right:8px}
-  .dbranch.go .tag{background:#dcfce7;color:#15803d}
-  .dbranch.hold .tag{background:var(--tibio-bg);color:var(--tibio)}
+  /* raíl vertical: nunca wrapea, se lee de arriba abajo. Azul = paso de IA. */
+  .flow{margin-left:6px}
+  .fstep{position:relative;padding:8px 0 8px 22px;border-left:2px solid var(--line)}
+  .fstep:first-child{padding-top:2px}
+  .fstep:last-of-type{border-left-color:transparent;padding-bottom:2px}
+  .fstep::before{content:"";position:absolute;left:-6px;top:12px;width:10px;height:10px;border-radius:50%;
+       background:#b3bac4;border:2px solid var(--card);box-shadow:0 0 0 1px var(--line)}
+  .fstep:first-child::before{top:6px}
+  .fstep.ai::before{background:#4338ca;box-shadow:0 0 0 1px #c7d2fe}
+  .fstep .nm{font-size:13.5px;font-weight:650}
+  .fstep.ai .nm{color:#4338ca}
+  .fstep .cap{font-size:12.5px;font-weight:400;color:var(--dim);margin-left:9px}
+  .forklabel{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+       color:var(--dim);margin:6px 0 10px 6px}
+  .fbranch{display:flex;align-items:baseline;gap:10px;padding:5px 0 5px 6px;font-size:13px}
+  .fbranch .tag{flex:none;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+       padding:3px 9px;border-radius:6px}
+  .fbranch.go .tag{background:#dcfce7;color:#15803d}
+  .fbranch.hold .tag{background:var(--tibio-bg);color:var(--tibio)}
+  .fbranch .seq b{font-weight:600;color:#4338ca}
   .btn{font:inherit;font-weight:600;border:0;border-radius:9px;padding:11px 18px;cursor:pointer;
        background:var(--accent);color:var(--accent-ink);transition:filter .12s}
   .btn:hover{filter:brightness(1.06)} .btn:disabled{opacity:.55;cursor:not-allowed}
@@ -147,42 +159,34 @@
       <p>Cómo el grafo procesa cada lead, nodo a nodo.</p>
     </div>
     <div class="hdr-actions">
+      <a class="btn link" href="/rubrica" target="_blank" rel="noopener">Rúbrica ↗</a>
       <a class="btn link" id="hdr_crm" href="#" target="_blank" rel="noopener" style="display:none">CRM ↗</a>
       <button class="btn link" id="reset">Vaciar histórico</button>
     </div>
   </header>
 
-  <div class="diagram">
+  <details class="diagram" id="esquema" open>
+    <summary>Esquema del pipeline<span class="sum-hint">7 nodos · 2 salidas</span></summary>
     <div class="legend"><b>En azul</b>, los pasos que llaman a la IA<span id="modelo"></span>. El resto es código determinista.</div>
-    <div class="rail">
-      <span class="dnode">ingesta <span class="cap">normaliza</span></span>
-      <span class="darr">→</span>
-      <span class="dnode ai">investigación <span class="cap">tools + ReAct</span></span>
-      <span class="darr">→</span>
-      <span class="dnode ai">cualificación <span class="cap">solo juicio factual</span></span>
-      <span class="darr">→</span>
-      <span class="dnode">rúbrica <span class="cap">deriva la etiqueta</span></span>
-      <span class="darr">→</span>
-      <span class="dnode ai">segunda lectura <span class="cap">¿revisar?</span></span>
-      <span class="darr">→</span>
-      <span class="dnode">validación <span class="cap">campos · email · dedup</span></span>
-      <span class="darr">→</span>
-      <span class="dnode">gate <span class="cap">R13 · R14 · R15</span></span>
+    <div class="flow">
+      <div class="fstep"><span class="nm">ingesta</span><span class="cap">normaliza el lead</span></div>
+      <div class="fstep ai"><span class="nm">investigación</span><span class="cap">busca señales — tools + ReAct</span></div>
+      <div class="fstep ai"><span class="nm">cualificación</span><span class="cap">solo juicio factual, no pone etiqueta</span></div>
+      <div class="fstep"><span class="nm">rúbrica</span><span class="cap">deriva la etiqueta de las reglas</span></div>
+      <div class="fstep ai"><span class="nm">segunda lectura</span><span class="cap">¿lectura alternativa? ¿lo mira una persona?</span></div>
+      <div class="fstep"><span class="nm">validación</span><span class="cap">campos · email · duplicados</span></div>
+      <div class="fstep"><span class="nm">gate</span><span class="cap">R13 · R14 · R15</span></div>
     </div>
-    <div class="dforklabel">el gate decide</div>
-    <div class="dbranch go">
+    <div class="forklabel">el gate decide</div>
+    <div class="fbranch go">
       <span class="tag">pasa</span>
-      <span class="dnode">persistir <span class="cap">a leads</span></span>
-      <span class="darr">→</span>
-      <span class="dnode">enrutar <span class="cap">comercial por sector</span></span>
-      <span class="darr">→</span>
-      <span class="dnode ai">email <span class="cap">borrador en GreenMail</span></span>
+      <span class="seq">persistir → enrutar al comercial del sector → <b>borrador de email</b></span>
     </div>
-    <div class="dbranch hold">
+    <div class="fbranch hold">
       <span class="tag">duda</span>
-      <span class="dnode">cola de revisión <span class="cap">lo aprueba una persona</span></span>
+      <span class="seq">cola de revisión — lo aprueba una persona</span>
     </div>
-  </div>
+  </details>
 
   <div class="card">
     <div class="label">Nuevo lead</div>
@@ -370,15 +374,20 @@ $('#eval_stop').onclick = async () => {
 function evalTabla(filas){
   if(!filas || !filas.length) return '';
   const cel = (ok, v) => `<td${ok === false ? ' style="color:var(--caliente);font-weight:600"' : ''}>${esc(v)}</td>`;
-  const rows = filas.map(f => `<tr>
+  const rows = filas.map(f => f.error ? `<tr>
+    <td>${esc(f.id)}</td><td>${esc(f.empresa)}</td>
+    <td colspan="6" style="color:var(--caliente);font-weight:600" title="${esc(f.error)}">⚠ fallo del modelo — ${esc(String(f.error).slice(0,80))}</td>
+    <td>✗</td>
+  </tr>` : `<tr>
     <td>${esc(f.id)}</td><td>${esc(f.empresa)}</td>
     ${cel(f.et_ok, f.obt_etiqueta)}<td class="q">${esc(f.esp_etiqueta)}</td>
     ${cel(f.rg_ok, f.obt_regla ?? '—')}<td class="q">${esc(f.esp_regla ?? '—')}</td>
+    ${cel(f.cola_ok, f.obt_cola ? 'cola' : 'directo')}<td class="q">${f.esp_cola ? 'cola' : 'directo'}</td>
     <td>${f.et_ok && f.rg_ok && f.cola_ok ? '✓' : '✗'}</td>
   </tr>`).join('');
   return `<table style="margin-top:16px"><thead><tr>
     <th>Caso</th><th>Empresa</th><th>Etiqueta IA</th><th>esperada</th>
-    <th>Regla IA</th><th>esperada</th><th>OK</th></tr></thead><tbody>${rows}</tbody></table>`;
+    <th>Regla IA</th><th>esperada</th><th>Ruta IA</th><th>esperada</th><th>OK</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 async function pollEval(){
   const s = await (await fetch('/api/eval')).json();
@@ -397,12 +406,17 @@ async function pollEval(){
   if(!m){ $('#eval_msg').textContent = ''; return; }
   const den = m.hechos || 1;
   const pct = n => `${n}/${m.hechos} (${Math.round(n / den * 100)}%)`;
-  $('#eval_msg').textContent = m.parado ? `parada tras ${m.hechos}/${m.total}` : 'hecho';
+  if(m.errores){
+    $('#eval_msg').innerHTML = `<span style="color:var(--caliente);font-weight:600">⚠ ${m.errores}/${m.hechos} con fallo del modelo — revisa LEADS_MODELO</span>`;
+  } else {
+    $('#eval_msg').textContent = m.parado ? `parada tras ${m.hechos}/${m.total}` : 'hecho';
+  }
   $('#eval_out').innerHTML = `
     <dl class="facts" style="margin-top:16px">
       <dt>Acierto de etiqueta</dt><dd>${pct(m.etiqueta_ok)}</dd>
       <dt>Acierto de regla</dt><dd>${pct(m.regla_ok)}</dd>
       <dt>Enrutado a cola</dt><dd>${pct(m.cola_ok)}</dd>
+      ${m.errores ? `<dt>Fallos del modelo</dt><dd style="color:var(--caliente)">${m.errores}/${m.hechos}</dd>` : ''}
     </dl>` + evalTabla(s.filas);
 }
 

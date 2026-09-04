@@ -1,6 +1,6 @@
 # Rúbrica de cualificación de leads — Demo 5
 
-**Versión:** 0.3 · **Fecha:** 2026-09-01 · **Ámbito:** Demo 5 — Cualificación de leads → asignación → primer contacto
+**Versión:** 0.4 · **Fecha:** 2026-09-03 · **Ámbito:** Demo 5 — Cualificación de leads → asignación → primer contacto
 
 **Cambios v0.1 → v0.2** (tras la primera corrida contra `eval/`): S1 admite "seed" sin importe
 y excluye explícitamente pre-seed/angel; S2 aclara que una oferta con ≥2 puestos cuenta y una
@@ -11,6 +11,13 @@ ficha sitúa a la empresa de lleno en el ICP; R9 usa una lista determinista de c
 lectura") — una segunda llamada al modelo con foco único: dada la etiqueta ya derivada,
 ¿debería revisarla un humano? Antes eran dos claves más en el JSON de cualificación. R15
 ahora es un sí/no del modelo ("¿hay un hueco que verificar?"), no una probabilidad calibrada.
+
+**Cambios v0.3 → v0.4** (tras correr `eval/` con el modelo nuevo): **S3** ya no exige
+Kubernetes u orquestación además de la nube gestionada — nombrar el proveedor basta; la
+redacción anterior dejaba fuera evidencias como "multi-cloud on AWS and GCP" que el dataset sí
+contaba. **R9** pasa a dispararla **solo** la lista determinista de cargos: el
+`contacto_decisor` del modelo satura en falso cuando el cargo no es de la C-suite (un
+"Engineering Manager" caía a R9), y esa señal ya no vota.
 
 ---
 
@@ -104,7 +111,9 @@ Señales, **cada una vale 1, y un mismo fragmento de evidencia respalda como muc
   ("hiring 4 platform engineers"), **≥ 2 ofertas** distintas de ingeniería / plataforma /
   data, **o** lenguaje explícito de crecimiento de equipo ("scaling the team", "to support
   rapid growth"). Una **sola** vacante concreta ("hiring a data engineer") **no** es S2.
-- **S3** — Stack cloud-native visible (AWS/GCP/Azure + orquestación de datos o Kubernetes)
+- **S3** — Stack cloud-native visible: **nube gestionada nombrada** (AWS / GCP / Azure), con o
+  sin Kubernetes u orquestación de datos. Un "multi-cloud on AWS and GCP" cuenta; "usamos la
+  nube" sin nombrar proveedor, no.
 - **S4** — Mención pública de dolor en el dominio de Nubeforge: coste de nube, fiabilidad de pipelines, observabilidad de datos
 
 | # | Condición (pasó R1–R9) | Etiqueta | Motivo |

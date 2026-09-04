@@ -285,8 +285,9 @@ def cualificacion_llm(estado: Estado) -> dict:
         "S2 — contratación de ingeniería a escala: un fragmento que cita un número de puestos "
         "≥ 2, o varias ofertas distintas de ingeniería/plataforma/data, o lenguaje explícito "
         "de crecimiento de equipo. Una sola vacante concreta NO es S2.\n"
-        "S3 — stack cloud-native visible: nube gestionada (AWS/GCP/Azure) + Kubernetes u "
-        "orquestación de datos, mencionados en la evidencia.\n"
+        "S3 — stack cloud-native visible: basta con que la evidencia nombre una nube "
+        "gestionada (AWS/GCP/Azure); Kubernetes u orquestación de datos suman pero NO son "
+        "obligatorios. 'multi-cloud on AWS and GCP' cuenta.\n"
         "S4 — dolor público en el dominio de Nubeforge: coste de nube, fiabilidad de "
         "pipelines de datos u observabilidad de datos, dicho por la empresa.\n"
         "Si un fragmento no encaja claramente en S1–S4, NO lo cuentes.\n\n"
@@ -352,14 +353,26 @@ def revision_llm(estado: Estado) -> dict:
         f"EVIDENCIA:\n{evidencia}\n\n"
         f"SEÑALES CONTADAS:\n{senales_txt}\n\n"
         "Tu único trabajo: decidir si un humano debería mirar esto antes de actuar. No "
-        "re-clasifiques; evalúa la clasificación que ya hay.\n"
-        "1. ¿Hay una lectura alternativa DEFENDIBLE de la MISMA evidencia que daría otra "
-        "etiqueta? (p.ej. la ronda financia un pivote fuera del ICP; el encaje es más flojo "
-        "de lo que aparenta; meses de silencio público pese a ficha activa). Si la "
-        "clasificación es sólida, null.\n"
-        "2. ¿Hay algún HUECO que un humano debería verificar antes de actuar sobre esta "
-        "etiqueta? (evidencia sin confirmar, señales viejas o estancadas, un dato que falta). "
-        "Responde sí/no — un booleano es más fiable que una probabilidad.\n\n"
+        "re-clasifiques; evalúa la clasificación que ya hay.\n\n"
+        "POR DEFECTO NO SE REVISA. La mayoría de los leads bien clasificados salen con "
+        "etiqueta_rival=null y revisar=false. Marcar todo para revisión vacía de sentido la "
+        "cola: solo se escala lo que un humano podría decidir DISTINTO.\n\n"
+        "1. etiqueta_rival — solo si un comercial sensato, con ESTA misma evidencia, podría "
+        "defender OTRA etiqueta, y puedes señalar el fragmento concreto que la sostiene. "
+        "Ejemplos válidos: la ronda financia explícitamente un pivote fuera del dominio de "
+        "Nubeforge; la evidencia dice que las vacantes llevan meses abiertas. Si no hay un "
+        "fragmento así, null.\n"
+        "2. revisar — solo si falta un dato CONCRETO y NOMBRABLE sin el cual la acción "
+        "siguiente (escribir al contacto) podría ser un error.\n"
+        "   NO cuentan como hueco, y por sí solos NUNCA justifican revisar=true:\n"
+        "   · que la evidencia no traiga fecha o pueda ser antigua — ya viene filtrada por "
+        "recencia antes de llegarte;\n"
+        "   · que la evidencia no esté confirmada de forma independiente — es la evidencia "
+        "que hay, y ya está citada con su fuente;\n"
+        "   · que el stack, la vacante o la ronda 'podrían haber cambiado' — vale para "
+        "cualquier lead y no distingue nada;\n"
+        "   · prudencia genérica, o que el contacto no esté verificado como decisor.\n"
+        "   Si tu único motivo cabe en esa lista, revisar=false.\n\n"
         "Devuelve SOLO un JSON:\n"
         '  "etiqueta_rival": null | "caliente" | "tibio" | "frio"\n'
         '  "revisar": true | false\n'
@@ -430,9 +443,10 @@ def aplicar_rubrica(estado: Estado) -> dict:
     if h.get("encaje_producto") == "debil" and not ficha_icp:
         return {"etiqueta": "tibio", "regla": "R8", "motivo": "encaje de producto débil"}
 
-    # R9: cargo sin poder de decisión (lista determinista) o juicio del modelo, y sin S1.
-    if (_cargo_sin_poder(estado.get("contacto_cargo")) or not h.get("contacto_decisor", True)) \
-            and not tiene_s1:
+    # R9: cargo sin poder de decisión, y sin S1. v0.4: SOLO la lista determinista. El
+    # `contacto_decisor` del modelo satura en falso fuera de la C-suite (un "Engineering
+    # Manager" caía a R9), así que ya no vota aquí.
+    if _cargo_sin_poder(estado.get("contacto_cargo")) and not tiene_s1:
         return {"etiqueta": "tibio", "regla": "R9", "motivo": "contacto sin poder de decisión"}
 
     n = len(senales)
