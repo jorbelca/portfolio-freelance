@@ -1,0 +1,8 @@
+.env
+.DS_Store
+__pycache__/
+*.pyc
+decision_log.jsonl
+cartas/
+eval/ultima_corrida_real.txt
+eval/corrida_*.txt
