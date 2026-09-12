@@ -6,3 +6,6 @@ decision_log.jsonl
 cartas/
 eval/ultima_corrida_real.txt
 eval/corrida_*.txt
+eval/golden_motor.jsonl
+GUION-video.md
+VERIFICACION-JURIDICA.md

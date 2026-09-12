@@ -48,7 +48,10 @@ Devuelve SOLO un objeto JSON con estos campos (usa null si el relato no lo dice)
   principal: Nueva York->JFK, Londres->LHR, París->CDG, Milán->MXP, Tokio->NRT.
   NO dejes origen ni destino en null si el relato nombra la ciudad.)
 - retraso_llegada_h: horas de retraso a la llegada al destino final, número decimal
-- fecha_vuelo: "YYYY-MM-DD" o null
+- fecha_vuelo: fecha del vuelo en formato "YYYY-MM-DD". Si el relato solo da el mes y
+  el año ("enero de 2019"), usa el día 01 -> "2019-01-01"; si solo da el año, "AAAA-01-01".
+  Devuelve null SOLO si el relato no menciona ninguna fecha. La fecha decide si la
+  reclamación ha prescrito: no la omitas por ser parcial.
 - pais_reclamacion: ISO-2 del país donde reclama el pasajero, o null
 - hubo_reruteo: true SOLO si le pusieron en OTRO vuelo o medio de transporte distinto;
   false si fue el mismo vuelo saliendo más tarde
@@ -58,6 +61,10 @@ Devuelve SOLO un objeto JSON con estos campos (usa null si el relato no lo dice)
 - causa_categoria: EXACTAMENTE una de esta lista cerrada; usa "desconocida" si el relato
   no permite decidir o menciona dos causas incompatibles:
 {cats}
+  Un retraso genérico sin causa extraordinaria ("salimos tarde", "retraso operativo",
+  "nada especial", "congestión/saturación del aeropuerto o del tráfico" sin más detalle)
+  es "operativo_aerolinea", NO "desconocida" ni "decision_atc". Reserva "decision_atc"
+  para una decisión ATFM concreta sobre ESE vuelo (slot asignado, ground stop nombrado).
 - causa_texto: cita textual breve del relato sobre el motivo del retraso
 - confianza: 0..1, tu seguridad en la categoría de causa
 - faltan: lista de campos importantes que el relato no aporta y habría que preguntar
@@ -74,6 +81,23 @@ def _iata(valor) -> str | None:
     if v in AEROPUERTOS:
         return v
     return _CIUDAD_IATA.get(valor.strip().lower())
+
+
+def _fecha(valor) -> str | None:
+    """Normaliza a 'YYYY-MM-DD'. Acepta año o año-mes sueltos (relatos tipo
+    'enero de 2019') y rellena con el 01. Devolver la fecha parcial en vez de
+    null es lo que decide si el vuelo está prescrito (reglas.dentro_de_plazo)."""
+    if not valor or not isinstance(valor, str):
+        return None
+    m = re.match(r"\s*(\d{4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?\s*$", valor)
+    if not m:
+        return None
+    y, mo, da = int(m.group(1)), int(m.group(2) or 1), int(m.group(3) or 1)
+    try:
+        from datetime import date
+        return date(y, mo, da).isoformat()
+    except ValueError:
+        return None
 
 
 def _num(valor):
@@ -130,7 +154,7 @@ def interpretar_relato(relato: str) -> dict:
         "origen": origen,
         "destino": destino,
         "retraso_llegada_h": _num(d.get("retraso_llegada_h")),
-        "fecha_vuelo": d.get("fecha_vuelo") or None,
+        "fecha_vuelo": _fecha(d.get("fecha_vuelo")),
         "pais_reclamacion": (str(d["pais_reclamacion"]).upper()
                              if d.get("pais_reclamacion") else None),
         "hubo_reruteo": bool(d.get("hubo_reruteo")),
@@ -142,3 +166,13 @@ def interpretar_relato(relato: str) -> dict:
         "faltan": faltan,
         "crudo": crudo,
     }
+
+
+if __name__ == "__main__":  # autocheck sin red: solo los normalizadores puros
+    assert _fecha("2019-01-15") == "2019-01-15"
+    assert _fecha("2019-01") == "2019-01-01"      # "enero de 2019"
+    assert _fecha("2019") == "2019-01-01"         # solo el año
+    assert _fecha("2019-13") is None and _fecha("ayer") is None and _fecha(None) is None
+    assert _iata("madrid") == "MAD" and _iata("MAD") == "MAD" and _iata("xyz") is None
+    assert _num("4,5 h") == 4.5 and _num(3) == 3.0 and _num("nada") is None
+    print("interpretar.py: OK (normalizadores)")

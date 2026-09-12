@@ -88,7 +88,6 @@ def evaluar_real(limite: int | None = None):
     n = len(casos)
     cat_ok = eleg_ok = imp_ok = 0
     errores = 0
-    filas = []
     for idx, c in enumerate(casos):
         if idx:
             time.sleep(pausa)
@@ -97,7 +96,7 @@ def evaluar_real(limite: int | None = None):
             out = procesar(c["relato_es"], escribir_carta=False, registrar_log=False, hoy=HOY)
         except Exception as e:  # noqa: BLE001
             errores += 1
-            filas.append((c["id"], "ERROR", str(e)[:80]))
+            print(f"  {c['id']:5} [ERROR] {str(e)[:80]}", flush=True)
             continue
 
         if out["estado"] == "faltan_datos":
@@ -116,10 +115,8 @@ def evaluar_real(limite: int | None = None):
         eleg_ok += e_ok
         imp_ok += i_ok
         marca = "".join("." if x else "X" for x in (c_ok, e_ok, i_ok))
-        filas.append((c["id"], marca, f"cat={got_cat} eleg={got_eleg} imp={got_imp}"))
+        print(f"  {c['id']:5} [{marca}] cat={got_cat} eleg={got_eleg} imp={got_imp}", flush=True)
 
-    for cid, marca, info in filas:
-        print(f"  {cid:5} [{marca}] {info}")
     validos = n - errores
     print(f"\nmodo real ({n} relatos, {errores} con error de proveedor) — sin promediar:")
     if errores:

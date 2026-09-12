@@ -45,7 +45,7 @@ for cat in ("meteorologia", "huelga_atc", "riesgo_seguridad", "restriccion_admin
     c = construir_carta(d, dict(HECHOS, destino="BER"))
     check(c["tipo"] == "provisional", f"{cat}: tipo provisional")
     check(EXIGENCIA_FIRME not in c["texto"], f"{cat}: SIN exigencia de pago firme")
-    check("no acreditarse una circunstancia extraordinaria" in c["texto"],
+    check("Mientras no quede acreditada una circunstancia extraordinaria" in c["texto"],
           f"{cat}: pide acreditación primero")
     check("400 €" in c["texto"], f"{cat}: menciona el importe que correspondería")
 
@@ -55,7 +55,7 @@ d = dictamen(origen="MAD", destino="JFK", retraso_llegada_h=4.0, causa_categoria
 c = construir_carta(d, HECHOS)
 check(c["tipo"] == "firme" and EXIGENCIA_FIRME in c["texto"], "firme exige el abono")
 check("600 €" in c["texto"], "firme: importe 600 €")
-check("Rechazo la oferta de 250" in c["texto"], "firme: rechaza la oferta a la baja")
+check("No acepto la oferta de 250" in c["texto"], "firme: rechaza la oferta a la baja")
 check("600" in c["texto"] and c["texto"].count("€ en efectivo") >= 1, "firme: efectivo, no bonos")
 
 # --- 4: fuera de ámbito / falta de dato — sin línea de petición ------
@@ -68,7 +68,7 @@ check("art. 3" in c["texto"], "fuera_ambito: explica el art. 3")
 
 d = dictamen(origen="EWR", destino="BCN", retraso_llegada_h=4.0, causa_categoria="operativo_aerolinea")
 c = construir_carta(d, dict(HECHOS, origen="EWR", destino="BCN"))
-check(c["tipo"] == "falta_dato" and "transportista_comunitario" in c["texto"],
+check(c["tipo"] == "falta_dato" and "transportista comunitario" in c["texto"],
       "falta_dato: nombra el dato que falta")
 
 # --- 5: sin_derecho — informativa, sin exigencia --------------------
@@ -76,7 +76,7 @@ print("5. sin_derecho")
 d = dictamen(origen="MAD", destino="JFK", retraso_llegada_h=2.5, causa_categoria="fallo_tecnico")
 c = construir_carta(d, HECHOS)
 check(c["tipo"] == "sin_derecho" and EXIGENCIA_FIRME not in c["texto"], "sin_derecho: sin exigencia")
-check("art. 6/9" in c["texto"], "sin_derecho: recuerda el deber de asistencia")
+check("artículos 6 y 9" in c["texto"], "sin_derecho: recuerda el deber de asistencia")
 
 # --- 5b: plazo incierto (G-JURIDICO) — routing intacto, sin armar a la aerolínea ---
 print("5b. plazo incierto")

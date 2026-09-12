@@ -176,6 +176,44 @@ check(800 < d_bcn_cdg < 900, f"BCN-CDG sanity {d_bcn_cdg:.0f}")
 check(not evaluar_elegibilidad(Hechos("MAD", "JFK", 2 + 55 / 60, "meteorologia"))["elegible"],
       "2h55 -> no elegible aunque la causa no importe ya")
 
+# --- Bloque 10: frontera dura -----------------------------------
+print("10. frontera dura")
+
+# rama except ValueError de dentro_de_plazo: vuelo un 29-feb, +N años cae en año no bisiesto
+check(dentro_de_plazo(date(2020, 2, 29), "ES", date(2025, 2, 28)),
+      "bisiesto: límite recae en 28-feb, hoy=28-feb justo dentro")
+check(not dentro_de_plazo(date(2020, 2, 29), "ES", date(2025, 3, 1)),
+      "bisiesto: pasado el 28-feb -> fuera de plazo")
+
+# única ventana viva del art. 7(2): largo, retraso en [3.0, 4.0). Límite inferior exacto.
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 3.0, "fallo_tecnico", hubo_reruteo=True))
+check(r["importe_eur"] == 300 and r["reduccion_aplica"], "reruteo largo 3.0 exacto -> 300 (reducido)")
+
+# oferta == importe exacto: ni déficit en el motivo ni paso 'oferta' en la traza
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 4.0, "fallo_tecnico", oferta_aerolinea_eur=600))
+check("por debajo" not in r["motivo"], "oferta = importe -> sin línea de déficit")
+check(r["traza"][-1]["paso"] == "banda de compensación", "oferta = importe -> sin paso 'oferta' en traza")
+
+# oferta > importe: idem, no genera déficit negativo
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 4.0, "fallo_tecnico", oferta_aerolinea_eur=700))
+check("por debajo" not in r["motivo"] and all(p["paso"] != "oferta de la aerolínea" for p in r["traza"]),
+      "oferta > importe -> sin déficit")
+
+# provisional + reruteo: la reducción del 7(2) también se aplica al importe provisional
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 3.5, "meteorologia", hubo_reruteo=True))
+check(r["provisional"] and r["importe_eur"] == 300 and r["reduccion_aplica"],
+      "provisional + reruteo largo 3.5 -> 300 provisional")
+check(any(p["paso"] == "reducción art. 7(2)" for p in r["traza"]), "provisional: traza incluye la reducción")
+
+# salida UE: transportista_comunitario=False es irrelevante (art. 3(1)(a) gana)
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 4.0, "fallo_tecnico", transportista_comunitario=False))
+check(r["en_ambito"] is True and r["elegible"] and r["importe_eur"] == 600,
+      "salida UE + transportista no comunitario -> sigue en ámbito")
+
+# retraso 0 h: por debajo del umbral, motivo cita Sturgeon
+r = evaluar_elegibilidad(Hechos("MAD", "JFK", 0.0, "fallo_tecnico"))
+check(not r["elegible"] and "Sturgeon" in r["motivo"], "retraso 0 h -> no elegible")
+
 # --- resumen -----------------------------------------------------
 print()
 if _fallos:

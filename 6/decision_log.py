@@ -37,6 +37,7 @@ def registrar(*, relato: str, hechos: dict, dictamen: dict, plantilla: str,
             "dentro_plazo": dictamen.get("dentro_plazo"),
             "distancia_km": dictamen.get("distancia_km"),
             "motivo": dictamen.get("motivo"),
+            "traza": dictamen.get("traza", []),  # auditoría: paso + regla + fuente citada
         },
         "plantilla": plantilla,
         "carta_path": carta_path,

@@ -91,7 +91,7 @@ def render_html(res: dict, relato: str) -> str:
 <title>Reclamación de vuelo</title><style>{_CSS}</style></head>
 <body><div class="wrap">
 <h1>Agente de reclamaciones · Reglamento (CE) 261/2004</h1>
-<p class="sub">El importe y el artículo los fija el motor determinista. El modelo solo interpreta el relato.</p>
+<p class="sub">El importe y el artículo los fija el motor determinista. El modelo solo interpreta el caso.</p>
 <div class="chat">
   <div class="msg user">{html.escape(relato.strip())}</div>
   <div class="msg bot"><div class="veredicto">{ver}</div>{cita}</div>
