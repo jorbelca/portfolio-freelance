@@ -1,0 +1,10 @@
+.env
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.pbix
+data/
+eval/corrida_*.txt
+GUION-video.md
+PLAN-demo7.md

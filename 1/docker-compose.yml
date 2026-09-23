@@ -48,8 +48,9 @@ services:
     restart: unless-stopped
     ports:
       # Expuesto al host para poder cargar seed-expedientes.sql y correr eval/run_eval.py.
+      # Además en 0.0.0.0 para que la VM Windows (demo 7, Power BI) llegue por red.
       # Solo para la demo local: en un despliegue real, quitar esta línea.
-      - "127.0.0.1:5432:5432"
+      - "0.0.0.0:5432:5432"
     environment:
       - POSTGRES_USER=n8n_user
       - POSTGRES_PASSWORD=${DB_POSTGRESDB_PASSWORD:-secure_password}

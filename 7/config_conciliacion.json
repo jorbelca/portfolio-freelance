@@ -1,0 +1,6 @@
+{
+  "dias_limite_sin_facturar": 30,
+  "tolerancia_importe_pct": 0.01,
+  "tolerancia_importe_abs": 2.0,
+  "dias_desfase_legitimo_max": 29
+}
