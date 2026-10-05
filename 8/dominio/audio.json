@@ -1,0 +1,224 @@
+{
+  "version": "audio-v1",
+  "dispositivos": [
+    {
+      "id": "pixel-8-usbc",
+      "nombre": "Pixel 8 (USB-C)",
+      "conector_audio": "usb_c",
+      "participantes_max": 2,
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "iphone-13-lightning",
+      "nombre": "iPhone 13 (Lightning)",
+      "conector_audio": "lightning",
+      "participantes_max": 2,
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "iphone-15-usbc",
+      "nombre": "iPhone 15 (USB-C)",
+      "conector_audio": "usb_c",
+      "participantes_max": 2,
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    }
+  ],
+  "compatibilidades": [
+    {
+      "perfil_sistema": "usb_c_direct",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "compatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_direct y pixel-8-usbc"
+    },
+    {
+      "perfil_sistema": "usb_c_direct",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "incompatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_direct y iphone-13-lightning"
+    },
+    {
+      "perfil_sistema": "usb_c_direct",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "compatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_direct y iphone-15-usbc"
+    },
+    {
+      "perfil_sistema": "lightning_direct",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "incompatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para lightning_direct y pixel-8-usbc"
+    },
+    {
+      "perfil_sistema": "lightning_direct",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "compatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para lightning_direct y iphone-13-lightning"
+    },
+    {
+      "perfil_sistema": "lightning_direct",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "incompatible",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para lightning_direct y iphone-15-usbc"
+    },
+    {
+      "perfil_sistema": "trs_output",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_to_usb_c",
+      "evidencia": "compatibilidad sintética verificada para trs_output y pixel-8-usbc"
+    },
+    {
+      "perfil_sistema": "trs_output",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_to_lightning",
+      "evidencia": "compatibilidad sintética verificada para trs_output y iphone-13-lightning"
+    },
+    {
+      "perfil_sistema": "trs_output",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_to_usb_c",
+      "evidencia": "compatibilidad sintética verificada para trs_output y iphone-15-usbc"
+    },
+    {
+      "perfil_sistema": "usb_c_unverified",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "desconocido",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_unverified y pixel-8-usbc"
+    },
+    {
+      "perfil_sistema": "usb_c_unverified",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "desconocido",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_unverified y iphone-13-lightning"
+    },
+    {
+      "perfil_sistema": "usb_c_unverified",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "desconocido",
+      "perfil_adaptador": null,
+      "evidencia": "compatibilidad sintética verificada para usb_c_unverified y iphone-15-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_usb_c",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_usb_c y pixel-8-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_usb_c",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_usb_c y iphone-13-lightning"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_usb_c",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_usb_c y iphone-15-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_lightning",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_lightning y pixel-8-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_lightning",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_lightning y iphone-13-lightning"
+    },
+    {
+      "perfil_adaptador": "trs_powered_to_lightning",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_powered_to_lightning y iphone-15-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_to_usb_c",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_usb_c y pixel-8-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_to_usb_c",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_usb_c y iphone-13-lightning"
+    },
+    {
+      "perfil_adaptador": "trs_to_usb_c",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_usb_c y iphone-15-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_to_lightning",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_lightning y pixel-8-usbc"
+    },
+    {
+      "perfil_adaptador": "trs_to_lightning",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "compatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_lightning y iphone-13-lightning"
+    },
+    {
+      "perfil_adaptador": "trs_to_lightning",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "incompatible",
+      "evidencia": "compatibilidad sintética verificada para trs_to_lightning y iphone-15-usbc"
+    },
+    {
+      "perfil_sistema": "trs_powered_output",
+      "dispositivo_id": "pixel-8-usbc",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_powered_to_usb_c",
+      "evidencia": "compatibilidad sintética verificada para sistema amplificado y pixel-8-usbc"
+    },
+    {
+      "perfil_sistema": "trs_powered_output",
+      "dispositivo_id": "iphone-13-lightning",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_powered_to_lightning",
+      "evidencia": "compatibilidad sintética verificada para sistema amplificado y iphone-13-lightning"
+    },
+    {
+      "perfil_sistema": "trs_powered_output",
+      "dispositivo_id": "iphone-15-usbc",
+      "resultado": "requires_adapter",
+      "perfil_adaptador": "trs_powered_to_usb_c",
+      "evidencia": "compatibilidad sintética verificada para sistema amplificado y iphone-15-usbc"
+    }
+  ],
+  "reglas": {
+    "participantes_min": 1,
+    "participantes_max": 2,
+    "moneda": "EUR",
+    "decimales_moneda": 2,
+    "max_recomendaciones": 3,
+    "max_preguntas": 3,
+    "max_candidatos_modelo": 100,
+    "impuestos_incluidos": true,
+    "envio": "desconocido_y_excluido"
+  },
+  "preferencias": [
+    "montaje_sencillo",
+    "portabilidad",
+    "discrecion"
+  ]
+}

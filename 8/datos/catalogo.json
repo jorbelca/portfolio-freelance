@@ -1,0 +1,1615 @@
+{
+  "schema_version": "1.0",
+  "tienda_id": "tienda-demo-audio",
+  "version_catalogo": "audio-sintetico-v1",
+  "observado_el": "2026-09-29T10:00:00+02:00",
+  "completo": true,
+  "items": [
+    {
+      "id": "audio-01",
+      "nombre": "Kit de entrevista sintético 01",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-01",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 8615,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "usb_c_direct",
+        "salida": "usb_c",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "requiere varios pasos manuales y comprobar el emparejamiento",
+          "portabilidad": "receptor y accesorios voluminosos para transportar",
+          "discrecion": "componentes medianos y visibles durante la entrevista"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-01",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-02",
+      "nombre": "Kit de entrevista sintético 02",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-02",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 9240,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "lightning_direct",
+        "salida": "lightning",
+        "perfil_soporte": "pinza",
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:pinza"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-02",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-03",
+      "nombre": "Kit de entrevista sintético 03",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-03",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 9865,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_output",
+        "salida": "trs",
+        "perfil_soporte": "mesa",
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "receptor y accesorios voluminosos",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:mesa"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-03",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-04",
+      "nombre": "Kit de entrevista sintético 04",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-04",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 10490,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_powered_output",
+        "salida": "trs",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-04",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-05",
+      "nombre": "Kit de entrevista sintético 05",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-05",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 11115,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "usb_c_direct",
+        "salida": "usb_c",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-05",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-06",
+      "nombre": "Kit de entrevista sintético 06",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-06",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 11740,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "lightning_direct",
+        "salida": "lightning",
+        "perfil_soporte": "mesa",
+        "cualidades": {
+          "montaje": "Receptor y transmisores emparejados; conexión directa y pocos pasos.",
+          "portabilidad": "Estuche compacto con transmisores ligeros.",
+          "discrecion": "Transmisores compactos y poco llamativos."
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:mesa"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-06",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-07",
+      "nombre": "Kit de entrevista sintético 07",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-07",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 12365,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_output",
+        "salida": "trs",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-07",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-08",
+      "nombre": "Kit de entrevista sintético 08",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-08",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 12990,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_powered_output",
+        "salida": "trs",
+        "perfil_soporte": "pinza",
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:pinza"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-08",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-09",
+      "nombre": "Kit de entrevista sintético 09",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-09",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 13615,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "usb_c_direct",
+        "salida": "usb_c",
+        "perfil_soporte": "mesa",
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "receptor y accesorios voluminosos",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:mesa"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-09",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-10",
+      "nombre": "Kit de entrevista sintético 10",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-10",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 14240,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "lightning_direct",
+        "salida": "lightning",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "Requiere ajustar niveles y hacer algunos pasos de montaje manual.",
+          "portabilidad": "Receptor y accesorios voluminosos.",
+          "discrecion": "Componentes medianos y parcialmente visibles."
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-10",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-11",
+      "nombre": "Kit de entrevista sintético 11",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-11",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 14865,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_output",
+        "salida": "trs",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-11",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-12",
+      "nombre": "Kit de entrevista sintético 12",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-12",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 15490,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 2,
+        "perfil_compatibilidad": "trs_powered_output",
+        "salida": "trs",
+        "perfil_soporte": "mesa",
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "receptor y accesorios voluminosos",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "2 transmisores",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:mesa"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-12",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-13",
+      "nombre": "Kit de entrevista sintético 13",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-13",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 16115,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 1,
+        "perfil_compatibilidad": "usb_c_direct",
+        "salida": "usb_c",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "1 transmisor",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-13",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-14",
+      "nombre": "Kit de entrevista sintético 14",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-14",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 16740,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 4,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 1,
+        "perfil_compatibilidad": "lightning_direct",
+        "salida": "lightning",
+        "perfil_soporte": "pinza",
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "1 transmisor",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [
+        "soporte:pinza"
+      ],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-14",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-15",
+      "nombre": "Kit de entrevista sintético 15",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-15",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 17365,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "agotado",
+      "cantidad_disponible": 0,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 1,
+        "perfil_compatibilidad": "trs_output",
+        "salida": "trs",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "receptor y transmisores emparejados; conexión directa y pocos pasos",
+          "portabilidad": "receptor y accesorios voluminosos",
+          "discrecion": "transmisores compactos y oscuros"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "1 transmisor",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-15",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "audio-16",
+      "nombre": "Kit de entrevista sintético 16",
+      "familia": "sistema_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SYS-16",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 17990,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "desconocido",
+      "cantidad_disponible": null,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "sistema_audio",
+        "participantes_max": 1,
+        "perfil_compatibilidad": "usb_c_unverified",
+        "salida": "usb_c",
+        "perfil_soporte": null,
+        "cualidades": {
+          "montaje": "requiere ajustar niveles y comprobar el emparejamiento",
+          "portabilidad": "estuche pequeño con transmisores ligeros",
+          "discrecion": "transmisores visibles y de mayor tamaño"
+        }
+      },
+      "incluye": [
+        "receptor",
+        "1 transmisor",
+        "pinzas",
+        "cables de conexión incluidos en el kit"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SYS-16",
+          "localizacion": "atributos e incluye",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-01",
+      "nombre": "Adaptador sintético TRS a USB-C A",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-01",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2190,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_to_usb_c",
+        "entrada": "trs",
+        "salida": "usb_c"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:TRS-USBC-A",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-02",
+      "nombre": "Adaptador sintético TRS a USB-C B",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-02",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2990,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_to_usb_c",
+        "entrada": "trs",
+        "salida": "usb_c"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:TRS-USBC-B",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-03",
+      "nombre": "Adaptador sintético TRS a Lightning A",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-03",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2390,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_to_lightning",
+        "entrada": "trs",
+        "salida": "lightning"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:TRS-LIGHT-A",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-04",
+      "nombre": "Adaptador sintético TRS a Lightning B",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-04",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 3190,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_to_lightning",
+        "entrada": "trs",
+        "salida": "lightning"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:TRS-LIGHT-B",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-05",
+      "nombre": "Interfaz sintética TRS a USB-C A",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-05",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 4890,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_powered_to_usb_c",
+        "entrada": "trs",
+        "salida": "usb_c"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:POWERED-USBC-A",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-06",
+      "nombre": "Interfaz sintética TRS a USB-C B",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-06",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 5790,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_powered_to_usb_c",
+        "entrada": "trs",
+        "salida": "usb_c"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:POWERED-USBC-B",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-07",
+      "nombre": "Interfaz sintética TRS a Lightning A",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-07",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 5090,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 5,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_powered_to_lightning",
+        "entrada": "trs",
+        "salida": "lightning"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:POWERED-LIGHT-A",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "adaptador-08",
+      "nombre": "Interfaz sintética TRS a Lightning B",
+      "familia": "adaptador_audio",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "ADP-08",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 5990,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "desconocido",
+      "cantidad_disponible": null,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "adaptador_audio",
+        "perfil_adaptador": "trs_powered_to_lightning",
+        "entrada": "trs",
+        "salida": "lightning"
+      },
+      "incluye": [
+        "adaptador de audio"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:POWERED-LIGHT-B",
+          "localizacion": "ruta de señal y compatibilidad",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-01",
+      "nombre": "Soporte de sobremesa sintético 01",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-01",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 1465,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-01",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-02",
+      "nombre": "Soporte de sobremesa sintético 02",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-02",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 1640,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-02",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-03",
+      "nombre": "Soporte de sobremesa sintético 03",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-03",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 1815,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-03",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-04",
+      "nombre": "Soporte de sobremesa sintético 04",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-04",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 1990,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-04",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-05",
+      "nombre": "Soporte de sobremesa sintético 05",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-05",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2165,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-05",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-06",
+      "nombre": "Soporte de sobremesa sintético 06",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-06",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2340,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-06",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-07",
+      "nombre": "Soporte de sobremesa sintético 07",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-07",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2515,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "agotado",
+      "cantidad_disponible": 0,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-07",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-08",
+      "nombre": "Soporte de sobremesa sintético 08",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-MESA-08",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2690,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "desconocido",
+      "cantidad_disponible": null,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "mesa"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-MESA-08",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-09",
+      "nombre": "Soporte de pinza sintético 01",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-01",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2065,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-01",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-10",
+      "nombre": "Soporte de pinza sintético 02",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-02",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2240,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-02",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-11",
+      "nombre": "Soporte de pinza sintético 03",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-03",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2415,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-03",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-12",
+      "nombre": "Soporte de pinza sintético 04",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-04",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2590,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-04",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-13",
+      "nombre": "Soporte de pinza sintético 05",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-05",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2765,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-05",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-14",
+      "nombre": "Soporte de pinza sintético 06",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-06",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 2940,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "disponible",
+      "cantidad_disponible": 6,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-06",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-15",
+      "nombre": "Soporte de pinza sintético 07",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-07",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 3115,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "desconocido",
+      "cantidad_disponible": null,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-07",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    },
+    {
+      "id": "soporte-16",
+      "nombre": "Soporte de pinza sintético 08",
+      "familia": "soporte",
+      "origen_comercial": {
+        "tienda_id": "tienda-demo-audio",
+        "producto_id": "SOP-PINZA-08",
+        "variante_id": "base",
+        "url": null
+      },
+      "precio_minor": 3290,
+      "moneda": "EUR",
+      "decimales_moneda": 2,
+      "disponibilidad": "agotado",
+      "cantidad_disponible": 0,
+      "observado_el": "2026-09-29T10:00:00+02:00",
+      "version_catalogo": "audio-sintetico-v1",
+      "atributos": {
+        "tipo": "soporte",
+        "perfil_soporte": "pinza"
+      },
+      "incluye": [
+        "soporte y fijación"
+      ],
+      "requiere": [],
+      "fuentes": [
+        {
+          "documento": "ficha_sintetica:SOP-PINZA-08",
+          "localizacion": "perfil de montaje",
+          "url": null
+        }
+      ],
+      "verificado_el": "2026-09-28",
+      "origen": "sintético"
+    }
+  ]
+}

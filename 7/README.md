@@ -1,6 +1,6 @@
 # Demo 7 — Reporting periódico con conciliación entre fuentes (Power BI)
 
-**En construcción — semana del 2026-09-14.**
+**Finalizada — 2026-09-24.**
 
 Automatiza el informe semanal que hoy se monta a mano (exportar, pegar en Excel, cuadrar) y
 añade algo que la mayoría de dashboards no hace: **detectar cuándo los números de dos fuentes
@@ -32,9 +32,8 @@ fuente C (facturación)  ─┘                              │
 
 ## Estado
 
-En construcción. Ingesta y conciliación ya funcionan de extremo a extremo contra datos
+Demo finalizada. Ingesta y conciliación funcionan de extremo a extremo contra datos
 sintéticos (35/35 descuadres detectados, 0 falsos positivos en los casos de desfase legítimo).
-Falta el panel de Power BI y el vídeo.
 
 ## Ejecutar
 

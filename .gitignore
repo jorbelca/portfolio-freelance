@@ -1,2 +1,7 @@
 # Planning notes are private; keep them out of public project snapshots.
 PLAN-demo*.md
+8/state.sqlite3*
+8/__pycache__/
+8/.venv-clm/
+8/GUION-grabacion-CLM.md
+9/README.md

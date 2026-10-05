@@ -1,0 +1,517 @@
+{
+  "corpus": "demo8-eval-v1",
+  "sha256": "63d81e13e611f526df650cc047e7730579ed8f9a59d427e21b97482ae4d2b49f",
+  "split": "dev",
+  "casos": 20,
+  "revisor": "una persona; etiquetas manuales fijadas antes de ejecutar CLM",
+  "resumen": {
+    "estado_correcto_pct": 100.0,
+    "top3_aceptable_pct": 100.0,
+    "top3_muestra": 11,
+    "violaciones_duras": 0,
+    "productos_requeridos_correctos": 2,
+    "productos_requeridos_muestra": 2,
+    "reconfiguracion_correcta": 3,
+    "reconfiguracion_muestra": 3,
+    "uso_interpretado_correctamente_pct": 66.7,
+    "uso_interpretado_muestra": 3,
+    "preferencias_interpretadas_correctamente_pct": 100.0,
+    "preferencias_interpretadas_muestra": 1,
+    "abstencion_uso_pct": 0.0,
+    "abstencion_uso_muestra": 3,
+    "abstencion_preferencias_pct": 44.4,
+    "abstencion_preferencias_muestra": 9,
+    "aclaraciones_utiles": 5,
+    "aclaraciones_muestra": 5,
+    "latencia_clm_s": {
+      "n": 7,
+      "p50": 0.013,
+      "p95": 0.02
+    },
+    "latencia_interpretacion_s": {
+      "n": 3,
+      "p50": 0.004
+    },
+    "latencia_sesion_s": {
+      "n": 20,
+      "p50": 0.0,
+      "p95": 0.019
+    },
+    "errores_modelo": 0
+  },
+  "limitaciones": [
+    "Etiquetas de una sola persona revisora.",
+    "Corpus sintético y centrado en tres preferencias conocidas.",
+    "La memoria del proceso CLM separado no se midió desde este cliente."
+  ],
+  "resultados": [
+    {
+      "id": "D01",
+      "grupo": "directas",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "montaje_sencillo"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.012,
+      "top3_aceptable": true
+    },
+    {
+      "id": "D02",
+      "grupo": "directas",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-07"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "portabilidad"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.021,
+      "top3_aceptable": true
+    },
+    {
+      "id": "D03",
+      "grupo": "directas",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "discrecion"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.014,
+      "top3_aceptable": true
+    },
+    {
+      "id": "D04",
+      "grupo": "directas",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-07"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "montaje_sencillo",
+          "portabilidad"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.019,
+      "top3_aceptable": true
+    },
+    {
+      "id": "D05",
+      "grupo": "directas",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-07"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "portabilidad",
+          "discrecion"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.013,
+      "top3_aceptable": true
+    },
+    {
+      "id": "D06",
+      "grupo": "conflicto_presupuesto_preferencias",
+      "esperado": "requiere_concesion",
+      "obtenido": "requiere_concesion",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "aclaracion_util": true
+    },
+    {
+      "id": "D07",
+      "grupo": "conflicto_presupuesto_preferencias",
+      "esperado": "requiere_concesion",
+      "obtenido": "requiere_concesion",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "aclaracion_util": true
+    },
+    {
+      "id": "D08",
+      "grupo": "conflicto_presupuesto_preferencias",
+      "esperado": "requiere_concesion",
+      "obtenido": "requiere_concesion",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "aclaracion_util": true
+    },
+    {
+      "id": "D09",
+      "grupo": "dependencias_incompatibilidades",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-03",
+        "audio-03",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "top3_aceptable": true,
+      "productos_requeridos_presentes": true
+    },
+    {
+      "id": "D10",
+      "grupo": "dependencias_incompatibilidades",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-04",
+        "audio-04"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "top3_aceptable": true,
+      "productos_requeridos_presentes": true
+    },
+    {
+      "id": "D11",
+      "grupo": "dependencias_incompatibilidades",
+      "esperado": "pendiente_verificacion",
+      "obtenido": "pendiente_verificacion",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "aclaracion_util": true
+    },
+    {
+      "id": "D12",
+      "grupo": "cambios",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-02",
+        "audio-02",
+        "audio-02"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "top3_aceptable": true,
+      "reconfiguracion_correcta": true,
+      "piezas_cambiadas": {
+        "conservadas": [],
+        "sustituidas": [
+          "Kit de entrevista sintético 01"
+        ],
+        "añadidas": [
+          "Kit de entrevista sintético 02",
+          "Soporte de pinza sintético 01"
+        ]
+      }
+    },
+    {
+      "id": "D13",
+      "grupo": "cambios",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-05",
+        "audio-03",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "top3_aceptable": true,
+      "reconfiguracion_correcta": true,
+      "piezas_cambiadas": {
+        "conservadas": [],
+        "sustituidas": [
+          "Kit de entrevista sintético 01"
+        ],
+        "añadidas": [
+          "Kit de entrevista sintético 05"
+        ]
+      }
+    },
+    {
+      "id": "D14",
+      "grupo": "cambios",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "top3_aceptable": true,
+      "reconfiguracion_correcta": true,
+      "piezas_cambiadas": {
+        "conservadas": [
+          "Kit de entrevista sintético 01"
+        ],
+        "sustituidas": [],
+        "añadidas": []
+      }
+    },
+    {
+      "id": "D15",
+      "grupo": "ambiguedad_desconocido_fuera_de_alcance",
+      "esperado": "fuera_de_alcance",
+      "obtenido": "fuera_de_alcance",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0
+    },
+    {
+      "id": "D16",
+      "grupo": "ambiguedad_desconocido_fuera_de_alcance",
+      "esperado": "pendiente_verificacion",
+      "obtenido": "pendiente_verificacion",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "aclaracion_util": true
+    },
+    {
+      "id": "D17",
+      "grupo": "ambiguedad_desconocido_fuera_de_alcance",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "montaje_sencillo"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.007,
+      "interpretacion": {
+        "uso_esperado": "no_claro",
+        "uso_obtenido": "entrevista_movil",
+        "confianza_uso": 0.269,
+        "uso_correcto": false,
+        "latencia_s": 0.004,
+        "preferencias_obtenidas": [
+          {
+            "id": "montaje_sencillo",
+            "sugerida": true,
+            "confianza": 0.93
+          },
+          {
+            "id": "portabilidad",
+            "sugerida": false,
+            "confianza": 0.266
+          },
+          {
+            "id": "discrecion",
+            "sugerida": false,
+            "confianza": 0.241
+          }
+        ]
+      }
+    },
+    {
+      "id": "D18",
+      "grupo": "ambiguedad_desconocido_fuera_de_alcance",
+      "esperado": "invalid",
+      "obtenido": "invalid",
+      "estado_correcto": true,
+      "top3_audio": [],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_ejecutado"
+      },
+      "latencia_sesion_s": 0.0
+    },
+    {
+      "id": "D19",
+      "grupo": "texto_enganoso_inyeccion",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-03"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "no_requerido"
+      },
+      "latencia_sesion_s": 0.0,
+      "interpretacion": {
+        "uso_esperado": "entrevista_fija",
+        "uso_obtenido": "entrevista_fija",
+        "confianza_uso": 0.313,
+        "uso_correcto": true,
+        "latencia_s": 0.004,
+        "preferencias_obtenidas": [
+          {
+            "id": "montaje_sencillo",
+            "sugerida": true,
+            "confianza": 0.258
+          },
+          {
+            "id": "portabilidad",
+            "sugerida": true,
+            "confianza": 0.665
+          },
+          {
+            "id": "discrecion",
+            "sugerida": false,
+            "confianza": 0.176
+          }
+        ]
+      }
+    },
+    {
+      "id": "D20",
+      "grupo": "texto_enganoso_inyeccion",
+      "esperado": "recomendado",
+      "obtenido": "recomendado",
+      "estado_correcto": true,
+      "top3_audio": [
+        "audio-01",
+        "audio-05",
+        "audio-07"
+      ],
+      "violaciones_duras": [],
+      "modelo": {
+        "estado": "ejecutado",
+        "modelo": "clm-latest",
+        "preferencias": [
+          "portabilidad"
+        ],
+        "criterio": "puntuación contextual 0–2"
+      },
+      "latencia_sesion_s": 0.007,
+      "top3_aceptable": true,
+      "interpretacion": {
+        "uso_esperado": "entrevista_movil",
+        "uso_obtenido": "entrevista_movil",
+        "confianza_uso": 0.715,
+        "uso_correcto": true,
+        "latencia_s": 0.004,
+        "preferencias_obtenidas": [
+          {
+            "id": "montaje_sencillo",
+            "sugerida": false,
+            "confianza": 0.139
+          },
+          {
+            "id": "portabilidad",
+            "sugerida": true,
+            "confianza": 0.627
+          },
+          {
+            "id": "discrecion",
+            "sugerida": true,
+            "confianza": 0.275
+          }
+        ],
+        "preferencias_correctas": {
+          "portabilidad": true
+        }
+      }
+    }
+  ]
+}
