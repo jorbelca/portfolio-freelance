@@ -1,0 +1,64 @@
+name: portfolio-demo9
+x-proxy: &proxy
+  image: portfolio-demo9-proxy:7.6
+  build:
+    context: .
+    target: proxy
+  networks: [entrada, destino]
+  depends_on:
+    destino:
+      condition: service_healthy
+  healthcheck:
+    test: [CMD, python, -c, "import http.client; c=http.client.HTTPConnection('127.0.0.1',3128,timeout=4); c.request('GET','http://destino:8090/health'); assert c.getresponse().status==200"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+  restart: unless-stopped
+services:
+  destino:
+    image: portfolio-demo9-python:3.13.16
+    build:
+      context: .
+      target: runtime
+    command: [python, destino_demo.py]
+    networks: [destino]
+    volumes: [votos:/data]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=3).status==200"]
+      interval: 5s
+      timeout: 4s
+      retries: 5
+    restart: unless-stopped
+  proxy-a: *proxy
+  proxy-b: *proxy
+  proxy-c: *proxy
+  app:
+    image: portfolio-demo9-python:3.13.16
+    build:
+      context: .
+      target: runtime
+    ports: ["127.0.0.1:8089:8089"]
+    networks: [entrada, panel]
+    volumes: [ejecutor:/data]
+    depends_on:
+      proxy-a:
+        condition: service_healthy
+      proxy-b:
+        condition: service_healthy
+      proxy-c:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8089/health',timeout=3).status==200"]
+      interval: 5s
+      timeout: 4s
+      retries: 5
+    restart: unless-stopped
+networks:
+  panel:
+  entrada:
+    internal: true
+  destino:
+    internal: true
+volumes:
+  ejecutor:
+  votos:

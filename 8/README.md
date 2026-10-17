@@ -4,6 +4,17 @@ Prototipo local que convierte una necesidad de grabación en conjuntos de audio 
 
 La aplicación propone conjuntos completos, explica qué piezas se conectan, calcula el coste y señala los datos que no están verificados. Si cambian las condiciones, vuelve a comprobar la selección y conserva las piezas que siguen siendo válidas.
 
+## Demostración en vídeo
+
+[![Configurador de audio con interpretación contextual](https://img.youtube.com/vi/bOzBnumUCyM/hqdefault.jpg)](https://www.youtube.com/watch?v=bOzBnumUCyM)
+
+## Índice
+
+- [Cómo funciona](#cómo-funciona)
+- [Ejecutar](#ejecutar)
+- [Evaluación y límites](#evaluación-y-límites)
+- [Código](#código)
+
 ## Cómo funciona
 
 - El catálogo normalizado y las reglas describen productos, dispositivos, compatibilidades y accesorios.

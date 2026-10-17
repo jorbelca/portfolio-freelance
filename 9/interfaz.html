@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relay · Consola de ejecución</title>
+<style>
+:root{color-scheme:light;--ink:#24242b;--muted:#64646f;--quiet:#898992;--line:#e8e8ec;--soft:#f6f6f8;--blue:#4f52c8;--blue-soft:#ededfc;--green:#287447;--red:#ae3d39;--amber:#916215;font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:#fff}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:disabled{cursor:default;opacity:.45}button,input,select{border-radius:6px}button{border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;font-weight:500;white-space:nowrap}button:hover:enabled{background:#f5f5f8;border-color:#d4d4dc}button.primary{background:var(--blue);border-color:var(--blue);color:white;box-shadow:0 1px 2px #25276614}button.primary:hover:enabled{background:#4345b3;border-color:#4345b3}button.quiet{border-color:transparent;background:transparent}button.danger{color:var(--red)}button.danger:hover:enabled{background:#fff3f2;border-color:#ecd4d2}button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:3px}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}h1,h2,h3,p{margin:0}h1{font-size:23px;line-height:1.25;font-weight:650;letter-spacing:-.65px}h2{font-size:14px;font-weight:600;letter-spacing:-.1px}h3{font-size:12px;font-weight:600}.mono,code,time{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;font-variant-numeric:tabular-nums}.muted{color:var(--muted)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}[hidden]{display:none!important}
+.skip-link:focus{clip:auto;width:auto;height:auto;margin:0;padding:10px 16px;top:8px;left:8px;background:white;z-index:20;box-shadow:0 2px 12px #20203220}
+.shell{display:grid;grid-template-columns:202px minmax(0,1fr);min-height:100dvh}.sidebar{background:#f8f8fa;border-right:1px solid var(--line);padding:28px 16px 18px;display:flex;flex-direction:column;position:sticky;top:0;height:100dvh}.wordmark{font-size:29px;letter-spacing:-1.4px;font-weight:750;line-height:1}.brand-sub{font-size:11px;color:var(--muted);margin-top:7px}.workspace{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:26px 0 22px;padding:15px 4px}.workspace strong{display:block;font-weight:550;font-size:12px}.workspace small{display:block;font-size:11px;color:var(--muted);margin-top:2px}.nav-label{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--quiet);padding:0 10px;margin-bottom:8px}.nav{display:flex;flex-direction:column;gap:4px}.nav button{border:0;background:transparent;border-radius:5px;text-align:left;padding:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:12px}.nav button:hover{background:#efeff3}.nav button[aria-current="page"]{color:var(--ink);background:#eaeaf0;font-weight:600}.nav-index{font-family:ui-monospace,monospace;font-size:10px;color:var(--quiet)}.nav-count{margin-left:auto;font-size:10px;color:var(--muted)}.sidebar-foot{margin-top:auto;padding:22px 8px 0;border-top:1px solid var(--line)}.connection{display:flex;align-items:center;gap:7px;font-size:11px}.connection-dot{width:6px;height:6px;border-radius:50%;background:#92929b;flex-shrink:0}.connection[data-state="online"] .connection-dot{background:var(--green)}.connection[data-state="offline"] .connection-dot{background:var(--amber)}.footnote{font-size:10px;color:var(--muted);margin-top:7px;line-height:1.6}.main{min-width:0}.topbar{height:58px;border-bottom:1px solid var(--line);padding:0 34px;display:flex;align-items:center;justify-content:space-between;gap:20px}.breadcrumbs{display:flex;align-items:center;gap:13px;font-size:12px}.breadcrumbs .divider{color:#c4c4cc}.environment{font-size:10px;color:var(--muted);letter-spacing:.2px;border:1px solid var(--line);border-radius:4px;padding:3px 7px}.page{padding:30px 34px 24px;max-width:1600px;margin:auto}.page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:25px}.page-heading p{color:var(--muted);font-size:12px;margin-top:7px}.heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.export-menu{position:relative}.export-menu summary{list-style:none;border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-weight:500;cursor:pointer}.export-menu summary::-webkit-details-marker{display:none}.export-menu summary:hover{background:var(--soft)}.export-options{position:absolute;right:0;top:39px;min-width:160px;padding:5px;background:white;border:1px solid var(--line);border-radius:7px;box-shadow:0 6px 22px #20203212;z-index:5}.export-options a{display:block;padding:8px 9px;color:var(--ink);font-size:12px;border-radius:4px}.export-options a:hover{background:var(--soft);text-decoration:none}.alert{background:#fff7ea;border:1px solid #eee0c4;border-radius:5px;padding:10px 13px;margin-bottom:18px;color:#77521c;font-size:12px}.run-heading{display:flex;align-items:center;gap:12px;padding:0 0 17px}.run-id{color:var(--muted)}.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;line-height:1.2;border-radius:4px;padding:5px 7px;background:#f1f1f4;color:#636370;white-space:nowrap}.badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}.badge.success{background:#edf6ef;color:var(--green)}.badge.running{background:#ededfc;color:#5557b7}.badge.warning{background:#fbf3e4;color:var(--amber)}.badge.error{background:#fbeeed;color:var(--red)}.run-heading .run-controls{margin-left:auto;display:flex;gap:6px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:19px 0;margin-bottom:26px}.metric{padding:0 24px;border-right:1px solid var(--line)}.metric:first-child{padding-left:0}.metric:last-child{border:0}.metric-label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px}.metric-value{font-size:24px;letter-spacing:-.7px;font-weight:550;line-height:1.2;font-variant-numeric:tabular-nums}.metric-value .denominator{font-size:16px;font-weight:400;color:#a0a0a9;letter-spacing:-.2px}.metric-note{display:block;font-size:10px;color:var(--muted);margin-top:5px}.workarea{display:grid;grid-template-columns:minmax(0,1fr) 242px;gap:30px}.views{min-width:0}.section-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;gap:10px}.section-heading small{font-size:11px;color:var(--muted)}.progress-wrap{display:flex;align-items:center;gap:12px;margin-bottom:19px}.progress-wrap progress{width:100%;height:4px;appearance:none;-webkit-appearance:none;border:0;background:var(--soft);border-radius:2px;overflow:hidden}.progress-wrap progress::-webkit-progress-bar{background:#efeff3}.progress-wrap progress::-webkit-progress-value{background:var(--blue);border-radius:2px}.progress-wrap progress::-moz-progress-bar{background:var(--blue)}.progress-wrap span{font-size:11px;color:var(--muted);white-space:nowrap}.toolbar{display:flex;align-items:center;gap:10px;padding:10px 0 13px}.search{flex:1;min-width:140px}.toolbar input,.toolbar select{height:33px;padding:6px 9px;background:white;border:1px solid var(--line);font-size:11px;color:var(--ink)}.toolbar input{width:100%;min-width:0}.toolbar input::placeholder{color:#777783}.toolbar select{max-width:190px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:7px;background:white}.data-table{width:100%;border-collapse:collapse;white-space:nowrap;text-align:left}.data-table th{font-size:10px;font-weight:500;color:var(--muted);background:#f9f9fb;border-bottom:1px solid var(--line);padding:10px 14px}.data-table td{font-size:12px;padding:11px 14px;border-bottom:1px solid #efeff2;vertical-align:middle}.data-table tr:last-child td{border-bottom:0}.data-table tbody tr:hover{background:#fbfbfd}.data-table .action-button{padding:0;border:0;background:transparent;font-size:12px;font-weight:550;color:var(--ink);border-radius:2px}.data-table .action-button:hover{color:var(--blue);text-decoration:underline;background:transparent}.number-cell{text-align:right;font-variant-numeric:tabular-nums}.proxy-label{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.route-mark{font:10px/1.5 ui-monospace,monospace;border:1px solid #dedee7;border-radius:3px;padding:0 4px;color:#696977;background:#f8f8fb}.ip-cell{color:var(--muted);font:11px ui-monospace,monospace}.table-footer{display:flex;justify-content:space-between;padding:12px 1px;font-size:10px;color:var(--muted)}.empty{padding:55px 20px;text-align:center}.empty h3{font-size:14px;font-weight:550;margin-bottom:6px}.empty p{font-size:12px;color:var(--muted);max-width:350px;margin:0 auto 16px}.context{border-left:1px solid var(--line);padding-left:23px}.context-section{padding-bottom:23px;margin-bottom:22px;border-bottom:1px solid var(--line)}.context-section:last-child{border:0;margin:0}.context h2{font-size:12px;margin-bottom:13px}.properties{margin:0}.properties div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:11px 0}.properties dt{font-size:11px;color:var(--muted);flex-shrink:0}.properties dd{font-size:11px;margin:0;text-align:right;overflow-wrap:anywhere}.context-text{font-size:11px;color:var(--muted);line-height:1.7}.route-mini{display:flex;align-items:center;justify-content:space-between;margin:12px 0;gap:8px}.route-mini span{font-size:11px;color:var(--muted)}.route-mini code{font-size:10px;color:var(--muted)}.audit-result{font-size:12px;line-height:1.6;font-weight:500;margin-bottom:7px}.audit-result.success{color:var(--green)}.audit-result.warning{color:var(--amber)}.audit-result.muted{font-weight:400}.audit-button{font-size:11px;padding:0;margin-top:9px;color:var(--blue);border:0;background:none;font-weight:500}.event-log{border:1px solid var(--line);border-radius:7px;overflow:hidden}.event{display:grid;grid-template-columns:65px 68px minmax(0,1fr);padding:12px 14px;gap:13px;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.event:last-child{border:0}.event time{font-size:10px;color:var(--muted);padding-top:2px}.event .event-type{color:var(--muted);font-size:10px;padding-top:2px}.event .event-detail{color:var(--ink)}.event .event-action{color:var(--blue);font-weight:550;margin-right:7px}.event[data-kind="incierta"]{background:#fffcf6}.event[data-kind="fallida"]{background:#fffafa}.view-intro{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 20px;max-width:520px}.routes-table td{padding:16px 14px}.route-usage{display:flex;align-items:center;gap:8px}.route-usage progress{width:65px;height:4px;accent-color:var(--blue)}.bottom-note{display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding-top:14px;margin-top:30px;font-size:10px;color:var(--muted)}
+dialog{border:1px solid #dddde5;border-radius:10px;padding:0;color:var(--ink);background:white;box-shadow:0 18px 70px #20202c26;width:min(510px,calc(100% - 32px));max-height:calc(100dvh - 40px)}dialog::backdrop{background:#24242c42;backdrop-filter:blur(2px)}.dialog-head{display:flex;align-items:start;justify-content:space-between;gap:20px;padding:25px 26px 18px}.dialog-head h2{font-size:19px;letter-spacing:-.4px;font-weight:600}.dialog-head p{color:var(--muted);font-size:12px;margin-top:5px}.close-button{font-size:11px;padding:4px 8px;background:var(--soft);color:var(--muted)}.dialog-body{padding:0 26px 23px}.field{margin-bottom:18px}.field label{display:block;font-size:12px;font-weight:500;margin-bottom:6px}.field small{display:block;font-size:10px;color:var(--muted);margin-top:6px}.field input,.field select{width:100%;padding:9px 10px;background:white;border:1px solid #dcdce4;font-size:12px;min-width:0}.field-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}.advanced{border-top:1px solid var(--line);padding-top:15px;margin:0 0 19px}.advanced summary{cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:14px}.plan-preview{background:#f7f7fb;border:1px solid var(--line);border-radius:6px;padding:13px 15px}.plan-preview strong{font-size:11px;font-weight:550}.plan-blocks{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:8px;color:var(--muted);font-size:11px}.plan-preview small{display:block;color:var(--muted);font-size:10px;margin-top:10px}.dialog-foot{border-top:1px solid var(--line);background:#fbfbfc;display:flex;justify-content:space-between;align-items:center;padding:15px 26px;gap:12px}.dialog-foot small{font-size:10px;color:var(--muted)}.dialog-foot button{padding:8px 16px}.form-error{font-size:12px;color:var(--red);margin-top:14px}.drawer{height:100dvh;max-height:100dvh;width:min(540px,100%);margin:0 0 0 auto;border-radius:0;border-top:0;border-bottom:0;border-right:0}.drawer .dialog-head{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:22px}.drawer .dialog-body{padding-bottom:30px}.drawer .properties{margin:0 0 27px}.drawer .properties div{padding:9px 0;border-bottom:1px solid var(--line)}.drawer .properties dt,.drawer .properties dd{font-size:12px}.drawer .result-detail{background:var(--soft);border-radius:6px;padding:14px;font-size:12px;line-height:1.7;margin-bottom:24px}.drawer h3{margin-bottom:13px}.attempt{border-left:2px solid #d9d9eb;padding:0 0 0 13px;margin:18px 0}.attempt strong{display:block;font-size:12px;font-weight:550;margin-bottom:4px}.attempt p{font-size:11px;color:var(--muted);line-height:1.8}.loading{color:var(--quiet)}
+@media(min-width:1500px){.workarea{grid-template-columns:minmax(0,1fr) 265px;gap:40px}.page{padding:36px 48px}.topbar{padding:0 48px}}
+@media(max-width:1100px){.shell{grid-template-columns:176px minmax(0,1fr)}.workarea{grid-template-columns:minmax(0,1fr)}.context{border-left:0;border-top:1px solid var(--line);padding:22px 0 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.context-section{border:0;margin:0;padding:0}.page{padding:26px}.topbar{padding:0 26px}.metric{padding:0 16px}}
+@media(max-width:700px){.shell{display:block}.sidebar{position:static;height:auto;display:block;padding:18px 20px 0;border-right:0;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:baseline;gap:12px}.wordmark{font-size:24px}.brand-sub{margin:0}.workspace,.nav-label,.sidebar-foot{display:none}.nav{flex-direction:row;margin-top:18px;gap:8px}.nav button{flex:1;justify-content:center;border-radius:4px 4px 0 0;font-size:11px;padding:10px 8px}.nav-index{display:none}.nav-count{margin-left:0}.topbar{height:46px;padding:0 20px}.page{padding:22px 20px}.page-heading{flex-wrap:wrap;gap:16px;margin-bottom:24px}.heading-actions{width:100%;justify-content:flex-end}.page-heading h1{font-size:22px}.metrics{grid-template-columns:repeat(2,1fr);gap:20px 0;padding:18px 0}.metric{padding:0 18px}.metric:nth-child(2){border:0}.metric:nth-child(3){padding-left:0}.metric-value{font-size:22px}.run-heading{flex-wrap:wrap;gap:8px}.run-heading .run-controls{width:100%;margin:4px 0 0}.context{grid-template-columns:1fr;gap:24px}.context-section{padding-bottom:20px;border-bottom:1px solid var(--line)}.context-section:last-child{padding:0}.toolbar{flex-wrap:wrap}.toolbar .search{flex-basis:100%}.toolbar select{flex:1;max-width:none}.data-table th,.data-table td{padding:10px}.event{grid-template-columns:55px minmax(0,1fr);gap:5px 10px}.event .event-type{grid-column:2;grid-row:1}.event .event-detail{grid-column:2}.bottom-note{flex-direction:column;gap:4px}.dialog-head{padding:22px 20px 17px}.dialog-body{padding:0 20px 20px}.dialog-foot{padding:14px 20px}.field-row{gap:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<a class="sr-only skip-link" href="#workspace">Ir al contenido</a>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="wordmark">relay</div><div class="brand-sub">Consola de automatización</div></div>
+    <div class="workspace"><strong>Votación de prueba</strong><small>Demo 09 · entorno local</small></div>
+    <p class="nav-label">Monitorización</p>
+    <nav class="nav" aria-label="Vistas de ejecución">
+      <button type="button" data-view="execution" aria-current="page"><span class="nav-index" aria-hidden="true">01</span>Ejecución<span class="nav-count" id="actionCount">—</span></button>
+      <button type="button" data-view="activity"><span class="nav-index" aria-hidden="true">02</span>Actividad<span class="nav-count" id="eventCount">—</span></button>
+      <button type="button" data-view="network"><span class="nav-index" aria-hidden="true">03</span>Rutas<span class="nav-count">3</span></button>
+    </nav>
+    <div class="sidebar-foot"><div class="connection" id="connection" data-state="loading"><span class="connection-dot" aria-hidden="true"></span><span id="connectionText">Conectando con la API</span></div><p class="footnote">Un trabajador · tres proxies<br>Participaciones sintéticas</p></div>
+  </aside>
+  <main class="main" id="workspace">
+    <header class="topbar"><div class="breadcrumbs"><span class="muted">Sandbox</span><span class="divider" aria-hidden="true">/</span><span id="breadcrumb">Ejecución</span></div><span class="environment">LOCAL</span></header>
+    <div class="page">
+      <div class="page-heading"><div><h1 id="pageTitle">Ejecución</h1><p id="pageSubtitle">Última ejecución de la votación de prueba.</p></div><div class="heading-actions">
+        <details class="export-menu" id="exports" hidden><summary>Exportar</summary><div class="export-options"><a href="/api/informe.json" download="demo9.json" id="json">Informe JSON</a><a href="/api/informe.csv" download="demo9.csv" id="csv">Acciones CSV</a></div></details>
+        <button type="button" class="primary" id="newRun">Nueva ejecución</button>
+      </div></div>
+      <div class="alert" id="message" role="alert" hidden></div>
+      <section aria-label="Resumen de la ejecución">
+        <div class="run-heading"><span class="badge" id="state" role="status">Cargando</span><span class="mono run-id" id="runId">—</span><div class="run-controls"><button id="pause" type="button" hidden>Pausar</button><button id="resume" type="button" hidden>Continuar</button><button id="cancel" class="quiet danger" type="button" hidden>Cancelar</button></div></div>
+        <div class="metrics">
+          <div class="metric"><span class="metric-label">Confirmadas</span><span class="metric-value"><span id="confirmed">—</span><span class="denominator" id="total"></span></span><span class="metric-note" id="confirmedNote">Esperando una ejecución</span></div>
+          <div class="metric"><span class="metric-label">Intentos</span><span class="metric-value" id="attempts">—</span><span class="metric-note" id="retryNote">Sin envíos registrados</span></div>
+          <div class="metric"><span class="metric-label">Incidencias</span><span class="metric-value" id="issues">—</span><span class="metric-note" id="issueNote">Fallidas e inciertas</span></div>
+          <div class="metric"><span class="metric-label">Tiempo transcurrido</span><span class="metric-value mono" id="duration">—</span><span class="metric-note" id="startedAt">Sin iniciar</span></div>
+        </div>
+      </section>
+      <div class="workarea">
+        <div class="views">
+          <section id="view-execution" aria-label="Acciones">
+            <div class="section-heading"><h2>Acciones</h2><small id="current">Todavía no hay una ejecución</small></div>
+            <div class="progress-wrap"><progress id="progress" value="0" max="12" aria-label="Acciones terminadas"></progress><span id="progressText">0 de 0</span></div>
+            <div class="toolbar"><label class="search"><span class="sr-only">Buscar acciones</span><input id="search" type="search" placeholder="Buscar acción, proxy o IP" autocomplete="off"></label><label><span class="sr-only">Filtrar por estado</span><select id="actionState"><option value="">Todos los estados</option><option value="confirmada">Confirmadas</option><option value="en curso">En curso</option><option value="pendiente">Pendientes</option><option value="fallida">Fallidas</option><option value="incierta">Inciertas</option><option value="cancelada">Canceladas</option></select></label></div>
+            <div class="table-wrap"><table class="data-table"><caption class="sr-only">Acciones, rutas e IP observadas en el servidor de prueba</caption><thead><tr><th scope="col">Acción</th><th scope="col">Estado</th><th scope="col">Proxy</th><th scope="col">IP observada</th><th scope="col" class="number-cell">Intentos</th></tr></thead><tbody id="actions"></tbody></table><div id="emptyActions" class="empty" hidden><h3 id="emptyTitle">Todo listo para empezar</h3><p id="emptyText">Configura una ejecución para ver sus acciones y resultados aquí.</p><button type="button" id="emptyStart">Crear primera ejecución</button></div></div>
+            <div class="table-footer"><span id="visibleCount">0 acciones</span><span>Selecciona una acción para ver sus intentos</span></div>
+          </section>
+          <section id="view-activity" aria-label="Actividad" hidden>
+            <div class="section-heading"><h2>Registro de actividad</h2><small>Más reciente primero</small></div>
+            <p class="view-intro">Cada envío, cambio de estado y decisión de control, en el orden en que ocurrió.</p>
+            <div class="toolbar"><label><span class="sr-only">Filtrar eventos por acción</span><input id="filterAction" type="number" min="1" max="100" placeholder="Todas las acciones"></label><label><span class="sr-only">Filtrar tipo de evento</span><select id="filterType"><option value="">Todos los eventos</option><option value="envio">Envíos</option><option value="confirmada">Confirmaciones</option><option value="pendiente">Reintentos pendientes</option><option value="incierta">Resultados inciertos</option><option value="fallida">Fallos</option><option value="pausar">Pausas</option><option value="continuar">Continuaciones</option><option value="cancelar">Cancelaciones</option><option value="reinicio">Reinicios</option><option value="fin">Finalizaciones</option></select></label></div>
+            <div class="event-log" id="events"></div><div class="table-footer"><span id="visibleEvents">0 eventos</span><span>Horas en tu zona local</span></div>
+          </section>
+          <section id="view-network" aria-label="Rutas" hidden>
+            <div class="section-heading"><h2>Rutas de la ejecución</h2><small>Rotación cada 5 acciones</small></div>
+            <p class="view-intro">Tres proxies dentro de Docker. Las IP corresponden a las conexiones observadas por el destino; cada reintento conserva su proxy.</p>
+            <div class="table-wrap"><table class="data-table routes-table"><caption class="sr-only">Asignación y resultados por proxy</caption><thead><tr><th scope="col">Proxy</th><th scope="col">IP al iniciar</th><th scope="col">Confirmadas</th><th scope="col" class="number-cell">Intentos</th></tr></thead><tbody id="routes"></tbody></table></div>
+            <div class="table-footer"><span>IP internas de la red de prueba</span><span>3 proxies configurados</span></div>
+          </section>
+        </div>
+        <aside class="context" aria-label="Detalles de la ejecución">
+          <section class="context-section"><h2>Configuración</h2><dl class="properties"><div><dt>Opción</dt><dd id="runOption">—</dd></div><div><dt>Acciones</dt><dd id="runCount">—</dd></div><div><dt>Intervalo</dt><dd id="runInterval">—</dd></div><div><dt>Rotación</dt><dd>Cada 5 acciones</dd></div><div><dt>Escenario</dt><dd id="runFault">—</dd></div></dl></section>
+          <section class="context-section"><h2>Rutas asignadas</h2><div id="routeSummary"></div><p class="context-text" id="routeNote">Las IP se comprobarán al iniciar una ejecución.</p></section>
+          <section class="context-section"><h2>Conciliación</h2><p class="audit-result muted" id="audit">El informe estará disponible al terminar.</p><p class="context-text" id="auditDetail">Compara las acciones confirmadas con los registros únicos del destino.</p><button type="button" class="audit-button" id="retryAudit" hidden>Volver a comprobar</button></section>
+        </aside>
+      </div>
+      <footer class="bottom-note"><span>Demo 09 · entorno de votación ficticia</span><span id="updatedAt">Esperando datos del servidor</span></footer>
+    </div>
+  </main>
+</div>
+<dialog id="configDialog" aria-labelledby="configTitle">
+  <div class="dialog-head"><div><h2 id="configTitle">Nueva ejecución</h2><p>Define el plan antes de enviar la primera acción.</p></div><button class="close-button" type="button" data-close="configDialog">Cerrar</button></div>
+  <form id="config">
+    <div class="dialog-body">
+      <div class="field"><label for="option">Opción de la votación ficticia</label><select id="option"><option value="parque">Parque</option><option value="biblioteca">Biblioteca</option><option value="carril-bici">Carril bici</option></select></div>
+      <div class="field-row"><div class="field"><label for="count">Número de acciones</label><input id="count" type="number" min="1" max="100" step="1" value="12" required><small>Entre 1 y 100 participaciones.</small></div><div class="field"><label for="interval">Intervalo (segundos)</label><input id="interval" type="number" min="1" max="60" step="0.1" value="1" required><small>Mínimo un segundo entre envíos.</small></div></div>
+      <details class="advanced" id="faultSettings"><summary>Introducir un fallo de prueba</summary><div class="field"><label for="fault">Escenario</label><select id="fault"><option value="ninguno">Sin fallos</option><option value="temporal">Error temporal</option><option value="respuesta_perdida">Respuesta perdida tras aceptar</option><option value="persistente">Error persistente</option><option value="incierta">Respuesta y primera consulta perdidas</option><option value="limite">Límite con espera de 2 segundos</option></select></div><div class="field" id="faultActionField" hidden><label for="faultAction">Acción con fallo</label><input id="faultAction" type="number" min="1" max="12" step="1" value="5" required></div></details>
+      <div class="plan-preview"><strong>Distribución del plan</strong><div class="plan-blocks" id="plan"></div><small id="planNote">Los reintentos mantienen la ruta asignada.</small></div>
+      <p class="form-error" id="formError" role="alert" hidden></p>
+    </div>
+    <div class="dialog-foot"><small>Solo tráfico en el entorno de prueba.</small><button class="primary" id="start" type="submit">Iniciar ejecución</button></div>
+  </form>
+</dialog>
+<dialog id="actionDialog" class="drawer" aria-labelledby="actionTitle">
+  <div class="dialog-head"><div><h2 id="actionTitle">Detalle de acción</h2><p class="mono" id="actionId"></p></div><button class="close-button" type="button" data-close="actionDialog">Cerrar</button></div>
+  <div class="dialog-body"><dl class="properties"><div><dt>Estado</dt><dd><span class="badge" id="detailState"></span></dd></div><div><dt>Proxy asignado</dt><dd id="detailProxy"></dd></div><div><dt>IP observada</dt><dd class="mono" id="detailIp"></dd></div><div><dt>Escenario</dt><dd id="detailFault"></dd></div></dl><h3>Resultado</h3><p class="result-detail" id="detailResult"></p><h3>Intentos</h3><div id="detailAttempts"></div></div>
+</dialog>
+<script>
+const el = id => document.getElementById(id);
+const proxyNames = ['proxy-a', 'proxy-b', 'proxy-c'];
+const optionNames = {'parque':'Parque', 'biblioteca':'Biblioteca', 'carril-bici':'Carril bici'};
+const faultNames = {'ninguno':'Sin fallos', 'temporal':'Error temporal', 'respuesta_perdida':'Respuesta perdida', 'persistente':'Error persistente', 'incierta':'Resultado incierto', 'limite':'Límite de solicitudes', 'limite_invalido':'Espera inválida', 'rechazo':'Acceso rechazado', 'validacion':'Error de validación', 'lenta':'Respuesta lenta'};
+const stateNames = {'confirmada':'Confirmada', 'pendiente':'Pendiente', 'en curso':'En curso', 'fallida':'Fallida', 'incierta':'Incierta', 'cancelada':'Cancelada', 'completada':'Completada', 'completada con incidencias':'Con incidencias', 'pausada':'Pausada', 'interrumpida':'Interrumpida'};
+const eventNames = {'inicio':'Inicio', 'envio':'Envío', 'confirmada':'Confirmada', 'pendiente':'Pendiente', 'incierta':'Incierta', 'fallida':'Fallida', 'pausar':'Pausa', 'continuar':'Continúa', 'cancelar':'Cancelación', 'fin':'Fin', 'reinicio':'Reinicio', 'error':'Error'};
+let run = null, busy = false, loaded = false, online = false, view = 'execution';
+let lastDocument = '', rowRun = '', selectedAction = null, auditRun = '', auditBusy = false;
+let operationVersion = 0;
+const actionRows = new Map();
+const time = value => value ? new Date(value).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '—';
+const active = () => run && ['en curso','pausada','interrumpida'].includes(run.estado);
+function text(id, value) { el(id).textContent = value; }
+function tone(state) {
+  if (['confirmada','completada'].includes(state)) return 'success';
+  if (state === 'en curso') return 'running';
+  if (['incierta','pausada','interrumpida','completada con incidencias'].includes(state)) return 'warning';
+  if (state === 'fallida') return 'error';
+  return '';
+}
+function badge(node, state, fallback='Sin ejecución') {
+  node.className = 'badge ' + tone(state);
+  node.textContent = stateNames[state] || fallback;
+}
+async function api(path, data) {
+  const response = await fetch(path, data ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)} : {});
+  const value = await response.json();
+  if (!response.ok) throw Error(value.error || 'No se pudo completar la operación.');
+  return value;
+}
+function connection(connected) {
+  online = connected;
+  el('connection').dataset.state = connected ? 'online' : 'offline';
+  text('connectionText', connected ? 'API conectada' : 'Reconectando con la API');
+  controls();
+}
+function controls() {
+  const running = run?.estado === 'en curso';
+  const resumable = ['pausada','interrumpida'].includes(run?.estado);
+  el('newRun').disabled = busy || !loaded || !online || Boolean(active());
+  el('emptyStart').disabled = el('newRun').disabled;
+  el('start').disabled = busy;
+  text('start', busy ? 'Comprobando rutas…' : 'Iniciar ejecución');
+  for (const id of ['pause','resume','cancel']) el(id).disabled = busy || !online;
+  el('pause').hidden = !running;
+  el('resume').hidden = !resumable;
+  el('cancel').hidden = !active();
+  el('exports').hidden = !run;
+}
+function showView(name) {
+  view = name;
+  for (const node of document.querySelectorAll('[data-view]')) {
+    if (node.dataset.view === name) node.setAttribute('aria-current','page');
+    else node.removeAttribute('aria-current');
+  }
+  for (const key of ['execution','activity','network']) el('view-' + key).hidden = key !== name;
+  const titles = {execution:['Ejecución','Última ejecución de la votación de prueba.'], activity:['Actividad','Registro de envíos y cambios de estado.'], network:['Rutas','Distribución de acciones entre los tres proxies.']};
+  text('pageTitle', titles[name][0]); text('breadcrumb', titles[name][0]); text('pageSubtitle', titles[name][1]);
+  el('exports').open = false;
+}
+function plan() {
+  const n = Number(el('count').value);
+  const valid = Number.isInteger(n) && n >= 1 && n <= 100;
+  el('plan').replaceChildren();
+  if (!valid) { text('planNote','Introduce un número de acciones entre 1 y 100.'); return; }
+  el('faultAction').max = n;
+  if (Number(el('faultAction').value) > n) el('faultAction').value = n;
+  for (let i=0; i<Math.ceil(n/5); i++) {
+    const item = document.createElement('span');
+    item.textContent = `${String(i*5+1).padStart(2,'0')}–${String(Math.min(n,i*5+5)).padStart(2,'0')} · ${proxyNames[i%3]}`;
+    el('plan').append(item);
+  }
+  text('planNote','Los reintentos mantienen la ruta asignada.');
+  el('faultActionField').hidden = el('fault').value === 'ninguno';
+}
+function duration() {
+  if (!run) { text('duration','—'); return; }
+  const seconds = Math.max(0, Math.floor((Date.parse(run.fin || new Date().toISOString()) - Date.parse(run.creada))/1000));
+  text('duration', seconds >= 3600 ? `${Math.floor(seconds/3600)} h ${Math.floor(seconds%3600/60)} m` : `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`);
+}
+function renderActions() {
+  if (rowRun !== (run?.id || '')) {
+    actionRows.clear(); el('actions').replaceChildren(); rowRun = run?.id || '';
+  }
+  const query = el('search').value.trim().toLocaleLowerCase('es-ES');
+  const filter = el('actionState').value;
+  let visible = 0;
+  for (const action of run?.acciones || []) {
+    let row = actionRows.get(action.id);
+    if (!row) {
+      row = document.createElement('tr');
+      // Solo estructura estática; los datos del servidor se insertan mediante textContent.
+      row.innerHTML = '<td><button class="action-button" type="button"></button></td><td><span class="badge"></span></td><td><span class="proxy-label"><span class="route-mark" aria-hidden="true"></span><span></span></span></td><td class="ip-cell"></td><td class="number-cell"></td>';
+      row.querySelector('button').onclick = () => openAction(action.id);
+      actionRows.set(action.id,row); el('actions').append(row);
+    }
+    const matches = (!filter || action.estado === filter) && (!query || [String(action.posicion), String(action.posicion).padStart(2,'0'), action.proxy, action.ip || '', action.resultado, stateNames[action.estado]].some(v => v.toLocaleLowerCase('es-ES').includes(query)));
+    row.hidden = !matches;
+    if (matches) visible++;
+    const button = row.querySelector('button');
+    button.textContent = `Acción ${String(action.posicion).padStart(2,'0')}`;
+    button.setAttribute('aria-label', `Ver acción ${action.posicion}`);
+    badge(row.querySelector('.badge'), action.estado);
+    row.querySelector('.route-mark').textContent = action.proxy.slice(-1).toUpperCase();
+    row.querySelector('.proxy-label span:last-child').textContent = action.proxy;
+    row.cells[3].textContent = action.ip || '—';
+    row.cells[4].textContent = action.intentos.length;
+  }
+  el('emptyActions').hidden = visible > 0;
+  const noRun = !run;
+  text('emptyTitle', noRun ? 'Todo listo para empezar' : 'No hay acciones con este filtro');
+  text('emptyText', noRun ? 'Configura una ejecución para ver sus acciones y resultados aquí.' : 'Prueba otro estado o cambia la búsqueda.');
+  el('emptyStart').hidden = !noRun;
+  text('visibleCount', `${visible} de ${run?.acciones.length || 0} acciones`);
+}
+function renderEvents() {
+  const events = (run?.eventos || []).filter(ev => (!el('filterAction').value || ev.posicion === Number(el('filterAction').value)) && (!el('filterType').value || ev.tipo === el('filterType').value));
+  el('events').replaceChildren();
+  for (const ev of events.slice(-100).reverse()) {
+    const row = document.createElement('div'); row.className = 'event'; row.dataset.kind = ev.tipo;
+    const date = document.createElement('time'); date.dateTime = ev.fecha; date.textContent = time(ev.fecha);
+    const type = document.createElement('span'); type.className = 'event-type'; type.textContent = eventNames[ev.tipo] || ev.tipo;
+    const detail = document.createElement('div'); detail.className = 'event-detail';
+    if (ev.posicion) { const action = document.createElement('span'); action.className='event-action'; action.textContent=`#${String(ev.posicion).padStart(2,'0')}`; detail.append(action); }
+    detail.append(document.createTextNode(ev.detalle));
+    row.append(date,type,detail); el('events').append(row);
+  }
+  if (!events.length) { const empty = document.createElement('div'); empty.className='empty'; empty.textContent = run ? 'No hay eventos con este filtro.' : 'El registro aparecerá al iniciar una ejecución.'; el('events').append(empty); }
+  text('visibleEvents', `${Math.min(events.length,100)} de ${run?.eventos.length || 0} eventos`);
+}
+function renderRoutes() {
+  el('routes').replaceChildren(); el('routeSummary').replaceChildren();
+  for (const name of proxyNames) {
+    const actions = (run?.acciones || []).filter(a=>a.proxy===name);
+    const count = actions.filter(a=>a.estado==='confirmada').length;
+    const row = document.createElement('tr');
+    for (const val of [name, run?.proxies[name] || 'Por comprobar', `${count} / ${actions.length}`, actions.reduce((n,a)=>n+a.intentos.length,0)]) {
+      const cell = document.createElement('td'); cell.textContent = val; row.append(cell);
+    }
+    row.cells[1].className='ip-cell'; row.cells[3].className='number-cell'; el('routes').append(row);
+    const mini=document.createElement('div'); mini.className='route-mini';
+    const label=document.createElement('span'), ip=document.createElement('code'); label.textContent=name; ip.textContent=run?.proxies[name] || '—'; mini.append(label,ip); el('routeSummary').append(mini);
+  }
+  text('routeNote', run ? 'IP internas comprobadas al iniciar o continuar esta ejecución.' : 'Las IP se comprobarán al iniciar una ejecución.');
+}
+function renderDetail() {
+  if (!selectedAction || !el('actionDialog').open) return;
+  const action = run?.acciones.find(a=>a.id===selectedAction);
+  if (!action) { el('actionDialog').close(); return; }
+  text('actionTitle', `Acción ${String(action.posicion).padStart(2,'0')}`);
+  text('actionId', action.id);
+  badge(el('detailState'), action.estado);
+  text('detailProxy', action.proxy); text('detailIp', action.ip || 'Todavía no observada');
+  text('detailFault', faultNames[action.fallo] || action.fallo);
+  text('detailResult', action.resultado || 'Esta acción todavía no se ha enviado.');
+  el('detailAttempts').replaceChildren();
+  for (const attempt of action.intentos) {
+    const item=document.createElement('div'); item.className='attempt';
+    const title=document.createElement('strong'); title.textContent=`Intento ${attempt.numero} · ${attempt.status ? 'HTTP '+attempt.status : attempt.fin ? 'Sin respuesta HTTP' : 'En curso'}`;
+    const dates=document.createElement('p'); dates.textContent=`${time(attempt.inicio)} → ${attempt.fin ? time(attempt.fin) : 'esperando respuesta'} · ${attempt.proxy}`;
+    const result=document.createElement('p'); result.textContent=attempt.resultado || 'Enviando la participación…';
+    item.append(title,dates,result); el('detailAttempts').append(item);
+  }
+  if (!action.intentos.length) { const p=document.createElement('p'); p.className='context-text'; p.textContent='Sin intentos registrados.'; el('detailAttempts').append(p); }
+}
+function openAction(id) { selectedAction=id; el('actionDialog').showModal(); renderDetail(); }
+function resetAudit() {
+  auditRun=''; el('retryAudit').hidden=true; el('audit').className='audit-result muted';
+  text('audit', run ? 'Se verificará al terminar.' : 'El informe estará disponible al terminar.');
+  text('auditDetail','Compara las acciones confirmadas con los registros únicos del destino.');
+}
+function render() {
+  controls();
+  badge(el('state'),run?.estado,loaded ? 'Sin ejecución' : 'Cargando');
+  text('runId',run ? 'run_' + run.id.slice(0,10) : 'Sin plan activo');
+  const actions=run?.acciones || [];
+  const confirmed=actions.filter(a=>a.estado==='confirmada').length;
+  const failed=actions.filter(a=>a.estado==='fallida').length;
+  const uncertain=actions.filter(a=>a.estado==='incierta').length;
+  const cancelled=actions.filter(a=>a.estado==='cancelada').length;
+  const attempts=actions.reduce((n,a)=>n+a.intentos.length,0);
+  const retries=actions.reduce((n,a)=>n+Math.max(0,a.intentos.length-1),0);
+  text('confirmed',run ? confirmed : '—'); text('total',run ? ' / ' + actions.length : '');
+  text('confirmedNote',run ? `${actions.length-confirmed-failed-cancelled} sin confirmar${cancelled ? ' · '+cancelled+' canceladas' : ''}` : 'Esperando una ejecución');
+  text('attempts',run ? attempts : '—'); text('retryNote',run ? `${retries} ${retries===1 ? 'reintento' : 'reintentos'}` : 'Sin envíos registrados');
+  text('issues',run ? failed+uncertain : '—'); text('issueNote',run ? `${failed} fallidas · ${uncertain} inciertas` : 'Fallidas e inciertas');
+  text('startedAt',run ? 'Inicio ' + time(run.creada) : 'Sin iniciar'); duration();
+  const done=confirmed+failed+cancelled;
+  el('progress').max=actions.length || 1; el('progress').value=done;
+  text('progressText',`${done} de ${actions.length}`);
+  const current=actions.find(a=>['en curso','incierta','pendiente'].includes(a.estado));
+  text('current',run ? current ? `Acción ${String(current.posicion).padStart(2,'0')} · ${current.proxy}` : 'Plan terminado' : 'Todavía no hay una ejecución');
+  text('actionCount',run ? actions.length : '—'); text('eventCount',run ? run.eventos.length : '—');
+  text('runOption',run ? optionNames[run.config.opcion] : '—'); text('runCount',run ? run.config.cantidad : '—');
+  text('runInterval',run ? run.config.intervalo + ' s' : '—'); text('runFault',run ? faultNames[run.config.fallo] : '—');
+  renderActions(); renderEvents(); renderRoutes(); renderDetail();
+}
+async function checkAudit() {
+  if (!run || active() || auditBusy) return;
+  const id=run.id, documentAtRequest=lastDocument; auditBusy=true; el('retryAudit').disabled=true;
+  try {
+    const report=await api('/api/informe.json');
+    if (run?.id !== id || report.ejecucion.id !== id || active() || lastDocument !== documentAtRequest) return;
+    auditRun=id;
+    el('audit').className='audit-result ' + (report.conciliacion.coinciden ? 'success' : 'warning');
+    text('audit',report.conciliacion.coinciden ? 'Registros conciliados' : 'Hay diferencias por revisar');
+    text('auditDetail',report.conciliacion.coinciden ? `${report.destino.votos.length} participaciones únicas coinciden con las acciones confirmadas.` : `${report.conciliacion.solo_destino.length} solo en destino · ${report.conciliacion.solo_ejecutor.length} solo en el ejecutor. Consulta el informe JSON.`);
+    el('retryAudit').hidden=true;
+  } catch(error) {
+    if (run?.id===id) { el('audit').className='audit-result warning'; text('audit','Informe sin verificar'); text('auditDetail',error.message); el('retryAudit').hidden=false; }
+  } finally { auditBusy=false; el('retryAudit').disabled=false; }
+}
+async function perform(path,data) {
+  operationVersion++;
+  busy=true; controls(); el('message').hidden=true; el('formError').hidden=true;
+  try {
+    const next=await api(path,data);
+    if (next.id!==run?.id) { resetAudit(); selectedAction=null; el('search').value=''; el('actionState').value=''; }
+    run=next; lastDocument=''; render();
+    if (path==='/api/iniciar') { resetAudit(); el('configDialog').close(); showView('execution'); }
+  } catch(error) {
+    const target=el('configDialog').open ? 'formError' : 'message'; text(target,error.message); el(target).hidden=false;
+  } finally { busy=false; controls(); }
+}
+async function poll() {
+  try {
+    if (!busy) {
+      const versionAtRequest=operationVersion;
+      const result=await api('/api/estado');
+      // Una operación iniciada mientras se leía el estado tiene prioridad sobre esa lectura.
+      if (!busy && versionAtRequest===operationVersion) {
+        const document=JSON.stringify(result.ejecucion);
+        const wasOffline=loaded&&!online;
+        if (result.ejecucion?.id!==run?.id) { run=result.ejecucion; resetAudit(); }
+        else run=result.ejecucion;
+        loaded=true; connection(true);
+        if (wasOffline) el('message').hidden=true;
+        if (document!==lastDocument) { lastDocument=document; if(!active())auditRun=''; render(); }
+        else duration();
+        text('updatedAt','Actualizado ' + time(new Date().toISOString()));
+        if (run&&!active()&&auditRun!==run.id&&!auditBusy&&el('retryAudit').hidden) checkAudit();
+      }
+    }
+  } catch(error) {
+    connection(false); text('message','No se puede conectar con la API. Conservamos el último estado recibido y volveremos a intentarlo.'); el('message').hidden=false;
+  } finally { setTimeout(poll,1000); }
+}
+for (const button of document.querySelectorAll('[data-view]')) button.onclick=()=>showView(button.dataset.view);
+for (const button of document.querySelectorAll('[data-close]')) button.onclick=()=>el(button.dataset.close).close();
+for (const id of ['newRun','emptyStart']) el(id).onclick=()=>{ el('formError').hidden=true; plan(); el('configDialog').showModal(); };
+el('configDialog').addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+el('config').onsubmit=event=>{
+  event.preventDefault();
+  if (busy) return;
+  perform('/api/iniciar',{opcion:el('option').value,cantidad:Number(el('count').value),intervalo:Number(el('interval').value),fallo:el('fault').value,accion_fallo:Number(el('faultAction').value)});
+};
+for (const [id,accion] of [['pause','pausar'],['resume','continuar'],['cancel','cancelar']]) el(id).onclick=()=>perform('/api/control',{run_id:run.id,accion});
+el('count').oninput=plan; el('fault').onchange=plan;
+el('search').oninput=renderActions; el('actionState').onchange=renderActions;
+el('filterAction').oninput=renderEvents; el('filterType').onchange=renderEvents;
+el('retryAudit').onclick=checkAudit;
+plan(); render(); poll();
+</script>
+</body>
+</html>

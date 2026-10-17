@@ -1,0 +1,693 @@
+{
+  "ejecucion": {
+    "id": "c76b3d644ac24ffbb1c6889b18c399a0",
+    "config": {
+      "opcion": "biblioteca",
+      "cantidad": 12,
+      "intervalo": 2,
+      "fallo": "temporal",
+      "accion_fallo": 5
+    },
+    "estado": "completada",
+    "creada": "2026-10-05T16:58:09.972+00:00",
+    "fin": "2026-10-05T16:58:46.117+00:00",
+    "proxies": {
+      "proxy-a": "172.21.0.3",
+      "proxy-b": "172.21.0.4",
+      "proxy-c": "172.21.0.5"
+    },
+    "proximo_envio": 1791219528.1061366,
+    "eventos": [
+      {
+        "fecha": "2026-10-05T16:58:09.972+00:00",
+        "tipo": "inicio",
+        "detalle": "Plan guardado; tres IP internas verificadas",
+        "posicion": null
+      },
+      {
+        "fecha": "2026-10-05T16:58:09.979+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-a",
+        "posicion": 1
+      },
+      {
+        "fecha": "2026-10-05T16:58:09.987+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 1
+      },
+      {
+        "fecha": "2026-10-05T16:58:11.986+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-a",
+        "posicion": 2
+      },
+      {
+        "fecha": "2026-10-05T16:58:11.999+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 2
+      },
+      {
+        "fecha": "2026-10-05T16:58:13.986+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-a",
+        "posicion": 3
+      },
+      {
+        "fecha": "2026-10-05T16:58:13.991+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 3
+      },
+      {
+        "fecha": "2026-10-05T16:58:15.987+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-a",
+        "posicion": 4
+      },
+      {
+        "fecha": "2026-10-05T16:58:15.993+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 4
+      },
+      {
+        "fecha": "2026-10-05T16:58:17.197+00:00",
+        "tipo": "pausar",
+        "detalle": "El intento en curso conserva su resultado; no se iniciarán envíos mientras esté detenida",
+        "posicion": null
+      },
+      {
+        "fecha": "2026-10-05T16:58:30.085+00:00",
+        "tipo": "continuar",
+        "detalle": "El intento en curso conserva su resultado; no se iniciarán envíos mientras esté detenida",
+        "posicion": null
+      },
+      {
+        "fecha": "2026-10-05T16:58:30.090+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-a",
+        "posicion": 5
+      },
+      {
+        "fecha": "2026-10-05T16:58:30.097+00:00",
+        "tipo": "incierta",
+        "detalle": "Error temporal; comprobando el destino",
+        "posicion": 5
+      },
+      {
+        "fecha": "2026-10-05T16:58:30.104+00:00",
+        "tipo": "pendiente",
+        "detalle": "Destino confirma ausencia del registro",
+        "posicion": 5
+      },
+      {
+        "fecha": "2026-10-05T16:58:32.092+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 2 por proxy-a",
+        "posicion": 5
+      },
+      {
+        "fecha": "2026-10-05T16:58:32.104+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 5
+      },
+      {
+        "fecha": "2026-10-05T16:58:34.095+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-b",
+        "posicion": 6
+      },
+      {
+        "fecha": "2026-10-05T16:58:34.105+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 6
+      },
+      {
+        "fecha": "2026-10-05T16:58:36.096+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-b",
+        "posicion": 7
+      },
+      {
+        "fecha": "2026-10-05T16:58:36.106+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 7
+      },
+      {
+        "fecha": "2026-10-05T16:58:38.099+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-b",
+        "posicion": 8
+      },
+      {
+        "fecha": "2026-10-05T16:58:38.111+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 8
+      },
+      {
+        "fecha": "2026-10-05T16:58:40.100+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-b",
+        "posicion": 9
+      },
+      {
+        "fecha": "2026-10-05T16:58:40.104+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 9
+      },
+      {
+        "fecha": "2026-10-05T16:58:42.101+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-b",
+        "posicion": 10
+      },
+      {
+        "fecha": "2026-10-05T16:58:42.111+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 10
+      },
+      {
+        "fecha": "2026-10-05T16:58:44.103+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-c",
+        "posicion": 11
+      },
+      {
+        "fecha": "2026-10-05T16:58:44.112+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 11
+      },
+      {
+        "fecha": "2026-10-05T16:58:46.106+00:00",
+        "tipo": "envio",
+        "detalle": "Intento 1 por proxy-c",
+        "posicion": 12
+      },
+      {
+        "fecha": "2026-10-05T16:58:46.115+00:00",
+        "tipo": "confirmada",
+        "detalle": "Participación registrada",
+        "posicion": 12
+      },
+      {
+        "fecha": "2026-10-05T16:58:46.117+00:00",
+        "tipo": "fin",
+        "detalle": "completada",
+        "posicion": null
+      }
+    ],
+    "acciones": [
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:1",
+        "posicion": 1,
+        "proxy": "proxy-a",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.3",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:09.979+00:00",
+            "fin": "2026-10-05T16:58:09.987+00:00",
+            "proxy": "proxy-a",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.3"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:2",
+        "posicion": 2,
+        "proxy": "proxy-a",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.3",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:11.986+00:00",
+            "fin": "2026-10-05T16:58:11.998+00:00",
+            "proxy": "proxy-a",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.3"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:3",
+        "posicion": 3,
+        "proxy": "proxy-a",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.3",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:13.986+00:00",
+            "fin": "2026-10-05T16:58:13.991+00:00",
+            "proxy": "proxy-a",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.3"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:4",
+        "posicion": 4,
+        "proxy": "proxy-a",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.3",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:15.987+00:00",
+            "fin": "2026-10-05T16:58:15.993+00:00",
+            "proxy": "proxy-a",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.3"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:5",
+        "posicion": 5,
+        "proxy": "proxy-a",
+        "fallo": "temporal",
+        "estado": "confirmada",
+        "ip": "172.21.0.3",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:30.090+00:00",
+            "fin": "2026-10-05T16:58:30.097+00:00",
+            "proxy": "proxy-a",
+            "status": 503,
+            "resultado": "Error temporal; comprobando el destino",
+            "ip": null
+          },
+          {
+            "numero": 2,
+            "inicio": "2026-10-05T16:58:32.092+00:00",
+            "fin": "2026-10-05T16:58:32.104+00:00",
+            "proxy": "proxy-a",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.3"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:6",
+        "posicion": 6,
+        "proxy": "proxy-b",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.4",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:34.095+00:00",
+            "fin": "2026-10-05T16:58:34.105+00:00",
+            "proxy": "proxy-b",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.4"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:7",
+        "posicion": 7,
+        "proxy": "proxy-b",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.4",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:36.096+00:00",
+            "fin": "2026-10-05T16:58:36.106+00:00",
+            "proxy": "proxy-b",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.4"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:8",
+        "posicion": 8,
+        "proxy": "proxy-b",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.4",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:38.099+00:00",
+            "fin": "2026-10-05T16:58:38.111+00:00",
+            "proxy": "proxy-b",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.4"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:9",
+        "posicion": 9,
+        "proxy": "proxy-b",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.4",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:40.100+00:00",
+            "fin": "2026-10-05T16:58:40.104+00:00",
+            "proxy": "proxy-b",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.4"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:10",
+        "posicion": 10,
+        "proxy": "proxy-b",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.4",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:42.101+00:00",
+            "fin": "2026-10-05T16:58:42.111+00:00",
+            "proxy": "proxy-b",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.4"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:11",
+        "posicion": 11,
+        "proxy": "proxy-c",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.5",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:44.103+00:00",
+            "fin": "2026-10-05T16:58:44.112+00:00",
+            "proxy": "proxy-c",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.5"
+          }
+        ],
+        "resultado": "Participación registrada"
+      },
+      {
+        "id": "c76b3d644ac24ffbb1c6889b18c399a0:12",
+        "posicion": 12,
+        "proxy": "proxy-c",
+        "fallo": "ninguno",
+        "estado": "confirmada",
+        "ip": "172.21.0.5",
+        "intentos": [
+          {
+            "numero": 1,
+            "inicio": "2026-10-05T16:58:46.106+00:00",
+            "fin": "2026-10-05T16:58:46.115+00:00",
+            "proxy": "proxy-c",
+            "status": 201,
+            "resultado": "Participación registrada",
+            "ip": "172.21.0.5"
+          }
+        ],
+        "resultado": "Participación registrada"
+      }
+    ]
+  },
+  "destino": {
+    "votos": [
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:1",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:09.983+00:00",
+        "ip": "172.21.0.3",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:10",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:42.108+00:00",
+        "ip": "172.21.0.4",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:11",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:44.109+00:00",
+        "ip": "172.21.0.5",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:12",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:46.112+00:00",
+        "ip": "172.21.0.5",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:2",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:11.994+00:00",
+        "ip": "172.21.0.3",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:3",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:13.989+00:00",
+        "ip": "172.21.0.3",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:4",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:15.991+00:00",
+        "ip": "172.21.0.3",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:5",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:32.100+00:00",
+        "ip": "172.21.0.3",
+        "fallo": "temporal"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:6",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:34.102+00:00",
+        "ip": "172.21.0.4",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:7",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:36.103+00:00",
+        "ip": "172.21.0.4",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:8",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:38.108+00:00",
+        "ip": "172.21.0.4",
+        "fallo": "ninguno"
+      },
+      {
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:9",
+        "run_id": "c76b3d644ac24ffbb1c6889b18c399a0",
+        "opcion": "biblioteca",
+        "fecha": "2026-10-05T16:58:40.102+00:00",
+        "ip": "172.21.0.4",
+        "fallo": "ninguno"
+      }
+    ],
+    "solicitudes": [
+      {
+        "id": 128,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:1",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:09.983+00:00",
+        "ip": "172.21.0.3",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 129,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:2",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:11.994+00:00",
+        "ip": "172.21.0.3",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 130,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:3",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:13.989+00:00",
+        "ip": "172.21.0.3",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 131,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:4",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:15.991+00:00",
+        "ip": "172.21.0.3",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 132,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:5",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:30.094+00:00",
+        "ip": "172.21.0.3",
+        "status": 503,
+        "detalle": "fallo temporal"
+      },
+      {
+        "id": 133,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:5",
+        "metodo": "GET",
+        "fecha": "2026-10-05T16:58:30.102+00:00",
+        "ip": "172.21.0.3",
+        "status": 404,
+        "detalle": "consulta"
+      },
+      {
+        "id": 134,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:5",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:32.100+00:00",
+        "ip": "172.21.0.3",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 135,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:6",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:34.102+00:00",
+        "ip": "172.21.0.4",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 136,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:7",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:36.103+00:00",
+        "ip": "172.21.0.4",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 137,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:8",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:38.108+00:00",
+        "ip": "172.21.0.4",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 138,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:9",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:40.102+00:00",
+        "ip": "172.21.0.4",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 139,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:10",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:42.108+00:00",
+        "ip": "172.21.0.4",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 140,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:11",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:44.109+00:00",
+        "ip": "172.21.0.5",
+        "status": 201,
+        "detalle": "aceptada"
+      },
+      {
+        "id": 141,
+        "action_id": "c76b3d644ac24ffbb1c6889b18c399a0:12",
+        "metodo": "POST",
+        "fecha": "2026-10-05T16:58:46.112+00:00",
+        "ip": "172.21.0.5",
+        "status": 201,
+        "detalle": "aceptada"
+      }
+    ]
+  },
+  "conciliacion": {
+    "coinciden": true,
+    "solo_ejecutor": [],
+    "solo_destino": []
+  }
+}

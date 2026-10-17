@@ -2,24 +2,35 @@
 
 **Finalizada — 2026-09-24.**
 
-Automatiza el informe semanal que hoy se monta a mano (exportar, pegar en Excel, cuadrar) y
-añade algo que la mayoría de dashboards no hace: **detectar cuándo los números de dos fuentes
-no coinciden**, y decir en qué fila exactamente.
+Genera un informe semanal a partir de tres fuentes y concilia sus registros mediante reglas SQL.
+Cada discrepancia conserva la fila de origen para rastrear la diferencia.
 
 **El cálculo y la conciliación salen de SQL determinista, nunca del modelo.** El LLM es
 opcional y está apagado por defecto; si se activa, solo redacta el párrafo de resumen del
 correo sobre cifras ya calculadas — nunca decide un número ni explica un descuadre.
 
+## Demostración en vídeo
+
+[![Conciliación de datos con Power BI y alertas por correo](https://img.youtube.com/vi/fOvJn8dUkJo/hqdefault.jpg)](https://www.youtube.com/watch?v=fOvJn8dUkJo)
+
+## Índice
+
+- [Qué hace](#qué-hace)
+- [Arquitectura](#arquitectura)
+- [Estado y evaluación](#estado-y-evaluación)
+- [Ejecutar](#ejecutar)
+- [Notas y límites](#notas-y-límites)
+
 ## Qué hace
 
-1. **Ingesta** desde tres fuentes que no encajan entre sí: una API propia con paginación por
-   cursor y rate limit, una hoja de cálculo del equipo comercial, y la base de facturación.
+1. **Ingesta** desde tres fuentes con esquemas distintos: una API propia con paginación por
+   cursor y rate limit, una hoja de cálculo del equipo comercial y la base de facturación.
 2. **Conciliación** — reglas fijas que comparan las tres fuentes y marcan discrepancias
-   (pedido sin facturar, factura sin pedido, importe distinto, duplicado...), distinguiendo un
-   descuadre real de un desfase contable normal que no debe alarmar a nadie.
+   (pedido sin facturar, factura sin pedido, importe distinto, duplicado) y distinguen los
+   descuadres de las diferencias temporales admitidas por las reglas.
 3. **Panel en Power BI** sobre los datos ya cuadrados, con detalle ("drillthrough") desde
    cualquier cifra hasta la fila que la origina.
-4. **Correo del lunes** con el resumen y las alertas, sin que nadie tenga que abrir el panel.
+4. **Correo semanal** con el resumen y las alertas.
 
 ## Arquitectura
 
@@ -30,7 +41,7 @@ fuente C (facturación)  ─┘                              │
                                                           └─→ correo del lunes
 ```
 
-## Estado
+## Estado y evaluación
 
 Demo finalizada. Ingesta y conciliación funcionan de extremo a extremo contra datos
 sintéticos (35/35 descuadres detectados, 0 falsos positivos en los casos de desfase legítimo).
@@ -46,8 +57,8 @@ python3 conciliar.py --verificar                   # reglas C1-C5 -> bi_staging.
 python3 informe.py                                  # correo del lunes por GreenMail (ver :8081)
 ```
 
-## Notas
+## Notas y límites
 
 - Datos sintéticos, generados con semilla fija — sirven para probar la ingesta y la
-  conciliación, no como evidencia de demanda de mercado.
-- Credenciales reales y notas privadas de planificación quedan fuera del repositorio.
+  conciliación.
+- Configura las credenciales fuera del repositorio; no las añadas a los ficheros de demo.

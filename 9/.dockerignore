@@ -1,0 +1,8 @@
+__pycache__
+*.sqlite3*
+README.md
+.git
+.env*
+GUION-video.md
+evidencia*.json
+panel*.jpg

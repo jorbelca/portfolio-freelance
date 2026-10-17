@@ -1,21 +1,30 @@
 # Demo 6 — Agente de reclamaciones de consumo (EU261)
 
-Agente del lado del pasajero: calcula la indemnización a la que tiene derecho por un retraso
-de vuelo, refuta la excusa típica de la aerolínea citando jurisprudencia del TJUE, y redacta
-la reclamación.
+Aplicación que calcula la compensación EU261 a partir de los datos del vuelo, clasifica la
+causa alegada y redacta una reclamación con trazabilidad a las fuentes jurídicas utilizadas.
 
 **El importe y la elegibilidad salen de un motor de reglas determinista, nunca del modelo.**
 El LLM solo lee el relato libre del usuario, extrae los hechos del vuelo y elige una categoría
 de causa de una lista cerrada; el cálculo del artículo, la banda de distancia y el € final los
 decide código, no el modelo.
 
-Distinta a otras demos del portfolio que clasifican o recuperan: aquí el LLM es intake, y el
-resultado lo produce un reglamento aplicado a mano. Sin RAG, sin vector store, sin grafo de
-agentes — un motor de reglas + una llamada de extracción.
+El modelo solo extrae hechos y clasifica la causa; el motor determinista calcula elegibilidad,
+distancia e importe. La implementación no usa RAG, vector store ni grafo de agentes.
+
+## Demostración en vídeo
+
+[![Agente de reclamaciones aéreas con motor de reglas](https://img.youtube.com/vi/EYiOcmyMsqU/hqdefault.jpg)](https://www.youtube.com/watch?v=EYiOcmyMsqU)
 
 ![Vista "Datos del vuelo → dictamen"](.preview-dictamen.png)
 
 ---
+
+## Índice
+
+- [Cómo funciona](#cómo-funciona)
+- [Verificación jurídica](#verificación-jurídica)
+- [Ejecutar](#ejecutar)
+- [Avisos y límites](#avisos-y-límites)
 
 ## Cómo funciona
 
@@ -68,11 +77,9 @@ Sin dependencias fuera de `openai` (cliente de modelo) y la librería estándar.
 `http.server` puro, sin framework ni build. El PDF de la carta sale de Chrome headless, sin
 dependencia Python nueva.
 
-## Avisos
+## Avisos y límites
 
 - El articulado está verificado contra fuente primaria, con caveats documentados (ver arriba).
   Ninguna salida de este repo es asesoramiento jurídico: es una demo de capacidad técnica.
-- Pensado como herramienta B2B (despacho, agencia) — dirigido directamente al consumidor final
-  sería actividad regulada.
-- El dataset de evaluación es sintético: prueba capacidad de extracción y cálculo, no demanda
-  de mercado.
+- El dataset de evaluación es sintético; mide extracción y cálculo contra etiquetas preparadas
+  para esta demo.
