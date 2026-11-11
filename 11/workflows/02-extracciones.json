@@ -1,0 +1,660 @@
+{
+  "id": "empleoExtraction02",
+  "name": "Empleo - ficha en 15 tareas independientes",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Recibir ejecución del panel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "empleo-extraction",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "empleo-extraction",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "company",
+      "name": "01 · Empresa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/company",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "title",
+      "name": "02 · Puesto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/title",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "country",
+      "name": "03 · País del puesto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/country",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "work_mode",
+      "name": "04 · Modalidad",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/work_mode",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "remote_eligibility",
+      "name": "05 · Trabajo desde España",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/remote_eligibility",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "publication",
+      "name": "06 · Fecha de publicación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/publication",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "contract",
+      "name": "07 · Contrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/contract",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "experience",
+      "name": "08 · Experiencia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/experience",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "education",
+      "name": "09 · Formación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2520,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/education",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "languages",
+      "name": "10 · Idiomas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2800,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/languages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "technology",
+      "name": "11 · Tecnologías",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/technology",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "functions",
+      "name": "12 · Funciones",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/functions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "video",
+      "name": "13 · Vídeo para postular",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "availability",
+      "name": "14 · Vigencia explícita",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3920,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/availability",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "channel",
+      "name": "15 · Instrucciones de candidatura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/channel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "finish",
+      "name": "Cerrar desde resultados de Neon",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/finish",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $('Recibir ejecución del panel').first().json.body.run_id, execution_id: $execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Recibir ejecución del panel": {
+      "main": [
+        [
+          {
+            "node": "01 · Empresa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 · Empresa": {
+      "main": [
+        [
+          {
+            "node": "02 · Puesto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 · Puesto": {
+      "main": [
+        [
+          {
+            "node": "03 · País del puesto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 · País del puesto": {
+      "main": [
+        [
+          {
+            "node": "04 · Modalidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 · Modalidad": {
+      "main": [
+        [
+          {
+            "node": "05 · Trabajo desde España",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 · Trabajo desde España": {
+      "main": [
+        [
+          {
+            "node": "06 · Fecha de publicación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 · Fecha de publicación": {
+      "main": [
+        [
+          {
+            "node": "07 · Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 · Contrato": {
+      "main": [
+        [
+          {
+            "node": "08 · Experiencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08 · Experiencia": {
+      "main": [
+        [
+          {
+            "node": "09 · Formación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09 · Formación": {
+      "main": [
+        [
+          {
+            "node": "10 · Idiomas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10 · Idiomas": {
+      "main": [
+        [
+          {
+            "node": "11 · Tecnologías",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11 · Tecnologías": {
+      "main": [
+        [
+          {
+            "node": "12 · Funciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 · Funciones": {
+      "main": [
+        [
+          {
+            "node": "13 · Vídeo para postular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13 · Vídeo para postular": {
+      "main": [
+        [
+          {
+            "node": "14 · Vigencia explícita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14 · Vigencia explícita": {
+      "main": [
+        [
+          {
+            "node": "15 · Instrucciones de candidatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15 · Instrucciones de candidatura": {
+      "main": [
+        [
+          {
+            "node": "Cerrar desde resultados de Neon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "name": "Empleo - extracción de contrato",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Recibir ejecución del panel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "empleo-contract",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "empleo-contract",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract",
+      "name": "Extraer solo el contrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3210/api/tasks/contract",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({run_id: $json.body.run_id, text: $json.body.text}) }}",
+        "options": {
+          "timeout": 145000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "result",
+      "name": "Devolver resultado trazable",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "run",
+              "name": "run_id",
+              "value": "={{ $('Recibir ejecución del panel').item.json.body.run_id }}",
+              "type": "string"
+            },
+            {
+              "id": "execution",
+              "name": "execution_id",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "result",
+              "name": "result",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Recibir ejecución del panel": {
+      "main": [
+        [
+          {
+            "node": "Extraer solo el contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer solo el contrato": {
+      "main": [
+        [
+          {
+            "node": "Devolver resultado trazable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "empleoContract01"
+}

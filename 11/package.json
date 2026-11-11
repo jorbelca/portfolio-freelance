@@ -1,0 +1,17 @@
+{
+  "name": "empleo-local",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env src/server.js",
+    "mcp": "node src/mcp-stdio.js",
+    "migrate": "node --env-file=.env src/migrate.js",
+    "setup:n8n": "node --env-file=.env scripts/setup-n8n.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "pg": "^8.16.3",
+    "zod": "^4.6.7"
+  }
+}
