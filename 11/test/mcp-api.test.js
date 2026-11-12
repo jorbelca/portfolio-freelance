@@ -20,7 +20,7 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     await admin.query(await sql('001.sql'));
     const defaults=JSON.parse(await readFile(new URL('../defaults.json',import.meta.url),'utf8'));
     await admin.query('INSERT INTO settings(id,value) VALUES(1,$1)',[defaults]);
-    await admin.query(await sql('002.sql')); await admin.query(await sql('003.sql')); await admin.query(await sql('004.sql')); await admin.query(await sql('005.sql')); await admin.query('COMMIT'); created=true;
+    await admin.query(await sql('002.sql')); await admin.query(await sql('003.sql')); await admin.query(await sql('004.sql')); await admin.query(await sql('005.sql')); await admin.query(await sql('006.sql')); await admin.query(await sql('007.sql')); await admin.query(await sql('008.sql')); await admin.query(await sql('009.sql')); await admin.query('COMMIT'); created=true;
     const scoped=new URL(process.env.DATABASE_URL); scoped.searchParams.set('options',`-c search_path=${schema}`);
     const probe=new pg.Client({connectionString:scoped.href}); await probe.connect();
     try {assert.equal((await probe.query('SELECT current_schema() AS schema')).rows[0].schema,schema);} finally {await probe.end();}
@@ -38,7 +38,21 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`),{requestInit:{headers:{Authorization:`Bearer ${token}`}}}));
     const call=async(name,args={})=>client.callTool({name,arguments:args});
     const ok=async(name,args={})=>{const result=await call(name,args);assert.equal(result.isError,undefined,JSON.stringify(result));return result.structuredContent.data;};
+    const searchConfig=await ok('get_search_configuration');
+    assert.equal(searchConfig.value.professional_years,null);
+    assert.equal(searchConfig.value.technical_degree,false);
+    const savedConfig=await ok('set_search_configuration',{expected_revision:searchConfig.revision,value:{...searchConfig.value,max_required_years:2}});
+    assert.equal(savedConfig.value.max_required_years,2);
+    assert.equal(savedConfig.revision,searchConfig.revision+1);
+    assert.equal((await call('set_search_configuration',{expected_revision:searchConfig.revision,value:searchConfig.value})).structuredContent.error.code,'CONFLICT');
+    assert.equal((await call('set_search_configuration',{expected_revision:savedConfig.revision,value:{...savedConfig.value,sources:[]}})).isError,true);
+    const catalog=await ok('get_models',{});assert.ok(catalog.providers.some(item=>item.id==='codex'));
     const settings=await ok('get_settings',{include_prompt:true});
+    assert.equal(settings.value.provider,'codex');
+    const chosen=await ok('patch_settings',{expected_revision:settings.revision,patch:{provider:'openai',model:'chosen-test-model'}});
+    assert.equal(chosen.value.provider,'openai');
+    await ok('patch_settings',{expected_revision:chosen.revision,patch:{provider:'codex',model:settings.value.model}});
+    Object.assign(settings,await ok('get_settings',{include_prompt:true}));
     const updated=await ok('patch_settings',{expected_revision:settings.revision,patch:{quota_spain:5}});
     assert.equal(updated.value.source_prompt,settings.value.source_prompt); assert.equal(updated.value.quota_spain,5);
     assert.equal((await call('patch_settings',{expected_revision:settings.revision,patch:{quota_spain:6}})).structuredContent.error.code,'CONFLICT');

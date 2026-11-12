@@ -10,8 +10,8 @@ async function docker(args,input) {
   });
 }
 if (!process.env.N8N_TOKEN || process.env.N8N_TOKEN.length<32) throw new Error('Configura N8N_TOKEN con al menos 32 caracteres en .env');
-const workflows=await Promise.all(['01-contrato.json','02-extracciones.json'].map(async file=>JSON.parse(await readFile(new URL(`../workflows/${file}`,import.meta.url),'utf8'))));
-for (const workflow of workflows) for (const node of workflow.nodes) if (node.type==='n8n-nodes-base.httpRequest') node.parameters.url=node.parameters.url.replace(':3210/',`:${Number(process.env.PORT || 3210)}/`);
+const workflows=await Promise.all(['01-contrato.json','02-extracciones.json','03-busqueda.json'].map(async file=>JSON.parse(await readFile(new URL(`../workflows/${file}`,import.meta.url),'utf8'))));
+for (const workflow of workflows) for (const node of workflow.nodes) if (node.type==='n8n-nodes-base.httpRequest') node.parameters.url=node.parameters.url.replaceAll(':3210/',`:${Number(process.env.PORT || 3210)}/`);
 const credentials=[{id:'empleoPanelHeader',name:'Empleo · puente local',type:'httpHeaderAuth',data:{name:'Authorization',value:`Bearer ${process.env.N8N_TOKEN}`}}];
 await docker(['up','-d']);
 try {

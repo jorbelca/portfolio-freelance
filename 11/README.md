@@ -4,6 +4,15 @@ Plan y estado de implementación: [PLAN.md](PLAN.md). Modelo de dominio y casos 
 
 Consola local para configurar, ejecutar y supervisar módulos de n8n en Docker, con parámetros y resultados en PostgreSQL remoto de Neon. Ofrece el mismo control mediante MCP para asistentes LLM. El seguimiento de empresas, procesos, publicaciones y candidaturas ocupa una sección secundaria. Los módulos de extracción usan Codex autenticado con ChatGPT.
 
+
+## Entrega verificada — 12/11/2026
+
+Panel: http://127.0.0.1:3210. Workflow n8n: http://localhost:5678/workflow/empleoSearch03. Migraciones 001–008 aplicadas en Neon.
+
+Prueba real `5d0d271e-168b-4881-b249-4566bdc3fb40`, ejecución n8n 4: descubrimiento corporativo → ficha completa → 15 extracciones → 3 comparaciones → evaluación → lote → auditoría. 24 tareas sin errores; Scalian, Embedded Software Developer – Aerospace, clasificada C por titulación técnica universitaria obligatoria, con cita literal. Máximo una apertura; parámetros originales 100/5/45 días/13+7 restaurados y admisión nuevamente pausada. No se ha enviado candidatura ni añadido la ficha al seguimiento.
+
+35 pruebas comprobadas, incluida una batería completa de 34 y la nueva prueba del lector corporativo. Las pruebas SQL/API/MCP usan esquemas aislados que se eliminan al terminar. El panel y sus formularios se verificaron en navegador, con estado ready y motor conectado.
+
 ## Panel local
 
 El servicio puede arrancar sin `DATABASE_URL` para mostrar el estado de configuración. Hasta conectar Neon, los contadores permanecen sin datos y las operaciones de gestión quedan deshabilitadas.
@@ -24,17 +33,29 @@ npm run migrate
 npm start
 ```
 
-Abre http://127.0.0.1:3210. Registra tus candidaturas y rechazos anteriores. La configuración `history_ready` conserva tu confirmación de que has terminado esa carga. La búsqueda automática se implementará en la siguiente entrega.
+Abre http://127.0.0.1:3210. Registra tus candidaturas y rechazos anteriores. La configuración `history_ready` conserva tu confirmación de que has terminado esa carga. La búsqueda automática está disponible en el módulo «Buscar → filtrar → presentar ofertas».
+
+## Arrancar web y n8n juntos
+
+Desde `11`, con Docker Desktop abierto y `.env` configurado:
+
+```sh
+docker compose up -d --build
+```
+
+Arranca ambos servicios: [web](http://127.0.0.1:3210) y [n8n](http://localhost:5678). Los dos usan `restart: unless-stopped`: vuelven al arrancar Docker salvo que los hayas detenido explícitamente. `docker compose down` detiene ambos; para recuperar el conjunto usa el comando anterior. No hace falta ejecutar `npm start` por separado. Tras modificar código, reconstruye con el mismo comando.
+
+La imagen incluye Node y Codex CLI. Monta únicamente `~/.codex/auth.json` y `models_cache.json` en lectura, nunca todo el directorio personal. Requiere esos archivos de una sesión Codex iniciada en el Mac; para renovar la sesión usa `codex login` en el Mac y recrea la web con `docker compose up -d --force-recreate web`. La clave API se lee de `.env`. Los informes permanecen en `11/reports`; Neon y el volumen de n8n conservan sus datos. Los puertos publicados siguen limitados a loopback.
 
 ## Centro de control y n8n
 
-La pantalla inicial controla el workflow: muestra la conexión del motor, permite o pausa nuevas ejecuciones, ejecuta el módulo disponible y consulta resultados y errores. «Configurar búsqueda» edita los parámetros con formularios; «Seguimiento de ofertas» es la sección secundaria. No hay datos de demostración. Cada fila muestra un único estado: Pendiente, Inscrito, Rechazado o Descartado. El desplegable guarda al seleccionar y registra el cambio en el historial. «Detalles» abre el formulario dentro de la fila para editar notas, enlaces y acciones. Los estados técnicos anteriores se conservan en la base de datos y MCP; guardar sin cambiar el estado visible conserva sus detalles originales. La columna «Fechas» muestra alta, inscripción y último cambio de estado. Marcar por primera vez como Inscrito registra automáticamente la fecha actual; se puede corregir en «Detalles». Las fechas históricas desconocidas no se muestran en la lista; los cambios de estado se fechan automáticamente desde la migración 004, sin deducir fechas anteriores. Editar notas o enlaces no cambia la fecha de estado. La columna «Enlaces» muestra todas las publicaciones; «Añadir URL a esta oferta» vincula otros portales al mismo proceso y mantiene su exclusión de búsquedas.
+La pantalla inicial controla el workflow: muestra la conexión del motor, permite o pausa nuevas ejecuciones, ejecuta el módulo disponible y consulta resultados y errores. «Configurar búsqueda» edita los parámetros con formularios; «Seguimiento de ofertas» es la sección secundaria. No hay datos de demostración. Cada fila muestra un único estado: Pendiente, Inscrito o Rechazado. El desplegable guarda al seleccionar y registra el cambio en el historial. «Detalles» abre el formulario dentro de la fila para editar notas, enlaces y acciones. Los estados técnicos anteriores se conservan en la base de datos y MCP; guardar sin cambiar el estado visible conserva sus detalles originales. La columna «Fechas» muestra alta, inscripción y último cambio de estado. Marcar por primera vez como Inscrito registra automáticamente la fecha actual; se puede corregir en «Detalles». Las fechas históricas desconocidas no se muestran en la lista; los cambios de estado se fechan automáticamente desde la migración 004, sin deducir fechas anteriores. Editar notas o enlaces no cambia la fecha de estado. La columna «Enlaces» muestra todas las publicaciones; «Añadir URL a esta oferta» vincula otros portales al mismo proceso y mantiene su exclusión de búsquedas.
 
-Desde `11`, ejecuta `npm run setup:n8n`. El comando arranca Docker, instala una credencial Header Auth desde `N8N_TOKEN`, importa y publica ambos workflows y reinicia n8n para registrar el webhook. No imprime el secreto y elimina el archivo temporal del contenedor. Repetir el comando reemplaza ambos workflows y esta credencial por la versión del repositorio: guarda antes cualquier edición realizada en el editor de n8n.
+Desde `11`, ejecuta `npm run setup:n8n`. El comando arranca Docker, instala una credencial Header Auth desde `N8N_TOKEN`, importa y publica los tres workflows y reinicia n8n para registrar el webhook. No imprime el secreto y elimina el archivo temporal del contenedor. Repetir el comando reemplaza los tres workflows y esta credencial por la versión del repositorio: guarda antes cualquier edición realizada en el editor de n8n.
 
 Abre [el panel](http://127.0.0.1:3210) y permite nuevas ejecuciones. Pega una descripción real y elige «Analizar ficha» (15 tareas) o «Extraer solo contrato». Cada tarea guarda dato, cita literal y estado antes de avanzar. El dashboard permite seleccionar una ejecución y ver su progreso y evidencias. El panel crea una ejecución persistente; n8n recibe su identificador por webhook autenticado y llama al servicio local, que ejecuta `codex exec` con la sesión ChatGPT del usuario del Mac. n8n no recibe esa sesión. El modelo se toma de la copia de configuración de la ejecución, después de `CODEX_MODEL` y finalmente de Codex. El prompt general y los límites de búsqueda todavía no se consumen en este módulo acotado.
 
-[El editor n8n](http://localhost:5678/workflow/empleoContract01) permite inspeccionar los nodos y sus ejecuciones; puede pedir completar el acceso de propietario. La imagen está fijada por digest (n8n 2.34.6). Workflows y credenciales persisten en SQLite en el volumen `portfolio-11_n8n_data`; la configuración funcional, las ejecuciones del panel y las ofertas persisten en Neon.
+[El editor n8n](http://localhost:5678/workflow/empleoSearch03) permite inspeccionar los nodos y sus ejecuciones; puede pedir completar el acceso de propietario. La imagen está fijada por digest (n8n 2.34.6). Workflows y credenciales persisten en SQLite en el volumen `portfolio-11_n8n_data`; la configuración funcional, las ejecuciones del panel y las ofertas persisten en Neon.
 
 Pausar bloquea nuevos lanzamientos desde el panel; las tareas iniciadas continúan. La pausa no despublica el webhook. El servicio solo admite un lanzamiento activo, reclama cada tarea una sola vez y reconoce reintentos con el mismo identificador sin repetirla. Cada ejecución conserva revisión y copia de configuración. Una respuesta perdida o un reinicio deja el resultado como incierto y bloquea nuevos lanzamientos hasta documentar una comprobación manual de n8n. No hay reintentos automáticos ni cancelación de una llamada al modelo en curso.
 
@@ -78,9 +99,15 @@ Para probar operaciones MCP contra la API y Neon: `node --env-file=.env --test t
 
 La migración conserva registros y configuración existente. Para verificar Neon, ejecuta la migración y prueba alta, edición, recarga e historial desde el panel.
 
-## Trabajo pendiente del plan
+## Búsqueda conectada y límites
 
-Identificadores y alias de ATS, fusión de duplicados, búsqueda y lectura de fuentes, extracciones estructuradas por requisito, reglas A/B/C, cupos, reanudación automática, auditoría e informes. Las ejecuciones persistentes de contrato y análisis de ficha ya están conectadas. El contenido original de `source_prompt` se conserva como referencia editable. Esta entrega usa exclusivamente Neon para el historial y no consulta Obsidian. La extracción de contrato todavía no consume ese prompt general, tiene una instrucción acotada propia.
+El módulo de búsqueda usa el perfil estructurado y sus habilidades/evidencias, idiomas, consultas, fuentes, exclusiones y prioridades. Descubre pistas en Arbeitnow, Arbeitnow UK, Remotive y fuentes corporativas configurables de SmartRecruiters (`smartrecruiters:Empresa:país`). El número máximo de páginas es editable por fuente. No confunde fragmentos de buscador con fichas completas.
+
+Cada apertura se reserva en Neon antes de consultar la ficha. Se cruza el historial antes de abrir y al evaluar/cerrar. Quince extracciones y hasta once comparaciones independientes guardan citas literales; una causa C acreditada detiene las comparaciones restantes. Clasificación, cómputo, antigüedad, país y déficits se resuelven con código. Las B no se presentan como recomendadas.
+
+El panel permite pausar entre tareas, reanudar, cancelar conservando datos, resolver identidades y corregir datos con evidencia. Cada corrección y cada intento quedan registrados. Marcar un proceso como inscrito o rechazado incrementa la revisión del historial; consultar de nuevo resultados/informe recalcula las filas y los cupos sin reabrir fichas. Los informes Markdown y registros JSON se generan por lote/cierre en `reports/<run_id>/`, excluidos de git.
+
+Pendiente de validación general: una ejecución real con finalistas A/B y el reparto completo. La fusión entre dos procesos distintos ya registrados en el seguimiento se bloquea para evitar perder historial; solo están implementadas las fusiones de pistas y sus enlaces. No se consultan automáticamente Obsidian ni portales con sesión; Neon contiene el historial importado. La cobertura se limita a los adaptadores soportados. Las llamadas usan la sesión y cuota de Codex, sin garantía de disponibilidad de Luna.
 
 ## Validación de esta entrega
 
@@ -88,7 +115,7 @@ Migraciones 001–003 aplicadas en Neon, pruebas unitarias y prueba SQL en esque
 
 Desde el navegador se comprobó el guardado de los mismos parámetros como revisión 2, conservando los valores y la revisión 1 de la ejecución anterior, la navegación al seguimiento con cero ofertas y la pausa de nuevos lanzamientos. Comprobaciones HTTP con aserciones: repetir la petición original devuelve la ejecución existente (202), cambiar su documento devuelve 409, lanzar otra durante la pausa devuelve 409 y llamar al webhook sin credencial devuelve 403. Esta comprobación inicial no creó ofertas; posteriormente se registró N029 por petición del usuario. El panel se deja con nuevas ejecuciones pausadas.
 
-MCP se verificó con el cliente oficial en ambos transportes, incluido stdio desde `/tmp`: 21 herramientas, recursos y prompt operativo. Un cambio parcial que conservaba los valores creó la revisión 3; la revisión obsoleta devolvió CONFLICT, y repetir la ejecución auténtica existente no inició otra. La prueba aislada verificó edición parcial, estados y versiones, publicaciones, bloqueo de historial, acciones, paginación y autenticación. La web incluye una pestaña con configuraciones copiables y atributos estables para automatización por navegador. No se ha registrado el servidor en la configuración global de ningún cliente.
+MCP se verificó con el cliente oficial en ambos transportes, incluido stdio desde `/tmp`: 30 herramientas, recursos y prompt operativo. Un cambio parcial que conservaba los valores creó la revisión 3; la revisión obsoleta devolvió CONFLICT, y repetir la ejecución auténtica existente no inició otra. La prueba aislada verificó edición parcial, estados y versiones, publicaciones, bloqueo de historial, acciones, paginación y autenticación. La web incluye una pestaña con configuraciones copiables y atributos estables para automatización por navegador. No se ha registrado el servidor en la configuración global de ningún cliente.
 
 ## Segmentación de la extracción
 
@@ -110,3 +137,8 @@ Se conservaron las líneas originales, identificadores públicos, enlaces y proc
 
 Para importar una copia local de esa nota, revisar primero con `node scripts/import-obsidian.js /ruta/DONE.md` y aplicar con `node --env-file=.env scripts/import-obsidian.js /ruta/DONE.md --apply`. Se ejecuta en una sola transacción y conserva los estados actuales de las ofertas conocidas. Repetir líneas idénticas no crea registros nuevos. Una modificación de una entrada sin URL ni ID requiere revisión manual, pues no permite demostrar identidad automáticamente.
 
+
+### Elegir motor y modelo
+En Configuración → Motor, modelo y antecedentes se elige Codex (sesión local) o API de OpenAI. El catálogo de Codex procede de su caché local; admite un identificador manual. La API requiere `OPENAI_API_KEY` en `.env` y reiniciar el servidor. Su catálogo se consulta con esa clave; no todos los modelos admiten Responses y JSON Schema. No hay cambio automático de proveedor ante errores. Cada ejecución conserva proveedor y modelo en su snapshot.
+
+La integración API utiliza [Responses con salida estructurada](https://developers.openai.com/api/docs/guides/structured-outputs), sin herramientas ni almacenamiento solicitado. La evidencia literal se valida igualmente tras recibir la respuesta.

@@ -2,6 +2,7 @@ import {spawn} from 'node:child_process';
 import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {openaiExtraction} from './models.js';
 import {extractionPrompt} from './tasks.js';
 export function validateExtraction(result, text) {
   if (!result || typeof result.value !== 'string' || typeof result.evidence !== 'string' || !['acreditado', 'desconocido'].includes(result.state)) throw new Error('Respuesta de Codex inválida');
@@ -12,8 +13,14 @@ export function validateExtraction(result, text) {
 let busy = false;
 export const extractContract=(text,model)=>extractField('contract',text,model);
 export async function extractField(taskId, text, model) {
-  const prompt=extractionPrompt(taskId,text);
+  return extractPrompt(extractionPrompt(taskId,text),text,model);
+}
+export async function extractPrompt(prompt,text,model) {
   if (typeof text !== 'string' || !text.trim() || text.length > 100000) throw new Error('Texto requerido, máximo 100.000 caracteres');
+  const config=typeof model==='object' && model!==null?model:{model,provider:'codex'};
+  if (!['codex','openai'].includes(config.provider ?? 'codex')) throw new Error('Motor no admitido');
+  if (config.provider==='openai') return validateExtraction(await openaiExtraction(prompt,config.model),text);
+  model=config.model || process.env.CODEX_MODEL;
   if (busy) throw Object.assign(new Error('Codex ocupado, reintenta después'), {status: 429});
   busy = true;
   let directory;

@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {pool, transaction} from './db.js';
+import {publicationIdentity,samePublication} from './identity.js';
 import {checkApplicationChange, actionInput, cleanUrl, validId} from './domain.js';
 const fail = (message, status=400) => Object.assign(new Error(message), {status});
 export async function recordEvent(client, id, kind, value, reason='') {
@@ -11,11 +12,15 @@ async function lock(client, id) {
   if (!row) throw fail('Proceso no encontrado',404);
   return row;
 }
-async function addPublication(client, id, url) {
+export async function addPublication(client, id, url) {
   if (!url) return;
-  const previous = (await client.query('SELECT opportunity_id FROM publications WHERE url=$1', [url])).rows[0];
+  const identity=publicationIdentity(url);
+  // Serializa variantes del mismo ID antes de comprobar su propietario.
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[identity || url]);
+  const publications=(await client.query('SELECT opportunity_id,url FROM publications')).rows;
+  const previous=publications.find(publication=>samePublication(publication.url,url));
   if (previous && previous.opportunity_id !== id) throw fail('El enlace pertenece a otro proceso. Revisa la posible duplicidad.',409);
-  if (previous) return;
+  if (publications.some(publication=>publication.url===url)) return;
   const namespace = new URL(url).origin;
   const source = (await client.query('INSERT INTO sources(id,namespace,label) VALUES($1,$2,$2) ON CONFLICT(namespace) DO UPDATE SET namespace=excluded.namespace RETURNING id',[randomUUID(),namespace])).rows[0];
   await client.query('INSERT INTO publications(id,opportunity_id,source_id,url,is_primary) VALUES($1,$2,$3,$4,NOT EXISTS(SELECT 1 FROM publications WHERE opportunity_id=$2))',[randomUUID(),id,source.id,url]);
@@ -80,11 +85,18 @@ export async function saveAction(opportunityId, actionId, raw) {
     return {id:actionId};
   });
 }
-export async function checkHistory(raw) {
-  const url = cleanUrl(raw.url);
-  const matches = (await pool.query(`SELECT DISTINCT s.* FROM offer_summary s LEFT JOIN publications p ON p.opportunity_id=s.id
-    WHERE ($1::text IS NOT NULL AND p.url=$1) OR (lower(s.company)=lower($2) AND lower(s.title)=lower($3))`,[url,raw.company || '',raw.title || ''])).rows;
-  const exact = url ? (await pool.query('SELECT s.* FROM offer_summary s JOIN publications p ON p.opportunity_id=s.id WHERE p.url=$1',[url])).rows[0] : null;
-  // shortcut: las URLs alternativas se registran explícitamente; falta resolver IDs ATS y fusiones antes de buscar automáticamente.
-  return {excluded:Boolean(exact?.excluded), already_known:Boolean(exact), needs_review:!exact && matches.length>0, matches};
+export async function checkHistory(raw,client=pool) {
+  if (!raw || typeof raw!=='object' || Array.isArray(raw)) throw fail('Consulta de historial inválida');
+  for (const key of ['company','title','url']) if (raw[key]!==undefined && raw[key]!==null && (typeof raw[key]!=='string' || raw[key].length>2000)) throw fail('Consulta de historial inválida');
+  const url=cleanUrl(raw.url), identity=publicationIdentity(url);
+  const rows=(await client.query(`SELECT s.*,p.url AS publication_url FROM offer_summary s LEFT JOIN publications p ON p.opportunity_id=s.id`)).rows;
+  const exact=new Map(),possible=new Map();
+  for (const row of rows) {
+    const {publication_url,...offer}=row;
+    if (url && publication_url && samePublication(url,publication_url)) exact.set(row.id,offer);
+    if (raw.company?.trim() && raw.title?.trim() && row.company.toLowerCase()===raw.company.trim().toLowerCase() && row.title.toLowerCase()===raw.title.trim().toLowerCase()) possible.set(row.id,offer);
+  }
+  const matches=[...new Map([...possible,...exact]).values()];
+  const ambiguous=exact.size>1;
+  return {excluded:[...exact.values()].some(row=>row.excluded),already_known:exact.size>0,needs_review:ambiguous || (!exact.size && possible.size>0),identity,matches};
 }

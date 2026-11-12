@@ -8,6 +8,7 @@ test('solo admite el módulo implementado, con identificador idempotente y docum
   const value={id:randomUUID(),module:'contract',text:'Documento de prueba aislado'};
   assert.equal(runInput(value),value);
   assert.equal(runInput({...value,module:'extraction'}).module,'extraction');
+  assert.equal(runInput({id:value.id,module:'search'}).module,'search');
   for (const change of [{id:'otro'},{module:'discovery'},{text:''},{text:' '},{text:'x'.repeat(100001)}]) assert.throws(()=>runInput({...value,...change}));
 });
 test('el workflow real autentica ambos saltos y devuelve identidad de ejecución',()=>{
@@ -41,4 +42,17 @@ test('quince tareas permitidas con un nodo autenticado por tarea y cierre persis
   }
   assert.throws(()=>extractionPrompt('arbitrary','Documento'));
   assert.ok(workflow.nodes.at(-1).parameters.url.endsWith('/tasks/finish'));
+});
+test('búsqueda n8n: nodo singular por operación, cierre por estado persistido y sin secretos',async()=>{
+ const {searchTaskKinds}=await import('../src/search.js');
+ const workflow=JSON.parse(readFileSync(new URL('../workflows/03-busqueda.json',import.meta.url)));
+ assert.equal(workflow.nodes.length,searchTaskKinds.length+4);
+ assert.equal(workflow.nodes[0].parameters.authentication,'headerAuth');
+ assert.equal(workflow.nodes[0].parameters.responseMode,'onReceived');
+ for(const kind of searchTaskKinds) {
+  const node=workflow.nodes.find(node=>node.id===kind);assert.ok(node);
+  assert.equal(node.credentials.httpHeaderAuth.id,'empleoPanelHeader');
+  assert.equal(workflow.connections[node.name].main[0][0].node,'Elegir siguiente tarea persistida');
+ }
+ assert.equal(JSON.stringify(workflow).includes('Bearer '),false);
 });

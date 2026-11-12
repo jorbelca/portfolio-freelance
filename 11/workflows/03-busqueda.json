@@ -1,0 +1,1623 @@
+{
+  "id": "empleoSearch03",
+  "name": "Empleo - búsqueda, filtro y presentación por tareas",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Recibir ejecución del panel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "empleo-search",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "empleo-search",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "next",
+      "name": "Elegir siguiente tarea persistida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $('Recibir ejecución del panel').first().json.body.run_id + '/next' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "active",
+      "name": "Quedan tareas y ejecución activa",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "continue",
+              "leftValue": "={{ $json.continue }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "route",
+      "name": "Una responsabilidad por nodo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 32,
+        "output": "={{ [\"discover\",\"precheck\",\"read\",\"extract_company\",\"extract_title\",\"extract_country\",\"extract_work_mode\",\"extract_remote_eligibility\",\"extract_publication\",\"extract_contract\",\"extract_experience\",\"extract_education\",\"extract_languages\",\"extract_technology\",\"extract_functions\",\"extract_video\",\"extract_availability\",\"extract_channel\",\"decide_seniority\",\"decide_experience\",\"decide_education\",\"decide_technology\",\"decide_languages\",\"decide_contract\",\"decide_functions\",\"decide_remote\",\"decide_video\",\"decide_availability\",\"decide_channel\",\"evaluate\",\"batch\",\"audit\"].indexOf($json.kind) }}"
+      }
+    },
+    {
+      "id": "discover",
+      "name": "01 · discover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "precheck",
+      "name": "02 · precheck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "read",
+      "name": "03 · read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_company",
+      "name": "04 · extract_company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_title",
+      "name": "05 · extract_title",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_country",
+      "name": "06 · extract_country",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        750
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_work_mode",
+      "name": "07 · extract_work_mode",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_remote_eligibility",
+      "name": "08 · extract_remote_eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1050
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_publication",
+      "name": "09 · extract_publication",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_contract",
+      "name": "10 · extract_contract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1350
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_experience",
+      "name": "11 · extract_experience",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_education",
+      "name": "12 · extract_education",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1650
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_languages",
+      "name": "13 · extract_languages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_technology",
+      "name": "14 · extract_technology",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        1950
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_functions",
+      "name": "15 · extract_functions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_video",
+      "name": "16 · extract_video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_availability",
+      "name": "17 · extract_availability",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "extract_channel",
+      "name": "18 · extract_channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2550
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_seniority",
+      "name": "19 · decide_seniority",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2700
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_experience",
+      "name": "20 · decide_experience",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        2850
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_education",
+      "name": "21 · decide_education",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3000
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_technology",
+      "name": "22 · decide_technology",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_languages",
+      "name": "23 · decide_languages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_contract",
+      "name": "24 · decide_contract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_functions",
+      "name": "25 · decide_functions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_remote",
+      "name": "26 · decide_remote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3750
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_video",
+      "name": "27 · decide_video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        3900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_availability",
+      "name": "28 · decide_availability",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4050
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "decide_channel",
+      "name": "29 · decide_channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "evaluate",
+      "name": "30 · evaluate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4350
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "batch",
+      "name": "31 · batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "audit",
+      "name": "32 · audit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4650
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Recibir ejecución del panel": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elegir siguiente tarea persistida": {
+      "main": [
+        [
+          {
+            "node": "Quedan tareas y ejecución activa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quedan tareas y ejecución activa": {
+      "main": [
+        [
+          {
+            "node": "Una responsabilidad por nodo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Una responsabilidad por nodo": {
+      "main": [
+        [
+          {
+            "node": "01 · discover",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "02 · precheck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03 · read",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04 · extract_company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05 · extract_title",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "06 · extract_country",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07 · extract_work_mode",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08 · extract_remote_eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09 · extract_publication",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10 · extract_contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "11 · extract_experience",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12 · extract_education",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "13 · extract_languages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "14 · extract_technology",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "15 · extract_functions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "16 · extract_video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "17 · extract_availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "18 · extract_channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "19 · decide_seniority",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "20 · decide_experience",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "21 · decide_education",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "22 · decide_technology",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "23 · decide_languages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "24 · decide_contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "25 · decide_functions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "26 · decide_remote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "27 · decide_video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "28 · decide_availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "29 · decide_channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "30 · evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "31 · batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "32 · audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 · discover": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 · precheck": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 · read": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 · extract_company": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 · extract_title": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 · extract_country": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 · extract_work_mode": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08 · extract_remote_eligibility": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09 · extract_publication": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10 · extract_contract": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11 · extract_experience": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 · extract_education": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13 · extract_languages": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14 · extract_technology": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15 · extract_functions": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16 · extract_video": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17 · extract_availability": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18 · extract_channel": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19 · decide_seniority": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20 · decide_experience": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "21 · decide_education": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "22 · decide_technology": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "23 · decide_languages": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24 · decide_contract": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25 · decide_functions": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "26 · decide_remote": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "27 · decide_video": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "28 · decide_availability": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "29 · decide_channel": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "30 · evaluate": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "31 · batch": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "32 · audit": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

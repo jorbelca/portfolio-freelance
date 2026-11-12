@@ -278,3 +278,57 @@ Con autorización expresa del usuario se reutilizó el texto real de Scalian con
 - Admisión restaurada a pausada. N029 sigue siendo la única oferta, con candidatura enviada y sus dos publicaciones.
 
 Esta prueba acredita la orquestación y persistencia del análisis del texto aportado. No acredita vigencia actual, elegibilidad del candidato, clasificación A/B/C ni funcionamiento de búsqueda automática.
+
+## Avance de búsqueda — 12/11/2026
+
+- Identidad compartida por portal/ID para InfoJobs, LinkedIn, Workable, Greenhouse, Lever, SmartRecruiters y Emploive. El tenant evita confundir IDs reutilizados. El cruce de historial de API/MCP reconoce URLs alternativas; las coincidencias solo por texto siguen requiriendo revisión.
+- El alta de publicaciones serializa el mismo ID y evita asociarlo a otro proceso, conservando aliases del mismo proceso. No se ha reescrito el historial.
+- Cliente HTTPS público con resolución DNS fijada por petición, comprobación de cada redirección, límites de tamaño/tiempo y bloqueo de redes internas.
+- Adaptadores de descubrimiento Arbeitnow, Arbeitnow UK y Remotive. Comprobación real: 300, 100 y 14 pistas respectivamente. No se han insertado pistas ni ofertas de esta comprobación en la base real.
+- Lector conservador de JobPosting JSON-LD: una única descripción completa o pista con motivo; no considera login, páginas genéricas ni listados como fichas leídas.
+- Documentación oficial consultada: https://www.arbeitnow.com/blog/job-board-api y https://remotive.com/remote-jobs/api . Los resultados de Remotive deben conservar atribución y enlace de origen.
+
+Pendiente para completar el objetivo: integrar estos adaptadores con configuración editable, reservas y tareas persistentes; evaluación del perfil y reglas A/B/C; coordinador n8n con pausa/reanudación y cupos; resultados/auditoría en web y MCP; prueba real completa. El módulo de búsqueda permanece deshabilitado hasta tener ese recorrido conectado y verificado.
+
+### Perfil y evaluación — 12/11/2026
+
+- Migración 006 aplicada en Neon: configuración con revisión, habilidades/evidencias/prioridades, titulaciones, idiomas/niveles, fuentes habilitadas, consultas por zona/idioma y empleadores excluidos. Los datos iniciales proceden del prompt del usuario; prácticas y permisos desconocidos siguen desconocidos.
+- API GET/PUT `/api/search/config`; guardado transaccional, revisión optimista, validación estricta y rechazo de duplicados. MCP `get_search_configuration` y `set_search_configuration` (23 herramientas totales).
+- Web: secciones editables de perfil, fuentes, consultas y exclusiones, cargadas desde Neon y verificadas en navegador con estado ready/revisión 1. Se usa JSON validado para conservar todos los campos; quedan pendientes controles de formulario más cómodos.
+- Once comparaciones semánticas independientes con perfil acreditado y evidencia literal: nivel, experiencia, formación, tecnología, idiomas, contrato, funciones, ubicación, vídeo, vigencia y canal. Se reutiliza el ejecutor Codex; no se ha consumido cuota real en estas pruebas.
+- Clasificador puro: C prevalece con causa acreditada; B conserva pendientes con responsable y resolución; A requiere todas las condiciones. Computabilidad separada, 45 días inclusive, sin país por conveniencia ni adscripción por elegibilidad remota. Aún debe conectarse a las tareas persistentes y ampliarse el encaje y ordenación final.
+- 29 pruebas completas sin omisiones, incluidas edición/lectura de perfil por MCP en Neon aislado, revisión obsoleta y validaciones. Cruce real de Wiris por alias: conocida y excluida, conservando rechazo original.
+
+El objetivo sigue activo. Próximo bloque: tablas y coordinador de búsqueda con reserva de aperturas, documentos, decisiones y auditoría; workflow n8n con control de pausa/reanudación; resultados de ejecución e informe verificable en web/MCP. No se ha habilitado todavía búsqueda completa ni se ha declarado terminada.
+
+### Coordinador n8n completo conectado — 12/11/2026
+
+- Migración 007 aplicada: estado/revisión de ejecución, pistas, documentos con reserva previa de apertura, enlaces revelados y cola de tareas con claves idempotentes.
+- `src/search.js`: descubrimiento por fuente, cruce antes de abrir, reserva transaccional, lectura JSON-LD, cruce de IDs/URLs revelados, extracciones, comparaciones, evaluación, auditoría por lote y final. Prioriza pistas del cupo deficitario sin usar esa pista como evidencia del país. Termina con déficit exacto por cupos, límite o fuentes agotadas.
+- `03-busqueda.json` publicado en Docker como `empleoSearch03`; webhook con acuse inmediato, selector persistente y un nodo HTTP autenticado por responsabilidad. Verificado el formato del Switch contra el código instalado en n8n 2.34.6.
+- Pausa entre tareas, reanudación, cancelación con conservación de resultados y reintento manual de una tarea fallida/incierta. Un reinicio conserva avances y marca llamadas interrumpidas como inciertas. Una lectura ya reservada no se repite automáticamente.
+- UI: módulo buscar → filtrar → presentar, A/B/C y pistas separadas, pendientes y motivos, citas/documento, paginación, paso explícito de A/B al seguimiento y controles de ejecución.
+- 28 herramientas MCP: inicio de búsqueda sin texto, resultados, candidato individual, control, incorporación al seguimiento e informe paginado. El informe Markdown y el registro JSON se escriben en `reports/<run_id>/` tras lotes/cierre y se descargan desde la web; directorio ignorado por git.
+- Historial confirmado tras comprobar las 40 ofertas importadas, todas excluidas. Configuración funcional original restaurada tras la prueba (100 lecturas, lote 5, 13/7); admisión nuevamente pausada como estaba.
+- Prueba real n8n → fuente → Neon → clasificación → cierre: `3674fa43-5077-470c-8c8d-b1f0552b9b26`, máximo una apertura. Ficha real de Tesslcareers, Marketing Manager, publicada 21/09/2026: C por 52 días, sin llamadas al modelo. Se comprobó que buscar en descripciones generaba ruido: ahora las consultas filtran títulos y conservan orden de descubrimiento.
+- Informe real y registro generados desde los datos persistidos. No se ha añadido ninguna de esas pistas al seguimiento ni enviado candidaturas.
+- 32 pruebas completas sin omisiones, incluidas búsqueda íntegra con fuente/modelo de prueba en esquema aislado, bloqueo de candidatura previa sin apertura, 15 extracciones, 11 comparaciones, pausa/reanudación, límites, persistencia y archivos. Los datos de prueba se eliminan al terminar.
+
+Pendiente de la auditoría de cierre del objetivo: prueba real adicional del recorrido de comparaciones con una ficha admisible actual, verificación visual del dashboard conectado, controles más cómodos que el JSON para el perfil, ordenación por encaje/preferencias, correcciones/fusiones de identidades dudosas y actualización de informes ante cambios posteriores de candidatura. Comprobar recuperación/cancelación en sus casos límite y cobertura de fuentes para España. El objetivo permanece activo; no se declara terminado por la prueba temprana C.
+
+### Entrega presentada al usuario — 12/11/2026
+
+El usuario pidió cerrar esta entrega y presentar el estado actual. Se detuvo la ampliación de funcionalidades y se cerraron las verificaciones en curso.
+
+- Migración 008 aplicada: revisión durable del historial con triggers transaccionales; versiones, resoluciones de identidad, capas de corrección, eventos e intentos de tareas. No se borra la evidencia anterior.
+- Resultados e informes se revalidan al consultar si cambia una candidatura, publicación o proceso. Prueba aislada: una B computable se incorpora al seguimiento, se marca inscrita y pasa a C, reduciendo el total y actualizando el informe sin otra lectura.
+- Identidades: confirmar otra convocatoria, vincular al proceso conocido o fusionar pistas duplicadas y conservar aliases. Un ID ya conocido no puede eludir el bloqueo declarándose otro proceso. La fusión de dos procesos ya existentes del seguimiento sigue bloqueada explícitamente.
+- Ordenación por encaje, prioridades tecnológicas y modalidad/ubicación, sin inventar trayectos ni probabilidades. Se evita confundir RAG con fragmentos de «storage».
+- Configuración por formularios: perfil, prácticas, titulación técnica, idiomas/niveles, tecnologías/evidencias/prioridades, fuentes/páginas y consultas. JSON completo disponible como consulta.
+- Fuente corporativa configurable SmartRecruiters por empresa y país, con paginación limitada. Lectura pública por API cuando el HTML no contiene ficha completa; comprobación de ID y tenant, descripción completa y datos de procedencia. No se conservan los datos del creador del anuncio ni enlaces de referido.
+- 30 herramientas MCP, incluidas resolución y corrección. Historial de cada intento y salto manual de una tarea incierta sin repetir una apertura reservada.
+- Prueba real cerrada: `5d0d271e-168b-4881-b249-4566bdc3fb40`, ejecución n8n `4`, 24 tareas completadas sin errores. Scalian, Embedded Software Developer – Aerospace; publicación 30/09/2026, 43 días; C por requisito de titulación técnica universitaria obligatoria. Se conservaron 15 extracciones, tres comparaciones y la cita literal de la causa. Una apertura. Informe y registro en `reports/5d0d271e-168b-4881-b249-4566bdc3fb40/`.
+- Configuración general restaurada: 100 aperturas, lotes de 5, 45 días, cupos 13+7; cuatro fuentes habilitadas y admisión pausada como estaba. Las 40 ofertas previas del seguimiento permanecen; ninguna ficha de las pruebas reales se convirtió en candidatura ni oferta de seguimiento.
+- 35 pruebas comprobadas (batería completa de 34 + prueba nueva del lector corporativo). Integración aislada cubre correcciones, aliases, bloqueo por inscripción posterior, archivos, pausa/reanudación, fallo/reintento, conservación de intentos y cancelación. Navegador: ready, n8n conectado, formularios reales y resultado C visible; pestaña del panel presentada al usuario.
+
+El objetivo general no se marca completo: falta validar una ejecución real con finalistas A/B y reparto completo; siguen pendientes la fusión de dos procesos existentes, cobertura adicional de fuentes y partes del plan que exceden la entrega actual. No se han simulado finalistas ni se afirma haber cumplido 13+7.

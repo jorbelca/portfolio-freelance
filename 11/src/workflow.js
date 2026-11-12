@@ -2,9 +2,11 @@ import {pool, transaction} from './db.js';
 import {validId} from './domain.js';
 import {validateExtraction,extractField} from './codex.js';
 import {tasksFor,extractionTasks} from './tasks.js';
+import {startSearchRun,searchTaskKinds} from './search.js';
 const base = process.env.N8N_URL || 'http://127.0.0.1:5678';
 export function runInput(value) {
   validId(value?.id);
+  if (value.module==='search') return {...value,text:'Búsqueda automática'};
   if (!['contract','extraction'].includes(value.module) || typeof value.text !== 'string' || !value.text.trim() || value.text.length>100000) throw new Error('Selecciona un módulo disponible e introduce una ficha real (máximo 100.000 caracteres).');
   return value;
 }
@@ -16,14 +18,12 @@ export async function workflowStatus() {
   return {reachable,editorUrl:'http://localhost:5678/workflow/empleoContract01',control:(await pool.query('SELECT * FROM workflow_control WHERE id=1')).rows[0],modules:[
     {id:'contract',label:'Extraer contrato',available:true,workflowId:'empleoContract01',tasks:tasksFor('contract')},
     {id:'extraction',label:'Analizar ficha · 15 tareas',available:true,workflowId:'empleoExtraction02',tasks:extractionTasks},
-    {id:'discovery',label:'Descubrir y recuperar fichas',available:false},
-    {id:'identity',label:'Cruzar historial y duplicados',available:false},
-    {id:'evaluation',label:'Evaluar requisitos y clasificar A/B/C',available:false},
-    {id:'audit',label:'Auditar cupos y generar informe',available:false}
+    {id:'search',label:'Buscar, filtrar y presentar ofertas',available:true,workflowId:'empleoSearch03',tasks:searchTaskKinds.map(id=>({id,label:id,instruction:'Operación singular persistente; consulta sus resultados por ejecución.'}))}
   ]};
 }
 export async function startRun(raw) {
   const input=runInput(raw);
+  if (input.module==='search') {const run=await startSearchRun(input);if(!run.existing) void dispatchSearch(run.id);return run;}
   const run=await transaction(async client=>{
     const control=(await client.query('SELECT * FROM workflow_control WHERE id=1 FOR UPDATE')).rows[0];
     const previous=(await client.query('SELECT id,status,module,input_text FROM workflow_runs WHERE id=$1',[input.id])).rows[0];
@@ -70,11 +70,11 @@ export async function runTask(id,taskId,text,extract=extractField) {
     if (['succeeded','failed'].includes(task.status)) return {cached:task};
     if (task.status!=='pending' || (await client.query("SELECT 1 FROM workflow_tasks WHERE run_id=$1 AND position<$2 AND status NOT IN ('succeeded','failed')",[id,task.position])).rowCount) throw Object.assign(new Error('Tarea en curso, incierta o fuera de orden.'),{status:409});
     await client.query("UPDATE workflow_tasks SET status='running',started_at=now() WHERE run_id=$1 AND task_id=$2",[id,taskId]);
-    return {text:run.input_text,model:run.settings_snapshot.model};
+    return {text:run.input_text,model:run.settings_snapshot};
   });
   if (claimed.cached) return claimed.cached;
   let result=null,error=null;
-  try {result=validateExtraction(await extract(taskId,claimed.text,claimed.model || process.env.CODEX_MODEL),claimed.text);}
+  try {result=validateExtraction(await extract(taskId,claimed.text,claimed.model),claimed.text);}
   catch {error='No se obtuvo una extracción válida. Comprueba sesión, cuota, modelo y tiempo de espera; la tarea no se reintenta automáticamente.';}
   return (await pool.query("UPDATE workflow_tasks SET status=$3,result=$4,error=$5,finished_at=now() WHERE run_id=$1 AND task_id=$2 AND status='running' RETURNING *",[id,taskId,error?'failed':'succeeded',result,error])).rows[0] || {status:'unknown',error:'Servicio reiniciado; revisa n8n.'};
 }
@@ -98,6 +98,17 @@ export async function finishRun(id,executionId) {
 export async function recoverRuns() {
   if (pool) await transaction(async client=>{
     await client.query("UPDATE workflow_tasks SET status='unknown',error='Servicio reiniciado; comprueba n8n.' WHERE status='running'");
+    await client.query("UPDATE search_step_attempts SET status='unknown',error='Servicio reiniciado; comprueba n8n.',finished_at=now() WHERE status='running'");
+    await client.query("UPDATE search_steps SET status='unknown',error='Servicio reiniciado; comprueba la ejecución de n8n.' WHERE status='running'");
     await client.query("UPDATE workflow_runs SET status='unknown',error='Servicio reiniciado. Revisa la ejecución en n8n antes de repetir.' WHERE status IN ('queued','running')");
   });
+}
+
+export async function dispatchSearch(id) {
+ try {
+  const response=await fetch(`${base}/webhook/empleo-search`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${process.env.N8N_TOKEN}`},body:JSON.stringify({run_id:id}),signal:AbortSignal.timeout(15000)});
+  if (!response.ok) throw new Error(`n8n no confirmó el lanzamiento (HTTP ${response.status}). Comprueba publicación y credencial.`);
+ } catch(error) {
+  await pool.query("UPDATE workflow_runs SET status='unknown',error=$2 WHERE id=$1 AND status='running'",[id,error.message]);
+ }
 }

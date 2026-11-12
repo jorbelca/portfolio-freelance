@@ -1,5 +1,20 @@
 name: portfolio-11
 services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      N8N_URL: http://n8n:5678
+    ports:
+      - "127.0.0.1:${PORT:-3210}:${PORT:-3210}"
+    volumes:
+      - ./reports:/app/reports
+      - ${HOME}/.codex/auth.json:/home/node/.codex/auth.json:ro
+      - ${HOME}/.codex/models_cache.json:/home/node/.codex/models_cache.json:ro
+    depends_on:
+      - n8n
   n8n:
     image: n8nio/n8n@sha256:f5140088385af2d4e681e177d8264bcb41e8fe126062030c5c65cd8f3e1605e1
     restart: unless-stopped

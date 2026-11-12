@@ -13,7 +13,7 @@ test('tareas persistentes: orden, exclusión mutua, caché, fallo parcial y recu
   try {
     await admin.query(`CREATE SCHEMA ${schema}`);created=true;
     await admin.query(`SET search_path TO ${schema}`);
-    for (const file of ['001.sql','002.sql','003.sql','004.sql','005.sql']) {
+    for (const file of ['001.sql','002.sql','003.sql','004.sql','005.sql','006.sql','007.sql','008.sql','009.sql']) {
       await admin.query((await readFile(new URL(`../sql/${file}`,import.meta.url),'utf8')).replace(/^BEGIN;\s*/i,'').replace(/COMMIT;\s*$/i,''));
       if (file==='001.sql') await admin.query('INSERT INTO settings(id,value) VALUES(1,$1)',[JSON.parse(await readFile(new URL('../defaults.json',import.meta.url),'utf8'))]);
     }
@@ -24,13 +24,13 @@ test('tareas persistentes: orden, exclusión mutua, caché, fallo parcial y recu
     await admin.query("INSERT INTO workflow_runs(id,module,status,settings_revision,settings_snapshot,input_text) VALUES($1,'extraction','running',1,$2,$3)",[id,{model:''},text]);
     for (const [index,task] of ['company','title','country'].entries()) await admin.query('INSERT INTO workflow_tasks(run_id,task_id,position) VALUES($1,$2,$3)',[id,task,index+1]);
     let calls=0;
-    const extract=async()=>{calls++;return {value:'Empresa de prueba',evidence:'Empresa de prueba',state:'acreditado'};};
+    const extract=async(task,text,config)=>{assert.equal(config.model,'');calls++;return {value:'Empresa de prueba',evidence:'Empresa de prueba',state:'acreditado'};};
     await assert.rejects(workflow.runTask(id,'title',undefined,extract),{status:409});
     await assert.rejects(workflow.runTask(id,'company','texto diferente',extract),{status:409});
     await assert.rejects(workflow.finishRun(id,'9'),{status:409});
     let release,started;
     const waiting=new Promise(resolve=>{started=resolve;});
-    const first=workflow.runTask(id,'company',undefined,async()=>{started();await new Promise(resolve=>{release=resolve;});return extract();});
+    const first=workflow.runTask(id,'company',undefined,async(...args)=>{started();await new Promise(resolve=>{release=resolve;});return extract(...args);});
     await waiting;
     await assert.rejects(workflow.runTask(id,'company',undefined,extract),{status:409});
     release(); assert.equal((await first).status,'succeeded');

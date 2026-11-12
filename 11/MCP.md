@@ -84,3 +84,31 @@ Las rutas son `#control`, `#configuration`, `#seguimiento` y `#integrations`. Lo
 `get_workflow.modules[].tasks` publica IDs, etiquetas e instrucciones. `start_run` con `module: "extraction"` acepta un texto real y crea las 15 tareas; `get_run.tasks` devuelve su avance sin incluir el texto completo de entrada. `succeeded` significa extracción terminada; un resultado `desconocido` es válido y no acredita el requisito. No equivale a oferta recomendada ni a candidatura.
 
 Repetir el lanzamiento con el mismo UUID y texto no crea otra ejecución. Los resultados válidos se conservan aunque otra tarea falle; no hay reintento selectivo ni reanudación automática. La pausa bloquea nuevos lanzamientos, no los nodos ya iniciados. No uses `resolve_run` para forzar que una ejecución incierta se reanude.
+
+## Perfil y fuentes de búsqueda
+
+`get_search_configuration` devuelve la revisión y el perfil acreditado, fuentes habilitadas, consultas por zona/idioma y empleadores excluidos. `set_search_configuration(expected_revision, value)` valida y guarda la configuración completa de forma transaccional. Parte siempre de una lectura actual; conserva los desconocidos y los campos no modificados. Los cambios no acreditan experiencia ni permisos que el usuario no haya facilitado. Esta configuración por sí sola no lanza búsquedas.
+
+## Búsqueda automática
+
+`start_run(request_id, module="search")` utiliza el snapshot de parámetros y perfil guardados; no necesita text. Requiere historial confirmado, admisión habilitada y ninguna ejecución activa/incierta. n8n ejecuta `empleoSearch03`, una operación persistida por nodo.
+
+- `get_search_results(run_id, limit, offset)`: estado/revisión, candidatos A/B/C y pistas. B no significa recomendada ni siempre computable.
+- `get_search_candidate(id, include_text=false)`: documento, aliases, tareas, citas y pendientes.
+- `control_search(run_id, expected_revision, action)`: pause/resume/cancel. retry exige step_id y reason tras comprobar n8n. No repetir una lectura reservada.
+- `track_search_candidate(id)`: incorporar A/B con identidad resuelta al seguimiento, sin postular.
+- `get_search_report(run_id, format="markdown", offset, max_chars)`: informe/registro generado por lote y al cerrar. Continúa con next_offset.
+
+Ante un dato desconocido, conserva el pendiente. Una ejecución completada puede terminar con cero ofertas computables y un déficit: no equivale a haber cumplido el reparto. Las fuentes actuales son Arbeitnow, Arbeitnow UK y Remotive; conservan sus enlaces y atribución. El módulo solo considera ficha completa un JobPosting estructurado único con descripción suficiente; las páginas bloqueadas o no verificables siguen como pistas.
+
+## Correcciones y revisión del historial
+
+Hay 30 herramientas. `resolve_search_identity` usa expected_version y reason: distinct, same_process con target_offer_id, o duplicate con duplicate_candidate_id de la misma ejecución. Los aliases confirmados se conservan y una candidatura previa sigue excluida. No se admite eludir una coincidencia por ID ni fusionar dos procesos existentes de forma implícita.
+
+`correct_search_candidate` acepta country (código ISO), publication (YYYY-MM-DD) o decision:<regla> (cumple/incumple/desconocido), con evidence literal del documento conservado y reason. Registra versión, evento y capa de corrección; no borra la extracción original.
+
+`control_search(action="skip")` permite cerrar una tarea fallida/incierta tras comprobarla, con step_id y reason. No vuelve a abrir una ficha reservada. Los intentos anteriores permanecen visibles.
+
+Las consultas de ejecución, resultados e informes comparan la revisión del historial de Neon y recalculan si cambió, conservando el corte de la ejecución. Las fuentes corporativas se configuran como `smartrecruiters:Scalian:es`, con enabled y max_pages. Ninguna herramienta rellena formularios ni envía candidaturas.
+
+`get_models` consulta motores/modelos sin secretos. Para elegirlos: `get_settings`, después `patch_settings` con `expected_revision` y `patch: {provider: "codex" | "openai", model: "identificador"}`. Solo afecta a nuevas ejecuciones.

@@ -61,7 +61,9 @@ export function validateSettings(value) {
   new Intl.DateTimeFormat('es', {timeZone: value.timezone});
   if (typeof value.source_prompt !== 'string' || !value.source_prompt.trim()) throw new Error('Falta el prompt del perfil');
   if (typeof value.model !== 'string' || value.model.length > 200) throw new Error('Modelo inválido');
-  const keys = ['max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
+  if (!['codex','openai'].includes(value.provider ?? 'codex')) throw new Error('Motor no admitido');
+  if (value.provider === 'openai' && !value.model.trim()) throw new Error('Elige un modelo para la API de OpenAI');
+  const keys = ['provider','max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
   if (Object.keys(value).some(key => !keys.includes(key))) throw new Error('Variable no admitida');
   return value;
 }
