@@ -48,3 +48,34 @@ test('ordena por encaje, preferencia tecnológica y ubicación sin confundir sub
  const a={id:'a',evaluation:{classification:'B',sort_key:[0,3,2]}},b={id:'b',evaluation:{classification:'B',sort_key:[1,1,0]}};
  assert.equal([b,a].sort(compareCandidates)[0].id,'a');
 });
+
+test('usa el criterio configurado sin relajar citas y conserva reglas de snapshots antiguos',async()=>{
+ const criteria=decisionRules.map(rule=>rule.id==='contract'?{...rule,instruction:'Admite contrato temporal explícito.',pending:'Confirmar duración acordada'}:rule);
+ await evaluateRule('contract','Contrato temporal',{...profile,criteria},'',async prompt=>{
+  assert.ok(prompt.startsWith('Admite contrato temporal explícito.'));
+  assert.match(prompt,/cita literal continua/);
+  return {state:'acreditado',value:'cumple',evidence:'Contrato temporal'};
+ });
+ const result=classifyCandidate({...base,profile:{...profile,criteria},decisions:{...decisions,contract:{state:'desconocido',value:'desconocido',evidence:''}}});
+ assert.equal(result.pending.find(item=>item.rule==='contract').resolution,'Confirmar duración acordada');
+ assert.equal(classifyCandidate(base).classification,'A');
+});
+
+test('encaje independiente: B débil computable, desconocido pendiente y C prevalece',()=>{
+ const input={...base,profile:{...profile,fit_instruction:'Instrucción configurada'},decisions:{...decisions,contract:{state:'desconocido',value:'desconocido',evidence:''}},fitResult:{state:'acreditado',value:'débil',evidence:'Autonomía avanzada'}};
+ const weak=classifyCandidate(input);assert.equal(weak.classification,'B');assert.equal(weak.computable,true);assert.equal(weak.fit,'débil');assert.equal(weak.fit_evidence,'Autonomía avanzada');assert.match(weak.fit_explanation,/no acredita/);
+ const unknown=classifyCandidate({...input,fitResult:{state:'desconocido',value:'desconocido',evidence:''}});
+ assert.equal(unknown.classification,'B');assert.equal(unknown.computable,false);assert.ok(unknown.pending.some(item=>item.rule==='fit'));
+ assert.equal(classifyCandidate({...input,history:{excluded:true}}).classification,'C');
+ const legacyCorrection=classifyCandidate({...input,profile});assert.equal(legacyCorrection.fit,'débil');
+ assert.equal(classifyCandidate(base).fit,'favorable');
+});
+test('valoración de encaje singular con cita literal y sin decisiones A/B/C',async()=>{
+ const {evaluateFit}=await import('../src/evaluation.js');
+ const profile={fit_instruction:'Evalúa esta brecha concreta.',professional_years:null,internship_details:'Prácticas de duración desconocida',skills:[],qualifications:[],sources:['no incluir']};
+ const text='Experiencia profesional de dos años.';
+ const result=await evaluateFit(text,profile,'',async prompt=>{assert.ok(prompt.startsWith(profile.fit_instruction));assert.match(prompt,/value exactamente favorable/);assert.doesNotMatch(prompt,/no incluir/);return {state:'acreditado',value:'condicionado',evidence:text};});
+ assert.equal(result.value,'condicionado');
+ for(const invalid of [{state:'acreditado',value:'cumple',evidence:text},{state:'acreditado',value:'débil',evidence:'Inventado'},{state:'desconocido',value:'favorable',evidence:''}]) await assert.rejects(()=>evaluateFit(text,profile,'',async()=>invalid),error=>error.retryable===true);
+ assert.equal((await evaluateFit(text,profile,'',async()=>({state:'desconocido',value:'desconocido',evidence:''}))).state,'desconocido');
+});

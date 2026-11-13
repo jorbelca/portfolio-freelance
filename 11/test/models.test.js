@@ -24,4 +24,15 @@ test('rechaza motor desconocido y API sin modelo; configuración anterior compat
  assert.throws(()=>validateSettings({...settings,provider:'openai',model:''}),/Elige/);
  assert.equal(validateSettings({...settings,provider:'openai',model:'chosen'}).provider,'openai');
  await assert.rejects(extractPrompt('p','texto',{provider:'otro'}),/Motor/);
+ await assert.rejects(extractPrompt('p','texto',{provider:'openai',model:'chosen',model_timeout_seconds:121}),/Tiempo máximo/);
+ await assert.rejects(extractPrompt('p','texto',{provider:'codex',model_timeout_seconds:0}),/Tiempo máximo/);
+});
+
+test('API respeta el límite temporal de la ejecución',async()=>{
+ const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='test-only';
+ try {await assert.rejects(openaiExtraction('doc','chosen',async(url,options)=>{
+  await new Promise(resolve=>{options.signal.addEventListener('abort',resolve,{once:true});setTimeout(resolve,50);});
+  assert.equal(options.signal.aborted,true);throw new Error('tiempo verificado');
+ },5),/tiempo verificado/);}
+ finally{if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
 });

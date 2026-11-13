@@ -47,6 +47,8 @@ test('búsqueda n8n: nodo singular por operación, cierre por estado persistido 
  const {searchTaskKinds}=await import('../src/search.js');
  const workflow=JSON.parse(readFileSync(new URL('../workflows/03-busqueda.json',import.meta.url)));
  assert.equal(workflow.nodes.length,searchTaskKinds.length+4);
+ const routing=workflow.nodes.find(node=>node.id==='route');assert.equal(routing.parameters.numberOutputs,searchTaskKinds.length);
+ assert.equal(routing.parameters.output,'={{ '+JSON.stringify(searchTaskKinds)+'.indexOf($json.kind) }}');
  assert.equal(workflow.nodes[0].parameters.authentication,'headerAuth');
  assert.equal(workflow.nodes[0].parameters.responseMode,'onReceived');
  for(const kind of searchTaskKinds) {
@@ -55,4 +57,24 @@ test('búsqueda n8n: nodo singular por operación, cierre por estado persistido 
   assert.equal(workflow.connections[node.name].main[0][0].node,'Elegir siguiente tarea persistida');
  }
  assert.equal(JSON.stringify(workflow).includes('Bearer '),false);
+});
+
+test('programación n8n: comprobación cada minuto autenticada sin acceso directo a modelos',()=>{
+ const workflow=JSON.parse(readFileSync(new URL('../workflows/04-programacion.json',import.meta.url)));
+ assert.equal(workflow.nodes.length,2);
+ const [clock,tick]=workflow.nodes;
+ assert.equal(clock.type,'n8n-nodes-base.scheduleTrigger');
+ assert.deepEqual(clock.parameters.rule.interval,[{field:'minutes',minutesInterval:1}]);
+ assert.equal(workflow.settings.timezone,'Europe/Madrid');
+ assert.ok(tick.parameters.url.endsWith('/api/workflow/schedule/tick'));
+ assert.equal(tick.credentials.httpHeaderAuth.id,'empleoPanelHeader');
+ assert.equal(workflow.connections[clock.name].main[0][0].node,tick.name);
+ assert.equal(JSON.stringify(workflow).includes('Bearer '),false);
+});
+
+import {scheduleSchema} from '../src/schedule.js';
+test('programación valida límites, campos y fechas UTC',()=>{
+ const value={revision:1,enabled:false,interval_minutes:1440,next_run_at:'2026-11-14T09:00:00.000Z'};
+ assert.equal(scheduleSchema.safeParse(value).success,true);
+ for(const change of [{interval_minutes:14},{interval_minutes:525601},{interval_minutes:1.5},{revision:0},{enabled:'true'},{next_run_at:'2026-02-30T00:00:00Z'},{next_run_at:'2026-11-14T09:00'},{extra:true}]) assert.equal(scheduleSchema.safeParse({...value,...change}).success,false);
 });

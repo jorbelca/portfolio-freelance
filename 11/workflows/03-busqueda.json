@@ -103,41 +103,13 @@
       ],
       "parameters": {
         "mode": "expression",
-        "numberOutputs": 32,
-        "output": "={{ [\"discover\",\"precheck\",\"read\",\"extract_company\",\"extract_title\",\"extract_country\",\"extract_work_mode\",\"extract_remote_eligibility\",\"extract_publication\",\"extract_contract\",\"extract_experience\",\"extract_education\",\"extract_languages\",\"extract_technology\",\"extract_functions\",\"extract_video\",\"extract_availability\",\"extract_channel\",\"decide_seniority\",\"decide_experience\",\"decide_education\",\"decide_technology\",\"decide_languages\",\"decide_contract\",\"decide_functions\",\"decide_remote\",\"decide_video\",\"decide_availability\",\"decide_channel\",\"evaluate\",\"batch\",\"audit\"].indexOf($json.kind) }}"
+        "numberOutputs": 34,
+        "output": "={{ [\"recover\",\"discover\",\"precheck\",\"read\",\"extract_company\",\"extract_title\",\"extract_country\",\"extract_work_mode\",\"extract_remote_eligibility\",\"extract_publication\",\"extract_contract\",\"extract_experience\",\"extract_education\",\"extract_languages\",\"extract_technology\",\"extract_functions\",\"extract_video\",\"extract_availability\",\"extract_channel\",\"decide_seniority\",\"decide_experience\",\"decide_education\",\"decide_technology\",\"decide_languages\",\"decide_contract\",\"decide_functions\",\"decide_remote\",\"decide_video\",\"decide_availability\",\"decide_channel\",\"assess_fit\",\"evaluate\",\"batch\",\"audit\"].indexOf($json.kind) }}"
       }
     },
     {
       "id": "discover",
-      "name": "01 · discover",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        0
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
-        "options": {
-          "timeout": 145000
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "empleoPanelHeader",
-          "name": "Empleo · puente local"
-        }
-      }
-    },
-    {
-      "id": "precheck",
-      "name": "02 · precheck",
+      "name": "02 · discover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -164,8 +136,8 @@
       }
     },
     {
-      "id": "read",
-      "name": "03 · read",
+      "id": "precheck",
+      "name": "03 · precheck",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -192,8 +164,8 @@
       }
     },
     {
-      "id": "extract_company",
-      "name": "04 · extract_company",
+      "id": "read",
+      "name": "04 · read",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -220,8 +192,8 @@
       }
     },
     {
-      "id": "extract_title",
-      "name": "05 · extract_title",
+      "id": "extract_company",
+      "name": "05 · extract_company",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -248,8 +220,8 @@
       }
     },
     {
-      "id": "extract_country",
-      "name": "06 · extract_country",
+      "id": "extract_title",
+      "name": "06 · extract_title",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -276,8 +248,8 @@
       }
     },
     {
-      "id": "extract_work_mode",
-      "name": "07 · extract_work_mode",
+      "id": "extract_country",
+      "name": "07 · extract_country",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -304,8 +276,8 @@
       }
     },
     {
-      "id": "extract_remote_eligibility",
-      "name": "08 · extract_remote_eligibility",
+      "id": "extract_work_mode",
+      "name": "08 · extract_work_mode",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -332,8 +304,8 @@
       }
     },
     {
-      "id": "extract_publication",
-      "name": "09 · extract_publication",
+      "id": "extract_remote_eligibility",
+      "name": "09 · extract_remote_eligibility",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -360,8 +332,8 @@
       }
     },
     {
-      "id": "extract_contract",
-      "name": "10 · extract_contract",
+      "id": "extract_publication",
+      "name": "10 · extract_publication",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -388,8 +360,8 @@
       }
     },
     {
-      "id": "extract_experience",
-      "name": "11 · extract_experience",
+      "id": "extract_contract",
+      "name": "11 · extract_contract",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -416,8 +388,8 @@
       }
     },
     {
-      "id": "extract_education",
-      "name": "12 · extract_education",
+      "id": "extract_experience",
+      "name": "12 · extract_experience",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -444,8 +416,8 @@
       }
     },
     {
-      "id": "extract_languages",
-      "name": "13 · extract_languages",
+      "id": "extract_education",
+      "name": "13 · extract_education",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -472,8 +444,8 @@
       }
     },
     {
-      "id": "extract_technology",
-      "name": "14 · extract_technology",
+      "id": "extract_languages",
+      "name": "14 · extract_languages",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -500,8 +472,8 @@
       }
     },
     {
-      "id": "extract_functions",
-      "name": "15 · extract_functions",
+      "id": "extract_technology",
+      "name": "15 · extract_technology",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -528,8 +500,8 @@
       }
     },
     {
-      "id": "extract_video",
-      "name": "16 · extract_video",
+      "id": "extract_functions",
+      "name": "16 · extract_functions",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -556,8 +528,8 @@
       }
     },
     {
-      "id": "extract_availability",
-      "name": "17 · extract_availability",
+      "id": "extract_video",
+      "name": "17 · extract_video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -584,8 +556,8 @@
       }
     },
     {
-      "id": "extract_channel",
-      "name": "18 · extract_channel",
+      "id": "extract_availability",
+      "name": "18 · extract_availability",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -612,8 +584,8 @@
       }
     },
     {
-      "id": "decide_seniority",
-      "name": "19 · decide_seniority",
+      "id": "extract_channel",
+      "name": "19 · extract_channel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -640,8 +612,8 @@
       }
     },
     {
-      "id": "decide_experience",
-      "name": "20 · decide_experience",
+      "id": "decide_seniority",
+      "name": "20 · decide_seniority",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -668,8 +640,8 @@
       }
     },
     {
-      "id": "decide_education",
-      "name": "21 · decide_education",
+      "id": "decide_experience",
+      "name": "21 · decide_experience",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -696,8 +668,8 @@
       }
     },
     {
-      "id": "decide_technology",
-      "name": "22 · decide_technology",
+      "id": "decide_education",
+      "name": "22 · decide_education",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -724,8 +696,8 @@
       }
     },
     {
-      "id": "decide_languages",
-      "name": "23 · decide_languages",
+      "id": "decide_technology",
+      "name": "23 · decide_technology",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -752,8 +724,8 @@
       }
     },
     {
-      "id": "decide_contract",
-      "name": "24 · decide_contract",
+      "id": "decide_languages",
+      "name": "24 · decide_languages",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -780,8 +752,8 @@
       }
     },
     {
-      "id": "decide_functions",
-      "name": "25 · decide_functions",
+      "id": "decide_contract",
+      "name": "25 · decide_contract",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -808,8 +780,8 @@
       }
     },
     {
-      "id": "decide_remote",
-      "name": "26 · decide_remote",
+      "id": "decide_functions",
+      "name": "26 · decide_functions",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -836,8 +808,8 @@
       }
     },
     {
-      "id": "decide_video",
-      "name": "27 · decide_video",
+      "id": "decide_remote",
+      "name": "27 · decide_remote",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -864,8 +836,8 @@
       }
     },
     {
-      "id": "decide_availability",
-      "name": "28 · decide_availability",
+      "id": "decide_video",
+      "name": "28 · decide_video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -892,8 +864,8 @@
       }
     },
     {
-      "id": "decide_channel",
-      "name": "29 · decide_channel",
+      "id": "decide_availability",
+      "name": "29 · decide_availability",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -920,8 +892,8 @@
       }
     },
     {
-      "id": "evaluate",
-      "name": "30 · evaluate",
+      "id": "decide_channel",
+      "name": "30 · decide_channel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -948,8 +920,92 @@
       }
     },
     {
+      "id": "evaluate",
+      "name": "32 · evaluate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4650
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
       "id": "batch",
-      "name": "31 · batch",
+      "name": "33 · batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "audit",
+      "name": "34 · audit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        4950
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:3210/api/search/runs/' + $json.run_id + '/steps/' + $json.step_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({kind:$json.kind,execution_id:$execution.id}) }}",
+        "options": {
+          "timeout": 145000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "empleoPanelHeader",
+          "name": "Empleo · puente local"
+        }
+      }
+    },
+    {
+      "id": "assess_fit",
+      "name": "31 · assess_fit",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -976,13 +1032,13 @@
       }
     },
     {
-      "id": "audit",
-      "name": "32 · audit",
+      "id": "recover",
+      "name": "01 · recover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1120,
-        4650
+        0
       ],
       "parameters": {
         "method": "POST",
@@ -1043,231 +1099,245 @@
       "main": [
         [
           {
-            "node": "01 · discover",
+            "node": "01 · recover",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "02 · precheck",
+            "node": "02 · discover",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "03 · read",
+            "node": "03 · precheck",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "04 · extract_company",
+            "node": "04 · read",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "05 · extract_title",
+            "node": "05 · extract_company",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "06 · extract_country",
+            "node": "06 · extract_title",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "07 · extract_work_mode",
+            "node": "07 · extract_country",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "08 · extract_remote_eligibility",
+            "node": "08 · extract_work_mode",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "09 · extract_publication",
+            "node": "09 · extract_remote_eligibility",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "10 · extract_contract",
+            "node": "10 · extract_publication",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "11 · extract_experience",
+            "node": "11 · extract_contract",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "12 · extract_education",
+            "node": "12 · extract_experience",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "13 · extract_languages",
+            "node": "13 · extract_education",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "14 · extract_technology",
+            "node": "14 · extract_languages",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "15 · extract_functions",
+            "node": "15 · extract_technology",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "16 · extract_video",
+            "node": "16 · extract_functions",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "17 · extract_availability",
+            "node": "17 · extract_video",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "18 · extract_channel",
+            "node": "18 · extract_availability",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "19 · decide_seniority",
+            "node": "19 · extract_channel",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "20 · decide_experience",
+            "node": "20 · decide_seniority",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "21 · decide_education",
+            "node": "21 · decide_experience",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "22 · decide_technology",
+            "node": "22 · decide_education",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "23 · decide_languages",
+            "node": "23 · decide_technology",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "24 · decide_contract",
+            "node": "24 · decide_languages",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "25 · decide_functions",
+            "node": "25 · decide_contract",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "26 · decide_remote",
+            "node": "26 · decide_functions",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "27 · decide_video",
+            "node": "27 · decide_remote",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "28 · decide_availability",
+            "node": "28 · decide_video",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "29 · decide_channel",
+            "node": "29 · decide_availability",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "30 · evaluate",
+            "node": "30 · decide_channel",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "31 · batch",
+            "node": "31 · assess_fit",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "32 · audit",
+            "node": "32 · evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "33 · batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "34 · audit",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "01 · discover": {
+    "02 · discover": {
       "main": [
         [
           {
@@ -1278,7 +1348,7 @@
         ]
       ]
     },
-    "02 · precheck": {
+    "03 · precheck": {
       "main": [
         [
           {
@@ -1289,7 +1359,7 @@
         ]
       ]
     },
-    "03 · read": {
+    "04 · read": {
       "main": [
         [
           {
@@ -1300,7 +1370,7 @@
         ]
       ]
     },
-    "04 · extract_company": {
+    "05 · extract_company": {
       "main": [
         [
           {
@@ -1311,7 +1381,7 @@
         ]
       ]
     },
-    "05 · extract_title": {
+    "06 · extract_title": {
       "main": [
         [
           {
@@ -1322,7 +1392,7 @@
         ]
       ]
     },
-    "06 · extract_country": {
+    "07 · extract_country": {
       "main": [
         [
           {
@@ -1333,7 +1403,7 @@
         ]
       ]
     },
-    "07 · extract_work_mode": {
+    "08 · extract_work_mode": {
       "main": [
         [
           {
@@ -1344,7 +1414,7 @@
         ]
       ]
     },
-    "08 · extract_remote_eligibility": {
+    "09 · extract_remote_eligibility": {
       "main": [
         [
           {
@@ -1355,7 +1425,7 @@
         ]
       ]
     },
-    "09 · extract_publication": {
+    "10 · extract_publication": {
       "main": [
         [
           {
@@ -1366,7 +1436,7 @@
         ]
       ]
     },
-    "10 · extract_contract": {
+    "11 · extract_contract": {
       "main": [
         [
           {
@@ -1377,7 +1447,7 @@
         ]
       ]
     },
-    "11 · extract_experience": {
+    "12 · extract_experience": {
       "main": [
         [
           {
@@ -1388,7 +1458,7 @@
         ]
       ]
     },
-    "12 · extract_education": {
+    "13 · extract_education": {
       "main": [
         [
           {
@@ -1399,7 +1469,7 @@
         ]
       ]
     },
-    "13 · extract_languages": {
+    "14 · extract_languages": {
       "main": [
         [
           {
@@ -1410,7 +1480,7 @@
         ]
       ]
     },
-    "14 · extract_technology": {
+    "15 · extract_technology": {
       "main": [
         [
           {
@@ -1421,7 +1491,7 @@
         ]
       ]
     },
-    "15 · extract_functions": {
+    "16 · extract_functions": {
       "main": [
         [
           {
@@ -1432,7 +1502,7 @@
         ]
       ]
     },
-    "16 · extract_video": {
+    "17 · extract_video": {
       "main": [
         [
           {
@@ -1443,7 +1513,7 @@
         ]
       ]
     },
-    "17 · extract_availability": {
+    "18 · extract_availability": {
       "main": [
         [
           {
@@ -1454,7 +1524,7 @@
         ]
       ]
     },
-    "18 · extract_channel": {
+    "19 · extract_channel": {
       "main": [
         [
           {
@@ -1465,7 +1535,7 @@
         ]
       ]
     },
-    "19 · decide_seniority": {
+    "20 · decide_seniority": {
       "main": [
         [
           {
@@ -1476,7 +1546,7 @@
         ]
       ]
     },
-    "20 · decide_experience": {
+    "21 · decide_experience": {
       "main": [
         [
           {
@@ -1487,7 +1557,7 @@
         ]
       ]
     },
-    "21 · decide_education": {
+    "22 · decide_education": {
       "main": [
         [
           {
@@ -1498,7 +1568,7 @@
         ]
       ]
     },
-    "22 · decide_technology": {
+    "23 · decide_technology": {
       "main": [
         [
           {
@@ -1509,7 +1579,7 @@
         ]
       ]
     },
-    "23 · decide_languages": {
+    "24 · decide_languages": {
       "main": [
         [
           {
@@ -1520,7 +1590,7 @@
         ]
       ]
     },
-    "24 · decide_contract": {
+    "25 · decide_contract": {
       "main": [
         [
           {
@@ -1531,7 +1601,7 @@
         ]
       ]
     },
-    "25 · decide_functions": {
+    "26 · decide_functions": {
       "main": [
         [
           {
@@ -1542,7 +1612,7 @@
         ]
       ]
     },
-    "26 · decide_remote": {
+    "27 · decide_remote": {
       "main": [
         [
           {
@@ -1553,7 +1623,7 @@
         ]
       ]
     },
-    "27 · decide_video": {
+    "28 · decide_video": {
       "main": [
         [
           {
@@ -1564,7 +1634,7 @@
         ]
       ]
     },
-    "28 · decide_availability": {
+    "29 · decide_availability": {
       "main": [
         [
           {
@@ -1575,7 +1645,7 @@
         ]
       ]
     },
-    "29 · decide_channel": {
+    "30 · decide_channel": {
       "main": [
         [
           {
@@ -1586,7 +1656,7 @@
         ]
       ]
     },
-    "30 · evaluate": {
+    "32 · evaluate": {
       "main": [
         [
           {
@@ -1597,7 +1667,7 @@
         ]
       ]
     },
-    "31 · batch": {
+    "33 · batch": {
       "main": [
         [
           {
@@ -1608,7 +1678,29 @@
         ]
       ]
     },
-    "32 · audit": {
+    "34 · audit": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "31 · assess_fit": {
+      "main": [
+        [
+          {
+            "node": "Elegir siguiente tarea persistida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 · recover": {
       "main": [
         [
           {

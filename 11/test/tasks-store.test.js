@@ -13,7 +13,7 @@ test('tareas persistentes: orden, exclusión mutua, caché, fallo parcial y recu
   try {
     await admin.query(`CREATE SCHEMA ${schema}`);created=true;
     await admin.query(`SET search_path TO ${schema}`);
-    for (const file of ['001.sql','002.sql','003.sql','004.sql','005.sql','006.sql','007.sql','008.sql','009.sql']) {
+    for (const file of ['001.sql','002.sql','003.sql','004.sql','005.sql','006.sql','007.sql','008.sql','009.sql','010.sql','011.sql','012.sql','013.sql','014.sql','015.sql','016.sql','017.sql','018.sql']) {
       await admin.query((await readFile(new URL(`../sql/${file}`,import.meta.url),'utf8')).replace(/^BEGIN;\s*/i,'').replace(/COMMIT;\s*$/i,''));
       if (file==='001.sql') await admin.query('INSERT INTO settings(id,value) VALUES(1,$1)',[JSON.parse(await readFile(new URL('../defaults.json',import.meta.url),'utf8'))]);
     }

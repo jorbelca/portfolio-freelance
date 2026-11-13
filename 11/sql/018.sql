@@ -1,0 +1,12 @@
+BEGIN;
+ALTER TABLE search_candidates ADD COLUMN process_id uuid REFERENCES search_candidates(id);
+ALTER TABLE search_candidates ADD COLUMN prior_candidate_id uuid REFERENCES search_candidates(id);
+ALTER TABLE search_candidates ADD COLUMN publication_key text;
+UPDATE search_candidates SET process_id=id;
+ALTER TABLE search_candidate_links ADD COLUMN publication_key text;
+CREATE INDEX search_candidate_links_key ON search_candidate_links(publication_key);
+CREATE INDEX search_candidates_process ON search_candidates(COALESCE(process_id,id),created_at DESC,id DESC);
+CREATE INDEX search_candidates_publication_key ON search_candidates(publication_key,created_at DESC);
+ALTER TABLE search_configuration ADD COLUMN recover_previous boolean NOT NULL DEFAULT true;
+ALTER TABLE search_configuration ADD COLUMN reuse_evidence boolean NOT NULL DEFAULT true;
+COMMIT;

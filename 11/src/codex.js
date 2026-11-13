@@ -5,9 +5,9 @@ import {join} from 'node:path';
 import {openaiExtraction} from './models.js';
 import {extractionPrompt} from './tasks.js';
 export function validateExtraction(result, text) {
-  if (!result || typeof result.value !== 'string' || typeof result.evidence !== 'string' || !['acreditado', 'desconocido'].includes(result.state)) throw new Error('Respuesta de Codex inválida');
-  if (result.state === 'acreditado' && (!result.value.trim() || !result.evidence.trim() || !text.includes(result.evidence))) throw new Error('La cita no aparece en la ficha');
-  if (result.state === 'desconocido' && (result.value !== 'desconocido' || result.evidence !== '')) throw new Error('Dato desconocido inconsistente');
+  if (!result || typeof result.value !== 'string' || typeof result.evidence !== 'string' || !['acreditado', 'desconocido'].includes(result.state)) throw Object.assign(new Error('Respuesta de Codex inválida'),{retryable:true});
+  if (result.state === 'acreditado' && (!result.value.trim() || !result.evidence.trim() || !text.includes(result.evidence))) throw Object.assign(new Error('La cita no aparece en la ficha'),{retryable:true});
+  if (result.state === 'desconocido' && (result.value !== 'desconocido' || result.evidence !== '')) throw Object.assign(new Error('Dato desconocido inconsistente'),{retryable:true});
   return result;
 }
 let busy = false;
@@ -19,7 +19,9 @@ export async function extractPrompt(prompt,text,model) {
   if (typeof text !== 'string' || !text.trim() || text.length > 100000) throw new Error('Texto requerido, máximo 100.000 caracteres');
   const config=typeof model==='object' && model!==null?model:{model,provider:'codex'};
   if (!['codex','openai'].includes(config.provider ?? 'codex')) throw new Error('Motor no admitido');
-  if (config.provider==='openai') return validateExtraction(await openaiExtraction(prompt,config.model),text);
+  const timeoutMs=config.model_timeout_seconds===undefined?Number(process.env.CODEX_TIMEOUT_MS || 120000):config.model_timeout_seconds*1000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs<5000 || timeoutMs>120000) throw new Error('Tiempo máximo inválido: de 5 a 120 segundos');
+  if (config.provider==='openai') return validateExtraction(await openaiExtraction(prompt,config.model,undefined,timeoutMs),text);
   model=config.model || process.env.CODEX_MODEL;
   if (busy) throw Object.assign(new Error('Codex ocupado, reintenta después'), {status: 429});
   busy = true;
@@ -42,7 +44,7 @@ export async function extractPrompt(prompt,text,model) {
       const timer = setTimeout(() => {
         child.kill('SIGKILL');
         reject(new Error('Codex agotó el tiempo de espera'));
-      }, Number(process.env.CODEX_TIMEOUT_MS || 120000));
+      }, timeoutMs);
       child.once('error', error => {clearTimeout(timer); reject(error);});
       child.once('close', code => {clearTimeout(timer); code === 0 ? resolve() : reject(new Error('Codex falló. Comprueba sesión, modelo y cuota con codex login status.'));});
       child.stdin.on('error', () => {});

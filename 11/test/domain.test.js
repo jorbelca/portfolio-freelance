@@ -22,6 +22,12 @@ test('valida altas y fechas sin normalizar días imposibles', () => {
 test('la configuración inicial exige registrar el historial', () => {
   const defaults = JSON.parse(readFileSync(new URL('../defaults.json',import.meta.url)));
   assert.equal(validateSettings(defaults).history_ready,false);
+  assert.throws(()=>validateSettings({...defaults,public_alternatives:'true'}));
+  assert.equal(validateSettings({...defaults,public_alternatives:false}).public_alternatives,false);
+  for(const model_timeout_seconds of [4,121,1.5,'30',null]) assert.throws(()=>validateSettings({...defaults,model_timeout_seconds}));
+  assert.equal(validateSettings({...defaults,model_timeout_seconds:30}).model_timeout_seconds,30);
+  for(const model_retries of [-1,4,1.5,'1',null]) assert.throws(()=>validateSettings({...defaults,model_retries}));
+  assert.equal(validateSettings({...defaults,model_retries:0}).model_retries,0);
   assert.throws(() => validateSettings({...defaults,batch_size:101}));
 });
 test('rechaza evidencia inventada y desconocidos contradictorios', () => {

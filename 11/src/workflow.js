@@ -99,6 +99,7 @@ export async function recoverRuns() {
   if (pool) await transaction(async client=>{
     await client.query("UPDATE workflow_tasks SET status='unknown',error='Servicio reiniciado; comprueba n8n.' WHERE status='running'");
     await client.query("UPDATE search_step_attempts SET status='unknown',error='Servicio reiniciado; comprueba n8n.',finished_at=now() WHERE status='running'");
+    await client.query("UPDATE search_document_reads SET status='unknown',reason='Servicio reiniciado; comprueba n8n.' WHERE status='reserved'");
     await client.query("UPDATE search_steps SET status='unknown',error='Servicio reiniciado; comprueba la ejecución de n8n.' WHERE status='running'");
     await client.query("UPDATE workflow_runs SET status='unknown',error='Servicio reiniciado. Revisa la ejecución en n8n antes de repetir.' WHERE status IN ('queued','running')");
   });

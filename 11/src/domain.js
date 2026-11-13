@@ -63,7 +63,10 @@ export function validateSettings(value) {
   if (typeof value.model !== 'string' || value.model.length > 200) throw new Error('Modelo inválido');
   if (!['codex','openai'].includes(value.provider ?? 'codex')) throw new Error('Motor no admitido');
   if (value.provider === 'openai' && !value.model.trim()) throw new Error('Elige un modelo para la API de OpenAI');
-  const keys = ['provider','max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
+  if(value.model_retries!==undefined && (!Number.isSafeInteger(value.model_retries) || value.model_retries<0 || value.model_retries>3)) throw new Error('Reintentos inválidos: de 0 a 3');
+  if(value.model_timeout_seconds!==undefined && (!Number.isSafeInteger(value.model_timeout_seconds) || value.model_timeout_seconds<5 || value.model_timeout_seconds>120)) throw new Error('Tiempo máximo inválido: de 5 a 120 segundos');
+  if(value.public_alternatives!==undefined && typeof value.public_alternatives!=='boolean') throw new Error('Alternativas públicas: usa verdadero o falso');
+  const keys = ['public_alternatives','model_timeout_seconds','model_retries','provider','max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
   if (Object.keys(value).some(key => !keys.includes(key))) throw new Error('Variable no admitida');
   return value;
 }

@@ -1,4 +1,5 @@
 import {publicGet} from './public-http.js';
+import {publicationIdentity,samePublication} from './identity.js';
 import {cleanUrl} from './domain.js';
 export const sourceCatalog={
   arbeitnow:{label:'Arbeitnow',url:'https://www.arbeitnow.com/api/job-board-api'},
@@ -74,11 +75,32 @@ export function candidateReadUrl(candidate) {
  if(typeof candidate.external_id!=='string' || !/^\d+$/.test(candidate.external_id)) throw new Error('ID público de ficha corporativa inválido');
  return `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(spec.tenant)}/postings/${candidate.external_id}`;
 }
-export function readSourceDocument(candidate,response) {
- const spec=sourceSpec(candidate.source);
- if(!spec.tenant) return readJobPosting(response.text);
+export function readingRoutes(candidate,{alternatives=false}={}) {
+ const spec=sourceSpec(candidate.source),identity=publicationIdentity(candidate.url);
+ const match=identity?.match(/^smartrecruiters:([a-z0-9_-]+):(\d+)$/i);
+ if(!match) {
+  if(spec.tenant) throw new Error('La pista corporativa no tiene una identidad pública verificable.');
+  return [{format:'html',url:candidateReadUrl(candidate)}];
+ }
+ const tenant=spec.tenant || match[1],id=spec.tenant?candidate.external_id:match[2];
+ const api={format:'smartrecruiters',url:`https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(tenant)}/postings/${id}`,tenant,external_id:id};
+ if(!samePublication(api.url,candidate.url)) throw new Error('La pista y la API no identifican el mismo anuncio.');
+ const html={format:'html',url:`https://jobs.smartrecruiters.com/${encodeURIComponent(tenant)}/${id}`};
+ const routes=spec.tenant || new URL(candidate.url).hostname==='api.smartrecruiters.com'?[api,html]:[{...html,url:candidate.url},api];
+ return alternatives?routes:routes.slice(0,1);
+}
+export function readSourceDocument(candidate,response,route) {
+ const spec=route?.format==='smartrecruiters'?{tenant:route.tenant}:sourceSpec(candidate.source);
+ const expectedId=route?.external_id || candidate.external_id;
+ if(spec.tenant && response.url && !samePublication(response.url,candidate.url)) return {complete:false,reason:'La API redirigió a otra identidad.'};
+ if(route?.format==='html' || !spec.tenant) {
+  const document=readJobPosting(response.text);
+  if(document.complete && publicationIdentity(candidate.url)?.startsWith('smartrecruiters:') &&
+   ((response.url && !samePublication(response.url,candidate.url)) || (document.job.url && !samePublication(document.job.url,candidate.url)))) return {complete:false,reason:'La ficha pública no acredita la misma identidad.'};
+  return document;
+ }
  let data;try{data=JSON.parse(response.text);}catch{return {complete:false,reason:'La API corporativa no devolvió JSON válido.'};}
- if(data.id!==candidate.external_id || data.company?.identifier?.toLowerCase()!==spec.tenant.toLowerCase()) return {complete:false,reason:'La identidad de la ficha no coincide con la pista.'};
+ if(data.id!==expectedId || data.company?.identifier?.toLowerCase()!==spec.tenant.toLowerCase()) return {complete:false,reason:'La identidad de la ficha no coincide con la pista.'};
  const sections=data.jobAd?.sections || {},description=plainText(sections.jobDescription?.text),qualifications=plainText(sections.qualifications?.text);
  if(typeof data.name!=='string' || typeof data.company?.name!=='string' || description.length<200) return {complete:false,reason:'Ficha corporativa incompleta.'};
  const job={'@type':'JobPosting',title:data.name,hiringOrganization:{name:data.company.name},datePosted:data.releasedDate,jobLocation:{address:{addressCountry:data.location?.country?.toUpperCase(),addressLocality:data.location?.city}},description,qualifications,url:typeof data.postingUrl==='string'?cleanUrl(data.postingUrl):candidate.url};

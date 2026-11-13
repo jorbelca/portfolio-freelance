@@ -2,16 +2,16 @@ import {readFile} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 const schema={type:'object',additionalProperties:false,properties:{value:{type:'string'},evidence:{type:'string'},state:{type:'string',enum:['acreditado','desconocido']}},required:['value','evidence','state']};
-async function request(path,options={},fetcher=fetch) {
+async function request(path,options={},fetcher=fetch,timeoutMs=Number(process.env.CODEX_TIMEOUT_MS || 120000)) {
  if(!process.env.OPENAI_API_KEY) throw new Error('Falta OPENAI_API_KEY en 11/.env. Reinicia el servidor después de configurarla.');
- const response=await fetcher(`https://api.openai.com/v1/${path}`,{...options,headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(Number(process.env.CODEX_TIMEOUT_MS || 120000)),redirect:'error'});
+ const response=await fetcher(`https://api.openai.com/v1/${path}`,{...options,headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(timeoutMs),redirect:'error'});
  // No devolver el cuerpo del proveedor: puede contener datos del documento o credenciales.
  if(!response.ok) throw new Error(`OpenAI API: HTTP ${response.status}. Comprueba clave, acceso al modelo y cuota; no se cambia de motor automáticamente.`);
  return response.json();
 }
-export async function openaiExtraction(prompt,model,fetcher=fetch) {
+export async function openaiExtraction(prompt,model,fetcher=fetch,timeoutMs=Number(process.env.CODEX_TIMEOUT_MS || 120000)) {
  if(typeof model!=='string' || !model.trim()) throw new Error('La API requiere un modelo explícito');
- const result=await request('responses',{method:'POST',body:JSON.stringify({model,input:prompt,store:false,text:{format:{type:'json_schema',name:'extraction',strict:true,schema}}})},fetcher);
+ const result=await request('responses',{method:'POST',body:JSON.stringify({model,input:prompt,store:false,text:{format:{type:'json_schema',name:'extraction',strict:true,schema}}})},fetcher,timeoutMs);
  if(result.status!=='completed') throw new Error('La API no completó la respuesta');
  const content=(result.output || []).filter(item=>item.type==='message').flatMap(item=>item.content || []);
  if(content.some(item=>item.type==='refusal')) throw new Error('El modelo rechazó la tarea');

@@ -17,7 +17,7 @@ test('MCP negocia protocolo, publica herramientas estrictas y no reenvía argume
   const {client,close}=await connect(async(...args)=>{calls.push(args);return {id:args[2]?.id || randomUUID(),status:'queued'};});
   try {
     const {tools}=await client.listTools();
-    assert.equal(tools.length,31);
+    assert.equal(tools.length,35);
     assert.equal(tools.find(t=>t.name==='get_workflow').annotations.readOnlyHint,true);
     assert.equal(tools.find(t=>t.name==='start_run').annotations.idempotentHint,true);
     assert.equal(tools.find(t=>t.name==='patch_settings').inputSchema.additionalProperties,false);

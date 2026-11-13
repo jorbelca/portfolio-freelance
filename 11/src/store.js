@@ -10,6 +10,7 @@ async function lock(client, id) {
   validId(id);
   const row = (await client.query('SELECT * FROM opportunities WHERE id=$1 FOR UPDATE', [id])).rows[0];
   if (!row) throw fail('Proceso no encontrado',404);
+  if ((await client.query('SELECT 1 FROM opportunity_merges WHERE source_id=$1',[id])).rowCount) throw fail('Proceso fusionado; consulta su registro principal.',409);
   return row;
 }
 export async function addPublication(client, id, url) {
@@ -99,4 +100,35 @@ export async function checkHistory(raw,client=pool) {
   const matches=[...new Map([...possible,...exact]).values()];
   const ambiguous=exact.size>1;
   return {excluded:[...exact.values()].some(row=>row.excluded),already_known:exact.size>0,needs_review:ambiguous || (!exact.size && possible.size>0),identity,matches};
+}
+
+export async function mergeOffers(targetId,raw) {
+  validId(targetId);validId(raw.source_id);
+  if(targetId===raw.source_id || !Number.isSafeInteger(raw.version) || !Number.isSafeInteger(raw.source_version) || !['target','source'].includes(raw.application_from) || typeof raw.reason!=='string' || !raw.reason.trim() || raw.reason.length>2000) throw fail('Indica dos procesos, sus versiones, la candidatura que conservar y el motivo.');
+  return transaction(async client=>{
+    // Orden estable para dos fusiones concurrentes sobre los mismos procesos.
+    for(const id of [targetId,raw.source_id].sort()) await lock(client,id);
+    const target=(await client.query('SELECT * FROM offer_summary WHERE id=$1',[targetId])).rows[0];
+    const source=(await client.query('SELECT * FROM offer_summary WHERE id=$1',[raw.source_id])).rows[0];
+    if(target.version!==raw.version || source.version!==raw.source_version) throw fail('Una oferta cambió; recarga ambas antes de fusionar.',409);
+    const applications=(await client.query('SELECT * FROM applications WHERE opportunity_id=ANY($1::uuid[]) FOR UPDATE',[[targetId,source.id]])).rows;
+    const chosen=applications.find(row=>row.opportunity_id===(raw.application_from==='target'?targetId:source.id));
+    if(applications.length && !chosen) throw fail('No puedes eliminar una candidatura: elige el registro que la conserva.',409);
+    if(chosen) await client.query('INSERT INTO applications(id,opportunity_id,state,submitted_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(opportunity_id) DO UPDATE SET state=excluded.state,submitted_at=excluded.submitted_at,updated_at=excluded.updated_at',[randomUUID(),targetId,chosen.state,chosen.submitted_at,chosen.created_at,chosen.updated_at]);
+    await recordEvent(client,targetId,'offers_merged',{target,source,applications,application_from:raw.application_from},raw.reason);
+    const hasPrimary=(await client.query('SELECT 1 FROM publications WHERE opportunity_id=$1 AND is_primary',[targetId])).rowCount;
+    if(hasPrimary) await client.query('UPDATE publications SET is_primary=false WHERE opportunity_id=$1',[source.id]);
+    await client.query('UPDATE publications SET opportunity_id=$1 WHERE opportunity_id=$2',[targetId,source.id]);
+    await client.query('UPDATE follow_up_actions SET opportunity_id=$1,version=version+1 WHERE opportunity_id=$2',[targetId,source.id]);
+    await client.query('UPDATE search_candidates SET opportunity_id=$1,version=version+1 WHERE opportunity_id=$2',[targetId,source.id]);
+    const blocked=['pausada','cerrada','cubierta','cancelada'];
+    const availability=blocked.includes(target.availability)?target.availability:blocked.includes(source.availability)?source.availability:target.availability;
+    const review=target.review_state==='descartada' || source.review_state==='descartada'?'descartada':target.review_state;
+    const notes=[target.notes,source.notes && `[Fusionada: ${source.company} — ${source.title}]\n${source.notes}`].filter(Boolean).join('\n\n');
+    if(notes.length>20000) throw fail('Las notas combinadas superan 20000 caracteres; reduce su tamaño antes de fusionar.');
+    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,version=version+1,updated_at=now(),state_changed_at=$5 WHERE id=$1',[targetId,availability,review,notes,raw.application_from==='source'?source.state_changed_at:target.state_changed_at]);
+    await client.query('UPDATE opportunity_merges SET target_id=$1 WHERE target_id=$2',[targetId,source.id]);
+    await client.query('INSERT INTO opportunity_merges(source_id,target_id,reason) VALUES($1,$2,$3)',[source.id,targetId,raw.reason]);
+    return {id:targetId,merged_id:source.id};
+  });
 }

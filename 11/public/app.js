@@ -1,7 +1,7 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
 const $ = selector => document.querySelector(selector);
-let searchConfig;
-const searchOffsets={};
+let searchConfig,schedule;
+const searchOffsets={},taskOffsets={},taskStatuses={};
 let offers=[], companies=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
 const fields=['company','company_id','title','url','notes'];
 function message(text) { $('#message').textContent=text; }
@@ -47,9 +47,12 @@ function render() {
       stateSelect.disabled=true;
       try {
         await api(`offers/${offer.id}`,'PATCH',{version:offer.version,patch:statePatch(offer,next)});
+      } catch(error) {stateSelect.value=offerState(offer);message(error.message);stateSelect.disabled=false;return;}
+      try {
         if (selected?.id===offer.id) await refreshSelected(); else await load();
-        await refreshWorkflow();message('Estado de postulación e informes actualizados.');
-      } catch(error) {stateSelect.value=offerState(offer); message(error.message);}
+      } catch(error) {message(`Estado guardado; no se pudo recargar la oferta: ${error.message}`);return;}
+      try {await refreshWorkflow();message('Estado de postulación e informes actualizados.');}
+      catch(error) {message(`Estado guardado; no se pudo actualizar el panel: ${error.message}`);}
       finally {stateSelect.disabled=false;}
     };
     row.children[2].replaceChildren(stateSelect);
@@ -96,6 +99,8 @@ async function selectOffer(offer) {
   $('[name=url]').readOnly=true;
   $('#form-title').textContent='Gestionar proceso';
   $('#offer-detail').hidden=false;
+  const mergeSelect=$('#merge-form [name=source_id]');mergeSelect.replaceChildren(new Option('Selecciona el duplicado',''));
+  for(const other of offers.filter(item=>item.id!==offer.id)) mergeSelect.add(new Option(`${other.company} · ${other.title} · ${offerState(other)}`,other.id));
   const [events,publications,actions]=await Promise.all([api(`offers/${offer.id}/events`),api(`offers/${offer.id}/publications`),api(`offers/${offer.id}/actions`)]);
   $('#events').textContent=JSON.stringify(events,null,2);
   $('#publications').replaceChildren();
@@ -136,18 +141,30 @@ $('#offer-form').onsubmit=async event=>{
     delete value.submitted_on;
     delete value.status;
     if (selected) {value.version=selected.version; await api(`offers/${selected.id}`,'PUT',value);} else await api('offers','POST',value);
-    if (selected) await refreshSelected(); else {$('#reset').click(); await load();} message('Proceso e historial guardados.');
-  } catch(error) {message(error.message);}
+  } catch(error) {message(error.message);return;}
+  try {
+    if (selected) await refreshSelected(); else {$('#reset').click(); await load();}
+    message('Proceso e historial guardados.');
+  } catch(error) {message(`Cambios guardados; no se pudo recargar el proceso: ${error.message}`);}
 };
 $('#publication-form').onsubmit=async event=>{
   event.preventDefault(); if (!selected) return;
   try {await api(`offers/${selected.id}/publications`,'POST',Object.fromEntries(new FormData(event.target))); event.target.reset(); await refreshSelected(); message('Publicación añadida al mismo proceso.');} catch(error) {message(error.message);}
 };
+$('#merge-form').onsubmit=async event=>{
+  event.preventDefault();if(!selected) return;
+  const value=Object.fromEntries(new FormData(event.target));
+  const source=offers.find(item=>item.id===value.source_id);if(!source) return;
+  try {
+    await api(`offers/${selected.id}/merge`,'POST',{...value,version:selected.version,source_version:source.version});
+    event.target.reset();await refreshSelected();message('Duplicado fusionado. Enlaces e historial conservados.');
+  } catch(error) {message(error.message);}
+};
 $('#action-form').onsubmit=async event=>{
   event.preventDefault(); if (!selected) return;
   try {await api(`offers/${selected.id}/actions`,'POST',{...Object.fromEntries(new FormData(event.target)),state:'pendiente'}); event.target.reset(); await refreshSelected(); message('Acción guardada.');} catch(error) {message(error.message);}
 };
-const profileKeys=['residence','technical_degree','professional_years','internship_details','relocation','work_authorization','max_required_years'];
+const profileKeys=['recover_previous','reuse_evidence','fit_instruction','residence','technical_degree','professional_years','internship_details','relocation','work_authorization','max_required_years'];
 const configRows={
  skills:[['name','Habilidad'],['evidence','Evidencia'],['priority','Prioridad','number']],
  languages:[['language','Idioma'],['level','Nivel',['A1','A2','B1','B2','C1','C2','nativo']]],
@@ -168,18 +185,27 @@ function addConfigRow(group,value={}) {
  $(`#${group==='skills'||group==='languages'?'profile':'search'}-${group}`).append(row);
 }
 function showSearchConfig() {
- for(const key of profileKeys) {const input=$(`#profile-${key}`);if(key==='technical_degree') input.checked=searchConfig.value[key];else input.value=searchConfig.value[key] ?? '';}
+ for(const key of profileKeys) {const input=$(`#profile-${key}`);if(input.type==='checkbox') input.checked=searchConfig.value[key];else input.value=searchConfig.value[key] ?? '';}
  $('#profile-qualifications').value=searchConfig.value.qualifications.join('\n');$('#search-excluded').value=searchConfig.value.excluded_employers.join('\n');
  for(const group of Object.keys(configRows)) {$(`#${group==='skills'||group==='languages'?'profile':'search'}-${group}`).replaceChildren();for(const row of searchConfig.value[group]) addConfigRow(group,row);}
+ const criteria=$('#search-criteria');criteria.replaceChildren();
+ for(const rule of searchConfig.value.criteria) {
+  const detail=document.createElement('details'),summary=document.createElement('summary');summary.textContent=rule.label;detail.dataset.criterion=rule.id;detail.append(summary);
+  for(const [key,label,max] of [['label','Nombre',200],['instruction','Instrucción de esta tarea',8000],['pending','Qué confirmar si se desconoce',1000]]) {
+   const wrapper=document.createElement('label'),field=document.createElement(key==='instruction'?'textarea':'input');wrapper.textContent=label;field.dataset.criterionField=key;field.id=`criterion-${rule.id}-${key}`;field.value=rule[key];field.required=true;field.maxLength=max;if(key==='instruction') field.rows=5;wrapper.append(field);detail.append(wrapper);
+  }
+  criteria.append(detail);
+ }
  $('#search-config-json').value=JSON.stringify(searchConfig.value,null,2);$('#search-config-state').textContent=`Revisión ${searchConfig.revision}`;
 }
 for(const [button,group] of [['add-skill','skills'],['add-language','languages'],['add-source','sources'],['add-query','queries']]) $(`#${button}`).onclick=()=>addConfigRow(group);
 $('#search-config-form').onsubmit=async event=>{
  event.preventDefault();$('#save-search-config').disabled=true;
  try {
-  const value={};for(const key of profileKeys){const field=$(`#profile-${key}`);value[key]=key==='technical_degree'?field.checked:key==='professional_years'?(field.value===''?null:Number(field.value)):key==='max_required_years'?Number(field.value):field.value;}
+  const value={};for(const key of profileKeys){const field=$(`#profile-${key}`);value[key]=field.type==='checkbox'?field.checked:key==='professional_years'?(field.value===''?null:Number(field.value)):key==='max_required_years'?Number(field.value):field.value;}
   value.qualifications=$('#profile-qualifications').value.split('\n').map(item=>item.trim()).filter(Boolean);value.excluded_employers=$('#search-excluded').value.split('\n').map(item=>item.trim()).filter(Boolean);
   for(const group of Object.keys(configRows)) value[group]=[...document.querySelectorAll(`[data-collection="${group}"]`)].map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(field=>[field.dataset.field,field.type==='checkbox'?field.checked:field.type==='number'?Number(field.value):field.value])));
+  value.criteria=[...document.querySelectorAll('[data-criterion]')].map(row=>({id:row.dataset.criterion,...Object.fromEntries([...row.querySelectorAll('[data-criterion-field]')].map(field=>[field.dataset.criterionField,field.value]))}));
   searchConfig=await api('search/config','PUT',{revision:searchConfig.revision,value});showSearchConfig();message('Perfil, fuentes y consultas guardados.');
  }catch(error){message(error.message);}finally{$('#save-search-config').disabled=false;}
 };
@@ -200,10 +226,10 @@ function showModels() {
 $('#cfg-provider').onchange=()=>{const previous=Object.keys(modelChoices).find(key=>key!==$('#cfg-provider').value);modelChoices[previous]=$('#cfg-model').value;$('#cfg-model').value=modelChoices[$('#cfg-provider').value];showModels();};
 $('#model-choice').onchange=()=>{$('#custom-model-label').hidden=$('#model-choice').value!=='__custom';if($('#model-choice').value!=='__custom') $('#cfg-model').value=$('#model-choice').value;else $('#cfg-model').focus();};
 $('#refresh-models').onclick=async()=>{try{models=await api('models');showModels();}catch(error){message(error.message);}};
-const numericSettings=['max_openings','batch_size','max_age_days','quota_spain','quota_europe'];
+const numericSettings=['model_timeout_seconds','model_retries','max_openings','batch_size','max_age_days','quota_spain','quota_europe'];
 function showSettings() {
   for (const [key,value] of Object.entries(settings.value)) {
-    const field=$(`#cfg-${key}`); if (key==='history_ready') field.checked=value; else field.value=value;
+    const field=$(`#cfg-${key}`); if (field.type==='checkbox') field.checked=value; else field.value=value;
   }
   $('#cfg-provider').value=settings.value.provider || 'codex';
   modelChoices[$('#cfg-provider').value]=settings.value.model;showModels();
@@ -213,7 +239,7 @@ function showSettings() {
 $('#settings-form').onsubmit=async event=>{
   event.preventDefault();
   const value={};
-  for (const key of Object.keys(settings.value)) value[key]=key==='history_ready'?$(`#cfg-${key}`).checked:numericSettings.includes(key)?Number($(`#cfg-${key}`).value):$(`#cfg-${key}`).value;
+  for (const key of Object.keys(settings.value)) value[key]=$(`#cfg-${key}`).type==='checkbox'?$(`#cfg-${key}`).checked:numericSettings.includes(key)?Number($(`#cfg-${key}`).value):$(`#cfg-${key}`).value;
   $('#save-settings').disabled=true;
   try {settings=await api('settings','PUT',{revision:settings.revision,value}); showSettings(); $('#settings-save-state').textContent=` Revisión ${settings.revision} guardada.`; message('Configuración guardada para las próximas ejecuciones.');} catch(error) {message(error.message);} finally {$('#save-settings').disabled=false;}
 };
@@ -271,18 +297,29 @@ async function refreshWorkflow() {
   updateRunScope();
 }
 async function renderRunDetail(id) {
-  const run=await api(`workflow/runs/${id}`);
+  const run=await api(`workflow/runs/${id}?limit=25&offset=${taskOffsets[id] || 0}${taskStatuses[id]?`&task_status=${taskStatuses[id]}`:''}`);
   if (id!==selectedRunId) return;
   const panel=$('#run-detail');panel.replaceChildren();panel.dataset.runId=id;panel.dataset.status=run.status;
   const heading=document.createElement('h3');heading.textContent=`${run.module==='search'?'Búsqueda de ofertas':run.module==='extraction'?'Análisis de ficha':'Contrato'} · ${runLabels[run.status]}`;panel.append(heading);
-  const complete=run.tasks.filter(task=>['succeeded','failed'].includes(task.status)).length;
-  if (run.tasks.length) {
-    const label=document.createElement('p');label.textContent=['succeeded','failed'].includes(run.status)?`${complete} tareas ejecutadas · ${run.tasks.filter(task=>task.status==='pending').length} sin ejecutar al cerrar`:`${complete} de ${run.tasks.length} tareas terminadas`;panel.append(label);
-    const progress=document.createElement('progress');progress.max=run.tasks.length;progress.value=complete;progress.setAttribute('aria-label','Tareas terminadas');panel.append(progress);
+  const counts=run.task_page.counts,total=run.task_page.total,complete=(counts.succeeded || 0)+(counts.failed || 0);
+  if (total) {
+    const label=document.createElement('p');label.textContent=['succeeded','failed'].includes(run.status)?`${complete} tareas ejecutadas · ${counts.pending || 0} sin ejecutar al cerrar`:`${complete} de ${total} tareas terminadas`;panel.append(label);
+    const progress=document.createElement('progress');progress.max=total;progress.value=complete;progress.setAttribute('aria-label','Tareas terminadas');panel.append(progress);
   }
   if (run.error) {const error=document.createElement('p');error.className='notice';error.textContent=run.error;panel.append(error);}
   const labels=Object.fromEntries(workflow.modules.flatMap(module=>module.tasks || []).map(task=>[task.id,task.label]));
   if(run.module==='search') await renderSearchPanel(run,panel);
+  const taskControls=document.createElement('div'),filterLabel=document.createElement('label'),taskFilter=document.createElement('select');
+  filterLabel.textContent='Filtrar tareas por estado';taskFilter.id='task-status-filter';
+  for(const [value,label] of [['','Todas'],['pending','Pendientes'],['running','En ejecución'],['succeeded','Terminadas'],['failed','Fallidas'],['unknown','Inciertas']]) option(taskFilter,value,`${label}${value?` (${counts[value] || 0})`:''}`);
+  taskFilter.value=taskStatuses[id] || '';taskFilter.onchange=async()=>{taskStatuses[id]=taskFilter.value;taskOffsets[id]=0;try{await renderRunDetail(id);}catch(error){message(error.message);}};
+  filterLabel.append(taskFilter);taskControls.append(filterLabel);
+  const taskRange=document.createElement('p');taskRange.textContent=`Tareas mostradas: ${run.tasks.length?run.task_page.offset+1:0}–${run.task_page.offset+run.tasks.length} de ${run.task_page.filtered_total} · ${total} en total`;taskControls.append(taskRange);
+  for(const [label,offset] of [['Tareas anteriores',Math.max(0,(taskOffsets[id] || 0)-25)],['Tareas siguientes',run.task_page.next_offset]]) {
+   const button=document.createElement('button');button.type='button';button.textContent=label;button.disabled=label==='Tareas anteriores'?!taskOffsets[id]:offset===null;
+   button.onclick=async()=>{taskOffsets[id]=offset;try{await renderRunDetail(id);}catch(error){message(error.message);}};taskControls.append(button);
+  }
+  panel.append(taskControls);
   for (const task of run.tasks) {
     const article=document.createElement('article');article.className='task-result';article.dataset.taskId=task.task_id;article.dataset.status=task.status;
     const title=document.createElement('h4');title.textContent=`${String(task.position).padStart(2,'0')} · ${labels[task.task_id] || task.task_id}`;
@@ -297,7 +334,7 @@ async function renderRunDetail(id) {
     if (task.error) {const error=document.createElement('p');error.textContent=task.error;article.append(error);}
     panel.append(article);
   }
-  if (!run.tasks.length && run.result) {const p=document.createElement('p');p.textContent=run.result.value;panel.append(p);if(run.result.evidence){const q=document.createElement('blockquote');q.textContent=run.result.evidence;panel.append(q);}}
+  if (!total && run.result) {const p=document.createElement('p');p.textContent=run.result.value;panel.append(p);if(run.result.evidence){const q=document.createElement('blockquote');q.textContent=run.result.evidence;panel.append(q);}}
   if (run.n8n_execution_id) {const link=document.createElement('a');link.href=`http://localhost:5678/workflow/${run.module==='search'?'empleoSearch03':run.module==='extraction'?'empleoExtraction02':'empleoContract01'}/executions/${encodeURIComponent(run.n8n_execution_id)}`;link.target='_blank';link.rel='noopener';link.textContent=`Ejecución ${run.n8n_execution_id} en n8n ↗`;panel.append(link);}
   const meta=document.createElement('p');meta.className='muted';meta.textContent=`ID: ${id} · ${new Date(run.created_at).toLocaleString('es-ES')}`;panel.append(meta);
 }
@@ -305,6 +342,7 @@ async function renderSearchPanel(run,panel) {
  const data=await api(`search/runs/${run.id}/results?limit=25&offset=${searchOffsets[run.id] || 0}`);
  const state=data.state;
  const controls=document.createElement('div');controls.className='search-controls';
+ if(((run.task_page.counts.failed || 0)+(run.task_page.counts.unknown || 0)) && !run.tasks.some(task=>['failed','unknown'].includes(task.status))) {const hint=document.createElement('p');hint.className='notice';hint.textContent='Hay tareas fallidas o inciertas fuera de esta página. Usa el filtro de tareas para revisarlas y resolverlas.';controls.append(hint);}
  if(['running','unknown'].includes(run.status)) {
   for(const action of state.control==='active'?['pause','cancel']:['resume','cancel']) {
    const button=document.createElement('button');button.type='button';button.textContent={pause:'Pausar esta búsqueda',resume:'Reanudar búsqueda',cancel:'Cancelar y conservar resultados'}[action];button.dataset.action=action;
@@ -320,8 +358,16 @@ async function renderSearchPanel(run,panel) {
   const report=document.createElement('section');report.className='search-summary';const title=document.createElement('h3');title.textContent=run.status!=='succeeded'?'Avance de la búsqueda':run.result.fulfilled?'Reparto verificado':'Búsqueda cerrada con déficit';
   const totals=document.createElement('p');totals.textContent=`España ${run.result.spain}/${run.result.quota_spain} · Europa ${run.result.europe}/${run.result.quota_europe} · Fichas ${run.result.openings}/${run.result.max_openings}. Motivo: ${run.result.reason}.`;
   const deficits=document.createElement('p');deficits.textContent=`Faltan ${run.result.deficit_spain} de España y ${run.result.deficit_europe} del resto de Europa. Corte: ${new Date(run.result.cutoff).toLocaleString('es-ES',{timeZone:run.result.timezone})}.`;
-  report.append(title,totals,deficits);for(const [label,path] of [['Descargar informe',run.result.files?.report],['Descargar registro',run.result.files?.register]]) if(path){const link=document.createElement('a');link.href=path;link.textContent=label;link.style.marginRight='16px';report.append(link);}panel.append(report);
+  report.append(title,totals,deficits);
+  if(run.result.summary) {
+   const summary=run.result.summary,p=document.createElement('p');
+   p.textContent=`Total computable: ${summary.computable}/${run.result.quota_spain+run.result.quota_europe} · A ${summary.classes.A} · B ${summary.classes.B} · C ${summary.classes.C} · Pistas ${summary.classes.pista}. B que cuentan: ${summary.b_computable}; fuera del cupo: ${summary.b_not_computable}. Encaje de finalistas: favorable ${summary.fit.favorable}, condicionado ${summary.fit.condicionado}, débil ${summary.fit['débil']}, desconocido ${summary.fit.desconocido}.`;
+   report.append(p);
+   if(summary.fit['débil']>summary.computable/2) {const warning=document.createElement('p');warning.className='notice';warning.textContent='Predominan los encajes débiles entre las finalistas computables.';report.append(warning);}
+  }
+if(!data.state.report_files_error && data.state.report_files_revision===data.state.report_revision) for(const [label,path] of [['Descargar informe',run.result.files?.report],['Descargar registro',run.result.files?.register]]) if(path){const link=document.createElement('a');link.href=path;link.textContent=label;link.style.marginRight='16px';report.append(link);}panel.append(report);
  }
+ if(data.state.report_files_error) {const warning=document.createElement('p');warning.className='notice';warning.textContent=data.state.report_files_error;panel.append(warning);}
  const heading=document.createElement('h3');heading.textContent='Ofertas y pistas investigadas';panel.append(heading);
  if(!data.candidates.length) {const empty=document.createElement('p');empty.textContent='Todavía no hay resultados en esta página.';panel.append(empty);}
  for(const candidate of data.candidates) {
@@ -331,6 +377,8 @@ async function renderSearchPanel(run,panel) {
   classification.textContent=evaluation?`${{A:'A · Recomendada y verificada',B:'B · Pendiente',C:'C · Excluida',pista:'Pista sin ficha completa'}[evaluation.classification]} · ${evaluation.computable?'Computable':'No computable'}${evaluation.country?` · ${evaluation.country}`:''}`:candidate.stage==='blocked'?'Identidad o lectura pendiente · No computable':candidate.stage==='extracting'?'Ficha completa · análisis en curso':candidate.stage==='reading'?'Lectura en curso':'Pista sin ficha completa · No computable';
   const link=document.createElement('a');link.href=candidate.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`Ver en ${candidate.source==='remotive'?'Remotive':candidate.source} ↗`;
   article.append(title,classification,link);
+  if(candidate.prior_candidate_id) {const continuity=document.createElement('p');continuity.textContent=`Recuperada de una búsqueda anterior · Proceso ${candidate.process_id || candidate.id}`;article.append(continuity);}
+  if(evaluation?.fit_explanation) {const fit=document.createElement('p');fit.textContent=`Encaje ${evaluation.fit}: ${evaluation.fit_explanation}${evaluation.fit_evidence?' Cita: «'+evaluation.fit_evidence+'»':''}`;article.append(fit);}
   for(const exclusion of evaluation?.exclusions || []) {const p=document.createElement('p');p.textContent=`${exclusion.rule}: ${exclusion.evidence}`;article.append(p);}
   if(evaluation?.pending?.length) {const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');summary.textContent=`${evaluation.pending.length} pendientes por resolver`;for(const pending of evaluation.pending){const li=document.createElement('li');li.textContent=`${pending.owner}: ${pending.resolution}`;list.append(li);}details.append(summary,list);article.append(details);}
   if(candidate.reason) {const p=document.createElement('p');p.textContent=candidate.reason;article.append(p);}
@@ -357,15 +405,15 @@ function renderCandidateTools(candidate,article,candidates) {
  identity.append(labelled('Identidad',resolution),labelled('Proceso principal',target),labelled('Motivo de la resolución',reason),save);
  identity.onsubmit=async event=>{event.preventDefault();save.disabled=true;try{await api(`search/candidates/${candidate.id}/identity`,'POST',{version:candidate.version,resolution:resolution.value,...(resolution.value==='same_process'?{target_offer_id:target.value}:resolution.value==='duplicate'?{duplicate_candidate_id:target.value}:{}),reason:reason.value});await refreshWorkflow();message('Identidad y recuentos actualizados.');}catch(error){message(error.message);save.disabled=false;}};section.append(identity);
  const correction=document.createElement('form'),field=document.createElement('select'),value=document.createElement('input'),verdict=document.createElement('select'),evidence=document.createElement('textarea'),why=document.createElement('input'),apply=document.createElement('button');
- for(const [key,label] of [['country','País del puesto (código ISO)'],['publication','Fecha de publicación'],...['seniority','experience','education','technology','languages','contract','functions','remote','video','availability','channel'].map(key=>[`decision:${key}`,key])]) option(field,key,label);
+ for(const [key,label] of [['country','País del puesto (código ISO)'],['publication','Fecha de publicación'],['fit','Encaje profesional'],...['seniority','experience','education','technology','languages','contract','functions','remote','video','availability','channel'].map(key=>[`decision:${key}`,key])]) option(field,key,label);
  for(const [key,label] of [['cumple','Cumple'],['incumple','Incumple'],['desconocido','Desconocido']]) option(verdict,key,label);
- const type=()=>{const decision=field.value.startsWith('decision:');value.hidden=decision;value.required=!decision;verdict.hidden=!decision;value.type=field.value==='publication'?'date':'text';value.placeholder=field.value==='country'?'ES, GB, DE…':'';};field.onchange=type;type();evidence.required=true;evidence.rows=3;evidence.maxLength=10000;why.required=true;why.maxLength=2000;apply.textContent='Guardar corrección con evidencia';
+ const type=()=>{const decision=field.value.startsWith('decision:') || field.value==='fit';value.hidden=decision;value.required=!decision;verdict.hidden=!decision;verdict.replaceChildren();for(const [key,label] of field.value==='fit'?[['favorable','Favorable'],['condicionado','Condicionado'],['débil','Débil'],['desconocido','Desconocido']]:[['cumple','Cumple'],['incumple','Incumple'],['desconocido','Desconocido']]) option(verdict,key,label);value.type=field.value==='publication'?'date':'text';value.placeholder=field.value==='country'?'ES, GB, DE…':'';};field.onchange=type;type();evidence.required=true;evidence.rows=3;evidence.maxLength=10000;why.required=true;why.maxLength=2000;apply.textContent='Guardar corrección con evidencia';
  correction.append(labelled('Dato a corregir',field),labelled('Valor corregido',value),labelled('Veredicto corregido',verdict),labelled('Cita literal del documento',evidence),labelled('Motivo de la corrección',why),apply);
- correction.onsubmit=async event=>{event.preventDefault();apply.disabled=true;try{await api(`search/candidates/${candidate.id}/correction`,'POST',{version:candidate.version,field:field.value,value:field.value.startsWith('decision:')?verdict.value:value.value,evidence:evidence.value,reason:why.value});await refreshWorkflow();message('Corrección, evidencias y recuentos guardados.');}catch(error){message(error.message);apply.disabled=false;}};section.append(correction);article.append(section);
+ correction.onsubmit=async event=>{event.preventDefault();apply.disabled=true;try{await api(`search/candidates/${candidate.id}/correction`,'POST',{version:candidate.version,field:field.value,value:field.value.startsWith('decision:') || field.value==='fit'?verdict.value:value.value,evidence:evidence.value,reason:why.value});await refreshWorkflow();message('Corrección, evidencias y recuentos guardados.');}catch(error){message(error.message);apply.disabled=false;}};section.append(correction);article.append(section);
 }
 function updateRunScope() {
   const search=$('#run-module').value==='search';$('#run-text').required=!search;$('#run-text').closest('label').hidden=search;
-  if(search) {$('#run-scope').textContent=`Busca en las fuentes habilitadas. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'predeterminado'}. Cada ficha completa puede consumir 15 extracciones y 11 evaluaciones. Puedes pausar entre tareas.`;return;}
+  if(search) {$('#run-scope').textContent=`Busca en las fuentes habilitadas. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'predeterminado'}. Cada ficha completa puede consumir 15 extracciones, 11 comparaciones y una valoración de encaje. Puedes pausar entre tareas.`;return;}
   $('#run-scope').textContent=$('#run-module').value==='extraction'?'15 llamadas consecutivas al modelo. Cada dato se guarda por separado con su cita literal. Puede tardar varios minutos. No clasifica ni verifica páginas externas.':'Una llamada al modelo para extraer únicamente el contrato y su cita.';
 }
 $('#run-module').onchange=()=>{requestId=null;updateRunScope();};
@@ -373,12 +421,37 @@ for (const id of ['enable-workflow','pause-workflow']) $(`#${id}`).onclick=async
   $('#enable-workflow').disabled=true; $('#pause-workflow').disabled=true;
   try {await api('workflow/control','PUT',{enabled:id==='enable-workflow',revision:workflow.control.revision}); await refreshWorkflow();} catch(error) {message(error.message); await refreshWorkflow().catch(()=>{});}
 };
-$('#refresh-workflow').onclick=()=>refreshWorkflow().catch(error=>message(error.message));
+$('#refresh-workflow').onclick=async()=>{
+  const button=$('#refresh-workflow');button.disabled=true;
+  try {
+    const refreshOffers=document.body.dataset.page==='seguimiento'?(selected?refreshSelected():load()):Promise.resolve();
+    await Promise.all([refreshWorkflow(),refreshOffers]);message('Estado actualizado.');
+  } catch(error) {message(error.message);}
+  finally {button.disabled=false;}
+};
 $('#run-text').oninput=()=>{requestId=null;};
 $('#run-form').onsubmit=async event=>{
   event.preventDefault(); if (posting) return;
   posting=true; $('#run-submit').disabled=true; requestId ||= crypto.randomUUID();
   try {const run=await api('workflow/runs','POST',{id:requestId,module:$('#run-module').value,text:$('#run-text').value}); selectedRunId=run.id; requestId=null; message('Ejecución enviada a n8n. Puedes seguirla abajo.');} catch(error) {message(error.message);} finally {posting=false; await refreshWorkflow().catch(error=>message(error.message));}
+};
+async function refreshSchedule() {
+  schedule=await api('workflow/schedule');
+  $('#schedule-enabled').checked=schedule.enabled;
+  $('#schedule-interval').value=schedule.interval_minutes;
+  const date=new Date(schedule.next_run_at);
+  $('#schedule-next').value=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const labels={disabled:'Programación desactivada',not_due:'Esperando a la próxima fecha',paused:'Admisión de nuevas ejecuciones pausada',busy:'Esperando a cerrar la ejecución activa o incierta',history_pending:'Pendiente de confirmar el historial',started:'Búsqueda iniciada',configuration_error:'Revisa la configuración de búsqueda'};
+  $('#schedule-status').textContent=`${schedule.enabled?'Activada':'Desactivada'} · Próxima: ${date.toLocaleString('es-ES')}${schedule.last_status?' · '+(labels[schedule.last_status] || schedule.last_status):''}${schedule.last_checked_at?' · Última comprobación: '+new Date(schedule.last_checked_at).toLocaleString('es-ES'):''}${schedule.last_run_id?' · Última ejecución: '+schedule.last_run_id:''}${schedule.last_error?' · '+schedule.last_error:''}`;
+}
+$('#refresh-schedule').onclick=()=>refreshSchedule().catch(error=>message(error.message));
+$('#schedule-form').onsubmit=async event=>{
+  event.preventDefault();$('#save-schedule').disabled=true;
+  try {
+    await api('workflow/schedule','PUT',{revision:schedule.revision,enabled:$('#schedule-enabled').checked,interval_minutes:Number($('#schedule-interval').value),next_run_at:new Date($('#schedule-next').value).toISOString()});
+    await refreshSchedule();message('Programación guardada. n8n comprobará la fecha cada minuto.');
+  } catch(error) {message(error.message);}
+  finally {$('#save-schedule').disabled=false;}
 };
 function route() {
   if (['run-form','runs','enable-workflow'].includes(location.hash.slice(1))) return;
@@ -392,7 +465,7 @@ function route() {
 window.addEventListener('hashchange',route); route();
 try {
   for (const [state,label] of Object.entries(offerStates)) {option($('[name=status]'),state,label); option($('#filter'),state,label);}
-  await load(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
+  await load(); await refreshSchedule(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
   const integration=await api('integration');
   $('#integration-state').textContent=integration.configured?'MCP configurado · stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';
   $('#mcp-stdio-config').value=JSON.stringify(integration.stdio,null,2);

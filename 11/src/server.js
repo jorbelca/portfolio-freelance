@@ -3,11 +3,12 @@ import {readFile} from 'node:fs/promises';
 import {timingSafeEqual} from 'node:crypto';
 import {pool, transaction} from './db.js';
 import {offerInput, validateSettings, validId, availabilityStates, reviewStates, applicationStates, actionStates} from './domain.js';
-import {saveOffer, saveAction, appendPublication, checkHistory} from './store.js';
+import {saveOffer, saveAction, appendPublication, checkHistory, mergeOffers} from './store.js';
 import {workflowStatus,startRun,recoverRuns,runTask,finishRun,dispatchSearch} from './workflow.js';
 import {handleMcpHttp,integrationInfo} from './mcp.js';
 import {getSearchConfig,saveSearchConfig} from './search-config.js';
 import {searchNext,runSearchStep,controlSearch,getSearchResults,getSearchCandidate,trackSearchCandidate,ensureFreshSearch,resolveSearchIdentity,correctSearchCandidate} from './search.js';
+import {getSchedule,saveSchedule,tickSchedule} from './schedule.js';
 import {modelCatalog} from './models.js';
 const port = Number(process.env.PORT || 3210);
 const origin = `http://127.0.0.1:${port}`;
@@ -33,6 +34,16 @@ function pagination(url) {
   const offset=Number(url.searchParams.get('offset') || 0);
   if ((limit!==null && (!Number.isSafeInteger(limit) || limit<1 || limit>100)) || !Number.isSafeInteger(offset) || offset<0) throw new Error('Paginación inválida: limit 1–100, offset >= 0.');
   return [limit,offset];
+}
+async function runTasks(id,module,url) {
+  const [requested,offset]=pagination(url),limit=requested ?? 25,status=url.searchParams.get('task_status');
+  if(status && !['pending','running','succeeded','failed','unknown'].includes(status)) throw new Error('Estado de tarea inválido');
+  const table=module==='search'?'search_steps':'workflow_tasks';
+  const counts=Object.fromEntries((await pool.query(`SELECT status,count(*)::integer AS count FROM ${table} WHERE run_id=$1 GROUP BY status`,[id])).rows.map(row=>[row.status,row.count]));
+  const total=Object.values(counts).reduce((sum,count)=>sum+count,0),filteredTotal=status?(counts[status] || 0):total;
+  const columns=module==='search'?'id,candidate_id,kind AS task_id,status,result,error,started_at,finished_at,row_number() OVER (ORDER BY created_at,id)::integer AS position':'*';
+  const items=(await pool.query(`WITH tasks AS (SELECT ${columns} FROM ${table} WHERE run_id=$1) SELECT * FROM tasks WHERE ($4::text IS NULL OR status=$4) ORDER BY position LIMIT $2 OFFSET $3`,[id,limit,offset,status])).rows;
+  return {items,total,filtered_total:filteredTotal,counts,limit,offset,next_offset:offset+items.length<filteredTotal?offset+items.length:null};
 }
 function patchInput(value,keys) {
   if (!value || typeof value!=='object' || Array.isArray(value) || !Object.keys(value).length || Object.keys(value).some(key=>!keys.includes(key))) throw new Error('Cambios vacíos o campos no admitidos.');
@@ -68,6 +79,14 @@ http.createServer(async (req, res) => {
     if (path==='/api/integration' && req.method==='GET') return send(res,200,integrationInfo(origin));
     if (path === '/api/runtime' && req.method === 'GET') return send(res, 200, {databaseConfigured: Boolean(pool)});
     if (path.startsWith('/api/') && !pool) return send(res, 503, {error: 'Neon pendiente de configuración. Añade DATABASE_URL en 11/.env, ejecuta la migración y reinicia el servicio.'});
+    if (path==='/api/workflow/schedule' && req.method==='GET') return send(res,200,await getSchedule());
+    if (path==='/api/workflow/schedule' && req.method==='PUT') return send(res,200,await saveSchedule(await body(req)));
+    if (path==='/api/workflow/schedule/tick' && req.method==='POST') {
+      if(!authenticated(req)) return send(res,401,{error:'N8N_TOKEN requerido'});
+      const result=await tickSchedule();
+      if(result.run_id) void dispatchSearch(result.run_id);
+      return send(res,200,result);
+    }
     if (path === '/api/workflow' && req.method === 'GET') return send(res,200,await workflowStatus());
     if (path === '/api/workflow/control' && req.method === 'PUT') {
       const value=await body(req);
@@ -81,12 +100,14 @@ http.createServer(async (req, res) => {
       return send(res,200,(await pool.query('SELECT id,module,status,settings_revision,n8n_execution_id,result,error,created_at,started_at,finished_at FROM workflow_runs WHERE ($1::text IS NULL OR status=$1) ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3',[status,limit ?? 50,offset])).rows);
     }
     if (path === '/api/workflow/runs' && req.method === 'POST') return send(res,202,await startRun(await body(req)));
-    if (/^\/api\/workflow\/runs\/[0-9a-f-]{36}$/.test(path) && req.method==='GET') {
+    if (/^\/api\/workflow\/runs\/[0-9a-f-]{36}(?:\/tasks)?$/.test(path) && req.method==='GET') {
       const id=validId(path.split('/')[4]);
       let run=(await pool.query('SELECT * FROM workflow_runs WHERE id=$1',[id])).rows[0];
       if(run?.module==='search') {await ensureFreshSearch(id);run=(await pool.query('SELECT * FROM workflow_runs WHERE id=$1',[id])).rows[0];}
       if (!run) return send(res,404,{error:'Ejecución no encontrada'});
-      run.tasks=run.module==='search'?(await pool.query('SELECT id,kind AS task_id,status,result,error,started_at,finished_at,row_number() OVER (ORDER BY created_at,id)::integer AS position FROM search_steps WHERE run_id=$1 ORDER BY created_at,id',[id])).rows:(await pool.query('SELECT * FROM workflow_tasks WHERE run_id=$1 ORDER BY position',[id])).rows;
+      const {items,...taskPage}=await runTasks(id,run.module,url);
+      if(path.endsWith('/tasks')) return send(res,200,{items,...taskPage});
+      run.tasks=items;run.task_page=taskPage;
       if(run.module==='search') run.search=(await pool.query('SELECT * FROM search_run_state WHERE run_id=$1',[id])).rows[0];
       delete run.task_claimed;
       if (url.searchParams.get('include_input')!=='true') delete run.input_text;
@@ -111,8 +132,18 @@ http.createServer(async (req, res) => {
       const id=validId(searchRoute[1]),section=searchRoute[2];
       if (['report','register'].includes(section) && req.method==='GET') {
         await ensureFreshSearch(id);
+        const artifactState=(await pool.query('SELECT report_revision,report_files_revision,report_files_error FROM search_run_state WHERE run_id=$1',[id])).rows[0];
+        if(artifactState && (artifactState.report_files_error || artifactState.report_files_revision!==artifactState.report_revision)) return send(res,503,{error:artifactState.report_files_error || 'Informe actualizándose; vuelve a consultar.'});
         const filename=section==='report'?'informe.md':'registro.json';
-        let content;try {content=await readFile(new URL(`../reports/${id}/${filename}`,import.meta.url),'utf8');}catch{return send(res,404,{error:'El informe se genera al terminar un lote o cerrar la búsqueda.'});}
+        const artifactPath=new URL(`../reports/${id}/${filename}`,import.meta.url);
+        let content;try {content=await readFile(artifactPath,'utf8');}catch {
+          if(!artifactState?.report_revision) return send(res,404,{error:'El informe se genera al terminar un lote o cerrar la búsqueda.'});
+          await pool.query('UPDATE search_run_state SET report_files_revision=0 WHERE run_id=$1',[id]);
+          await ensureFreshSearch(id);
+          try {content=await readFile(artifactPath,'utf8');}catch {return send(res,503,{error:'Los archivos del informe no están disponibles. Comprueba espacio y permisos de reports.'});}
+        }
+        const latestState=(await pool.query('SELECT s.report_revision,s.report_files_revision,s.report_files_error,s.report_dirty,s.history_revision,h.revision AS current_history_revision FROM search_run_state s CROSS JOIN history_state h WHERE s.run_id=$1 AND h.id=1',[id])).rows[0];
+        if(latestState && (latestState.report_dirty || latestState.report_files_error || latestState.report_revision!==artifactState.report_revision || latestState.report_files_revision!==latestState.report_revision || String(latestState.history_revision)!==String(latestState.current_history_revision))) return send(res,503,{error:'El informe ha cambiado durante la lectura; vuelve a consultar la versión actual.'});
         if(url.searchParams.get('format')==='json') {const offset=Number(url.searchParams.get('offset') || 0),max=Number(url.searchParams.get('max_chars') || 20000);if(!Number.isSafeInteger(offset) || offset<0 || !Number.isSafeInteger(max) || max<1 || max>100000) throw new Error('Fragmento de informe inválido');return send(res,200,{run_id:id,content:content.slice(offset,offset+max),offset,next_offset:offset+max<content.length?offset+max:null});}
         res.writeHead(200,{'Content-Type':section==='report'?'text/markdown; charset=utf-8':'application/json; charset=utf-8','Content-Disposition':`attachment; filename="${id}-${filename}"`,'Cache-Control':'no-store'});return res.end(content);
       }
@@ -139,7 +170,7 @@ http.createServer(async (req, res) => {
         const current=(await client.query('SELECT * FROM settings_summary WHERE id=1')).rows[0];
         if (input.revision!==current.revision) return null;
         const value=validateSettings(req.method==='PATCH'?{...current.value,...patchInput(input.patch,Object.keys(current.value))}:input.value);
-        const result = await client.query('UPDATE search_settings SET max_openings=$1,batch_size=$2,max_age_days=$3,timezone=$4,history_ready=$5,model=$6,source_prompt=$7,provider=$9,revision=revision+1 WHERE id=1 AND revision=$8 RETURNING id',[value.max_openings,value.batch_size,value.max_age_days,value.timezone,value.history_ready,value.model,value.source_prompt,input.revision,value.provider ?? 'codex']);
+        const result = await client.query('UPDATE search_settings SET max_openings=$1,batch_size=$2,max_age_days=$3,timezone=$4,history_ready=$5,model=$6,source_prompt=$7,provider=$9,model_retries=COALESCE($10,model_retries),model_timeout_seconds=COALESCE($11,model_timeout_seconds),public_alternatives=COALESCE($12,public_alternatives),revision=revision+1 WHERE id=1 AND revision=$8 RETURNING id',[value.max_openings,value.batch_size,value.max_age_days,value.timezone,value.history_ready,value.model,value.source_prompt,input.revision,value.provider ?? 'codex',value.model_retries,value.model_timeout_seconds,value.public_alternatives]);
         if (!result.rowCount) return null;
         await client.query("UPDATE search_quotas SET target=CASE zone WHEN 'spain' THEN $1::integer ELSE $2::integer END WHERE settings_id=1",[value.quota_spain,value.quota_europe]);
         return (await client.query('SELECT * FROM settings_summary WHERE id=1')).rows[0];
@@ -152,9 +183,10 @@ http.createServer(async (req, res) => {
       return send(res,200,(await pool.query(`SELECT summary.*,coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'url',p.url,'is_primary',p.is_primary) ORDER BY p.is_primary DESC,p.created_at,p.id) FROM publications p WHERE p.opportunity_id=summary.id),'[]'::jsonb) AS publications FROM offer_summary summary WHERE ($1::text IS NULL OR company ILIKE $1 OR title ILIKE $1) AND ($2::text IS NULL OR application_state=$2) ORDER BY updated_at DESC,id DESC LIMIT $3 OFFSET $4`,[url.searchParams.has('q')?`%${url.searchParams.get('q')}%`:null,state,...pagination(url)])).rows);
     }
     if (path === '/api/offers' && req.method === 'POST') return send(res,201,await saveOffer(null,offerInput(await body(req))));
-    const match = path.match(/^\/api\/offers\/([0-9a-f-]{36})(?:\/(events|publications|actions)(?:\/([0-9a-f-]{36}))?)?$/);
+    const match = path.match(/^\/api\/offers\/([0-9a-f-]{36})(?:\/(events|publications|actions|merge)(?:\/([0-9a-f-]{36}))?)?$/);
     if (match) {
       const id=validId(match[1]), section=match[2], childId=match[3];
+      if (section==='merge' && req.method==='POST') return send(res,200,await mergeOffers(id,await body(req)));
       if (['PUT','PATCH'].includes(req.method) && !section) {
         const raw = await body(req);
         let value=raw;
@@ -168,11 +200,12 @@ http.createServer(async (req, res) => {
       }
       if (req.method==='GET' && !section) {
         const offer=(await pool.query('SELECT * FROM offer_summary WHERE id=$1',[id])).rows[0];
+        if(!offer) {const merged=(await pool.query('SELECT target_id FROM opportunity_merges WHERE source_id=$1',[id])).rows[0];if(merged) return send(res,410,{error:'Proceso fusionado',target_id:merged.target_id});}
         return send(res,offer?200:404,offer || {error:'Proceso no encontrado'});
       }
       if (req.method === 'GET' && !childId) {
         const queries = {
-          events:'SELECT * FROM opportunity_events WHERE opportunity_id=$1 ORDER BY id DESC LIMIT $2 OFFSET $3',
+          events:'SELECT * FROM opportunity_events WHERE opportunity_id=$1 OR opportunity_id IN (SELECT source_id FROM opportunity_merges WHERE target_id=$1) ORDER BY id DESC LIMIT $2 OFFSET $3',
           publications:'SELECT p.*,s.label AS source FROM publications p JOIN sources s ON s.id=p.source_id WHERE opportunity_id=$1 ORDER BY is_primary DESC,p.created_at,p.id LIMIT $2 OFFSET $3',
           actions:'SELECT * FROM follow_up_actions WHERE opportunity_id=$1 ORDER BY due_on NULLS LAST,created_at,id LIMIT $2 OFFSET $3'
         };

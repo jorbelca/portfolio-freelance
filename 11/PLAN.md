@@ -1,6 +1,16 @@
 # Plan de implementación — búsqueda y seguimiento de empleo
 
-Estado actualizado: 11 de noviembre de 2026.
+Estado actualizado: 13 de noviembre de 2026. Las secciones de avances fechadas conservan el historial; el estado actual se resume a continuación.
+
+## Estado actual de la entrega
+
+- Web y n8n arrancan juntos en Docker; Neon remoto conserva configuración, seguimiento y ejecuciones.
+- Búsqueda pública conectada: descubrimiento, cruce de historial, reserva de aperturas, lectura, 15 extracciones, 11 comparaciones atómicas y valoración independiente de encaje, evaluación, cupos e informes.
+- Programación periódica gestionada desde web/MCP y comprobada por n8n cada minuto; inicialmente desactivada.
+- Panel de control, configuración por formularios, selección de proveedor/modelo, pausa/reanudación/cancelación y resolución de identidades/correcciones. Seguimiento secundario con tres estados visibles, fechas, múltiples URLs y fusión auditada de duplicados.
+- MCP permite las mismas operaciones, incluidas tareas paginadas y filtradas por estado. Integración comprobada con el cliente oficial del SDK; configuración HTTP/stdio publicada.
+- Verificado el recorrido real web → n8n → Codex dentro de Docker → Neon (ejecución n8n 6). Las pruebas reales de búsqueda conservadas terminaron en C; no hay evidencia de reparto real 13+7.
+- Pendientes de cierre: cobertura y validación real de búsqueda con finalistas A/B, auditoría final de cobertura de fuentes y del conjunto. Neon sustituye el historial de Obsidian; no hay consulta automática de esa nota ni navegación con sesión.
 
 ## Objetivo
 
@@ -46,7 +56,7 @@ Modelo de dominio, estados, relaciones y casos de uso: [MODELO.md](MODELO.md). E
 - [x] Credencial del puente instalada en n8n. El acceso al editor puede requerir completar el alta del propietario.
 - [x] Extracción real panel → n8n → Codex → Neon usando un anuncio auténtico de Scalian, con cita literal validada e ID real de ejecución n8n.
 
-Los workflows disponibles extraen contrato o analizan una ficha aportada en 15 tareas. Todavía no realizan búsquedas ni clasifican ofertas. N029 conserva la candidatura y sus dos URLs; ninguna prueba genera ofertas en el seguimiento real. La ejecución real de contrato previa sigue conservada.
+Los workflows disponibles extraen contrato, analizan una ficha aportada en 15 tareas o ejecutan la búsqueda completa sobre las fuentes públicas soportadas. N029 conserva la candidatura y sus dos URLs; ninguna prueba genera ofertas en el seguimiento real. La ejecución real de contrato previa sigue conservada.
 
 ## Contrato de trabajo para tareas pequeñas
 
@@ -332,3 +342,96 @@ El usuario pidió cerrar esta entrega y presentar el estado actual. Se detuvo la
 - 35 pruebas comprobadas (batería completa de 34 + prueba nueva del lector corporativo). Integración aislada cubre correcciones, aliases, bloqueo por inscripción posterior, archivos, pausa/reanudación, fallo/reintento, conservación de intentos y cancelación. Navegador: ready, n8n conectado, formularios reales y resultado C visible; pestaña del panel presentada al usuario.
 
 El objetivo general no se marca completo: falta validar una ejecución real con finalistas A/B y reparto completo; siguen pendientes la fusión de dos procesos existentes, cobertura adicional de fuentes y partes del plan que exceden la entrega actual. No se han simulado finalistas ni se afirma haber cumplido 13+7.
+
+### Recuperación de tareas omitidas — 13/11/2026
+
+- Corregida la continuidad al saltar manualmente una extracción o comparación fallida/incierta: se conserva el motivo, se registra un dato desconocido sin cita y se programa la siguiente tarea singular. La última comparación conduce a evaluación.
+- Saltar una lectura conserva el documento como error y la pista sin ficha completa; no repite la apertura.
+- Verificación superada en el esquema temporal de la prueba de búsqueda (79 segundos), junto con ocho pruebas de clasificación y motor/modelo; no crea ofertas ni consume llamadas al modelo en la base real. Imagen web reconstruida y aplicada en Docker.
+- El objetivo general sigue activo: esta corrección no acredita por sí sola los pendientes de la auditoría de cierre descritos arriba.
+
+### Fusión de ofertas ya registradas — 13/11/2026
+
+- Migración aditiva 010: archivo de identidades fusionadas. El ID absorbido no se borra ni se reutiliza; deja de aparecer como oferta independiente.
+- Web y MCP `merge_offers`: ambas versiones obligatorias, motivo y elección explícita de candidatura vigente. Se trasladan publicaciones, acciones y referencias de búsqueda; las notas se combinan y el historial incluye los eventos originales. El evento de fusión conserva las dos fichas y candidaturas previas.
+- Se mantienen los bloqueos de historial: ninguna candidatura se puede borrar eligiendo una ficha sin candidatura. No se reabren procesos cerrados por fusionarlos.
+- Una consulta del ID absorbido devuelve 410 y el ID principal; MCP ofrece error estructurado `MERGED` con `target_id`. Nuevas modificaciones del archivo se bloquean.
+- Incluida la guía MCP en la imagen Docker para que sus recursos funcionen dentro del contenedor.
+- Validación aislada de versiones obsoletas, conservación de candidaturas/fechas/enlaces/acciones/eventos y bloqueo por URL absorbida. No se han fusionado ofertas reales como prueba.
+- Migración 010 aplicada en Neon y preservación comprobada por comparación íntegra de las cinco tablas de seguimiento antes/después. Contenedor web reconstruido y actualizado; formulario revisado en navegador con los datos reales sin ejecutar fusiones. API/MCP aislados superados (24 segundos) y 15 pruebas unitarias de dominio, evaluación y MCP.
+
+### Codex dentro de Docker verificado — 13/11/2026
+
+- Detectado en prueba real un fallo de conexión de Codex pese a sesión autenticada: la imagen slim carecía de `/etc/ssl/certs`. Node alcanzaba el servicio, pero Codex no conseguía consultar modelos ni completar la petición.
+- Dockerfile instala `ca-certificates` del repositorio Debian oficial. No se deshabilita TLS ni se relaja el sandbox de solo lectura. Imagen reconstruida y web reiniciada.
+- Extracción real directa del texto de Scalian ya autorizado: `Contrato indefinido`, evidencia literal `Contrato&#xa0;indefinido`, estado acreditado.
+- Prueba completa lanzada mediante la misma API de la web: aplicación `58b808e7-5cfa-4360-95ef-621f979d8fa1`, ejecución n8n `6`, estado final `succeeded`, cierre automático, resultado y cita conservados en Neon, sin errores. El modelo se mantuvo en el valor guardado (predeterminado de Codex).
+- La primera comprobación auxiliar de n8n (`90f22d1c-d7f2-4c3b-b1fc-7028d58d2e5a`, n8n `5`) terminó su tarea; se confirmó manualmente el cierre tras consultar su ejecución exitosa porque el lanzador de diagnóstico cerró su conexión antes del callback. La segunda prueba anterior acredita el cierre automático del servicio permanente.
+- Admisión restaurada a pausada con control de revisión; ninguna oferta ni candidatura creada, editada o enviada por estas pruebas. No acredita una búsqueda con finalistas A/B ni reparto completo.
+- Referencia oficial de autenticación en dispositivos sin interfaz y Docker: https://learn.chatgpt.com/docs/auth . El archivo de sesión sigue montado en solo lectura; su renovación se hace desde el Mac como documenta README.
+
+### Resumen de auditoría e informe completos — 13/11/2026
+
+- Informe y dashboard muestran total computable frente al objetivo, clases A/B/C/pistas, B computables y no computables y encaje entre finalistas que cuentan. Se advierte si predominan los encajes débiles.
+- Las C aparecen en tabla breve con puesto/empresa, causa, evidencia y fuente. Las B explican expresamente si cuentan; la fecha real de comprobación se incorpora desde el documento conservado.
+- El resumen se persiste en el resultado de auditoría y se recalcula tras cambios de historial; API y MCP lo devuelven junto con la ejecución sin inventar nuevas decisiones.
+- Ocho pruebas unitarias superadas y búsqueda integral en esquema Neon temporal superada (79 segundos), incluyendo caída de una B del cómputo tras inscripción y actualización del resumen.
+- Imagen web reconstruida y desplegada. Informe real de Scalian regenerado desde registros existentes, sin nuevas lecturas, llamadas al modelo ni cambios en ofertas de seguimiento.
+
+## Criterios editables — 13 de noviembre de 2026
+
+Las once reglas de comparación permiten editar nombre, instrucción singular y explicación de lo pendiente desde Configuración y MCP. La migración aditiva 011 guarda las reglas por configuración e ID, sin cambiar ofertas ni candidaturas. Los valores iniciales conservan el comportamiento anterior. Cada ejecución guarda las reglas en su snapshot; las antiguas sin reglas usan los valores originales. Se conservan la secuencia de once decisiones, el corte temprano y la validación de evidencia. Los IDs, la clasificación A/B/C/pista y los controles de identidad/historial son invariantes del motor.
+
+Verificación: 35 pruebas sin base de datos pasan (4 integraciones omitidas en esa ejecución); integración MCP contra un esquema Neon aislado pasa, incluyendo edición, conservación al omitir reglas y rechazo de reglas incompletas/duplicadas. Migración 011 aplicada a Neon y web reconstruida en Docker; formulario desplegado comprobado en navegador, sin cambiar el perfil ni las ofertas reales. No se ha ejecutado una nueva búsqueda con reglas modificadas sobre ofertas reales.
+
+## Reintentos acotados — 13 de noviembre de 2026
+
+Migración aditiva 012: `model_retries` de 0 a 3, inicialmente 0. Editable desde el panel y MCP, versionado en Neon y copiado por ejecución. Solo las respuestas recibidas que fallen validación de extracción o comparación son elegibles. Cada intento es una nueva tarea singular del bucle de n8n sobre la misma fila, con intento persistido aparte; no se repite la ficha ni se borra evidencia. Los errores de transporte/sesión/cuota/tiempo agotado y los resultados inciertos mantienen revisión manual. Agotar el límite pausa la búsqueda. Contrato y análisis de ficha siguen sin reintento automático.
+
+Verificación de reintentos: pruebas de integración MCP y búsqueda pasan sobre esquemas Neon aislados (90 segundos), incluyendo guardado por revisión, rechazo de límite fuera de rango, reintento de la misma tarea, agotamiento y pausa, recuperación manual, conservación de intentos e informe final. Suite sin base de datos: 35 pruebas pasan y 4 integraciones se omiten. Migración 012 aplicada a Neon, valor inicial 0; no se lanzaron llamadas nuevas a modelos ni se modificó el seguimiento real.
+
+### Tiempo máximo de IA configurable
+
+Migración aditiva 013, sin modificar ofertas. Panel, API y MCP admiten `model_timeout_seconds` de 5 a 120; cada ejecución conserva su valor. Ambos motores lo aplican. El máximo respeta los 145 segundos de los nodos HTTP existentes, sin republicar workflows. Pruebas locales: 36 correctas, 4 de integración omitidas sin credenciales en el comando general.
+
+Verificación adicional: integración MCP HTTP contra esquema temporal de Neon correcta (30,8 s); confirma guardado de 30 segundos y rechazo de 121. Migración 013 aplicada en Neon. Web reconstruida en Docker; GET `/api/settings` devuelve 120, panel incluye el control y n8n responde 200. No se han ejecutado búsquedas ni consumido llamadas de IA para esta entrega. La programación periódica sigue pendiente.
+
+### Programación periódica en n8n
+
+Migración 014 aditiva: fila independiente de programación, revisión de configuración, intervalo, próxima fecha UTC y última comprobación/ejecución/error. Interfaz sencilla en Control y herramientas MCP `get_schedule` / `set_schedule`. Workflow 04 con Schedule Trigger cada minuto y una petición autenticada al puente; registrado en setup:n8n. La reserva y el avance de fecha comparten la transacción y el bloqueo de admisión con los lanzamientos manuales. Pausa global, historial pendiente, ejecución activa o incierta y perfil inválido impiden iniciar. No se recuperan múltiples intervalos perdidos. Desactivada por defecto; no se activa en producción durante la verificación.
+
+Referencia de Schedule Trigger: https://github.com/n8n-io/n8n-docs/blob/main/docs/integrations/builtin/core-nodes/n8n-nodes-base.scheduletrigger/README.md
+
+Verificación de programación: 38 pruebas locales correctas, 5 integraciones omitidas en el comando general; las integraciones específicas MCP HTTP, programación y regresión de búsqueda pasan en esquemas temporales eliminados (31,1 s / 9,2 s / 90 s). Se añadió un caso de configuración inválida y se repitió la prueba de programación, correcta en 9,3 s. Migración 014 aplicada; imagen web `4f6f2931c890fe7e7fc849401632545a048543ecf64491f2f2d21feaa760c6f3`. Workflow `empleoSchedule04` importado y publicado sin reimportar los otros tres. Tras reiniciar n8n, su reloj registró `2026-11-13T17:20:46.086Z`, estado `disabled`, sin última búsqueda; el número de ejecuciones del panel sigue en 6. Verificación del panel en navegador: formulario accesible, intervalo 1440, fecha local y programación desactivada. No se consumió cuota IA ni se crearon ofertas.
+
+### Alternativas públicas de lectura
+
+Migración 015 aditiva: opción versionada `public_alternatives` y tabla de lecturas por representación, con backfill explícito `legacy` para documentos anteriores. Plan de dos rutas máximo para un mismo ID público SmartRecruiters: API→HTML para fuentes corporativas y HTML→API si llega desde un agregador. No añade llamadas del modelo ni modifica la segmentación n8n: cada petición reutiliza el nodo singular `read` y otro `step_id`. No hay reintentos de una petición reservada ni de resultados inciertos. La siguiente ruta se encola únicamente tras una respuesta terminada no verificable. Se vuelve a comprobar el historial y el cupo antes de cada ruta. La reserva original cuenta una única ficha del mismo anuncio y permite completar la representación alternativa aun si esa reserva alcanzó el máximo. Otros portales sin adaptador verificable continúan como pistas.
+
+Pruebas: 39 locales correctas y 6 integraciones omitidas en el comando general; integración específica de lectura correcta (20 s), MCP HTTP correcta (32,5 s) y regresión de búsqueda correcta (90,9 s), cada una en esquema temporal eliminado. La prueba de lectura acredita API 403→HTML verificado con max_openings=1, caché de tarea sin nuevas peticiones y bloqueo de la segunda ruta si aparece una candidatura. Comprobación pública sin IA de la oferta real Scalian 744000152675659: API HTTP 200 y ficha completa; HTML HTTP 200 sin ficha estructurada, correctamente no verificable. No se ha creado una oferta de prueba en producción.
+
+Despliegue verificado: migración 015 aplicada; imagen web `dde3aec4eaa7c0de9cb56139cd0eaacba7e23d0270232cac26c795997b3b6211`. Panel en navegador `ready`, sin error, opción visible y activada para nuevas ejecuciones. GET settings 200. Huellas antes/después idénticas para opportunities (91), applications (86), publications (89), follow_up_actions (0) y opportunity_events (106). Programación periódica continúa desactivada. La prueba de lectura se repitió tras corregir la clasificación inmediata C de candidaturas detectadas entre rutas: correcta en 19,7 s, sin segunda petición ni nuevos datos reales.
+
+### Auditoría de cierre
+
+Inventario de requisitos y evidencia en `AUDITORIA.md`. Se detectan pendientes concretos de encaje independiente, continuidad entre ejecuciones y actualización por lotes de fichas incompletas, además de la validación real A/B. No se considera completa la entrega por tener pruebas unitarias verdes.
+
+Corrección en verificación: migración 016 separa revisión/error de archivos del estado de análisis. Los fallos al escribir informes no deben convertir una búsqueda ya cerrada en fallo de IA. Se preparan ambos temporales antes de promocionarlos, se limpian residuos y se comprueba la revisión vigente. Las descargas no sirven un artefacto marcado incompleto o cambiado durante la lectura. La siguiente consulta regenera los archivos desde Neon sin nuevas lecturas ni IA.
+
+Recuperación de informes verificada y desplegada: ver detalle reproducible en `AUDITORIA.md`. Migración 016 aplicada, integración HTTP/MCP con fallo real del segundo archivo correcta (35,5 s), regresión de búsqueda correcta (88,5 s). El informe real Scalian se regeneró sin IA y ambas descargas devolvieron 200 con revisiones 8/8. Quedan abiertos los demás puntos de la auditoría; no se declara completado el objetivo.
+
+### Lotes con fichas incompletas
+
+Corregido el contador compartido de lotes: cuenta documentos evaluados y lecturas que han terminado sin ficha verificable, incluyendo errores y exclusiones detectadas antes de una ruta alternativa. No cuenta una lectura alternativa pendiente ni una ficha completa que todavía se analiza. Los caminos de lectura, evaluación y salto manual reutilizan el mismo cálculo y la clave persistente `batch:N`; cada actualización mantiene prioridad anterior a la siguiente apertura. No requiere migración ni republicar n8n. En verificación: lotes exclusivamente incompletos, lote mixto de C por fecha e incompleta, caché y regresión de lectura/búsqueda.
+
+Contador de lotes desplegado en imagen `3c4067e56cefa719efaec8b228b0f166f95291dcbb18697469a9aee51bf450ba`. Panel, settings, programación y salud de n8n HTTP 200; programación desactivada. Sin migración, búsquedas reales nuevas ni llamadas de IA.
+
+### Encaje independiente
+
+Migración 017 aditiva: `fit_instruction` versionada en el perfil. Nueva tarea singular `assess_fit` y salida del Switch n8n, después de las comparaciones y antes de evaluar; una exclusión previa evita esta llamada. Devuelve favorable/condicionado/débil/desconocido con cita, explica la brecha y alimenta ordenación, resumen e informes sin forzar C. Una valoración desconocida queda pendiente y no computa. Instrucción editable desde web y MCP; corrección manual `fit` con motivo/cita conserva el original. Reintentos de validación y salto manual conservan la cadena. Las ejecuciones anteriores sin esta instrucción mantienen la heurística original. En verificación: unitarias de B débil, C prevalente, desconocidos y citas; integración de configuración, reintento de valoración y corrección de encaje.
+
+Encaje independiente verificado y desplegado: migración 017, 41 unitarias correctas, integraciones de búsqueda/MCP/lotes correctas y test de las 33 salidas n8n. Campo editable comprobado en navegador; workflow publicado y activado. Detalles en `AUDITORIA.md`. Permanecen continuidad entre ejecuciones y prueba real A/B; no se declara completo el objetivo.
+
+### Continuidad entre búsquedas — desplegada 13/11/2026
+
+Migración 018 y los cuatro workflows se publicaron. `recover_previous` recupera A/B anteriores compatibles con fuentes y consultas, revalida historial antes de leer y conserva IDs estables; `reuse_evidence` solo reutiliza extracciones con el mismo documento completo y contrato. Las decisiones, el encaje y la vigencia se revisan en cada ejecución. Ambas opciones se gestionan desde web y MCP. La auditoría documenta lo implementado y la comprobación operativa del panel. Sigue pendiente una búsqueda de integración que pruebe la continuidad completa y una búsqueda real con finalistas A/B; no se activaron la admisión ni la programación.
