@@ -1,16 +1,20 @@
 # Plan de implementación — búsqueda y seguimiento de empleo
 
-Estado actualizado: 13 de noviembre de 2026. Las secciones de avances fechadas conservan el historial; el estado actual se resume a continuación.
+Estado actualizado: 14 de noviembre de 2026. Las secciones de avances fechadas conservan el historial; el estado actual se resume a continuación.
 
 ## Estado actual de la entrega
 
 - Web y n8n arrancan juntos en Docker; Neon remoto conserva configuración, seguimiento y ejecuciones.
-- Búsqueda pública conectada: descubrimiento, cruce de historial, reserva de aperturas, lectura, 15 extracciones, 11 comparaciones atómicas y valoración independiente de encaje, evaluación, cupos e informes.
+- Búsqueda coordinada por tareas persistentes de n8n; la captura nueva usa navegación por Google/Bing mediante un cliente con Chrome DevTools MCP conectado. No se usan APIs de portales para nuevas capturas.
+- Cada ficha se abre desde el navegador, se conserva la evidencia, se comprueba la vía pública de candidatura y se comparan requisitos obligatorios con el perfil mediante 15 extracciones y 11 reglas. No se rellenan ni envían formularios.
 - Programación periódica gestionada desde web/MCP y comprobada por n8n cada minuto; inicialmente desactivada.
-- Panel de control, configuración por formularios, selección de proveedor/modelo, pausa/reanudación/cancelación y resolución de identidades/correcciones. Seguimiento secundario con tres estados visibles, fechas, múltiples URLs y fusión auditada de duplicados.
+- Panel de control, configuración por formularios, selección de proveedor/modelo, pausa/reanudación/cancelación y resolución de identidades/correcciones. Seguimiento secundario con tres estados visibles, fechas, múltiples URLs y fusión auditada reversible.
+- Configuración simplificada: primera vista para puestos, perfil y modelo; límites, fuentes y reglas siguen editables en secciones avanzadas con explicaciones más claras.
 - MCP permite las mismas operaciones, incluidas tareas paginadas y filtradas por estado. Integración comprobada con el cliente oficial del SDK; configuración HTTP/stdio publicada.
 - Verificado el recorrido real web → n8n → Codex dentro de Docker → Neon (ejecución n8n 6). Las pruebas reales de búsqueda conservadas terminaron en C; no hay evidencia de reparto real 13+7.
-- Pendientes de cierre: cobertura y validación real de búsqueda con finalistas A/B, auditoría final de cobertura de fuentes y del conjunto. Neon sustituye el historial de Obsidian; no hay consulta automática de esa nota ni navegación con sesión.
+- Migración 021 aplicada en Neon. Web reconstruida en Docker; API devuelve las 91 ofertas y la consulta de fusiones responde 200. n8n permanece conectado. Google está activo y Bing queda configurable. Admisión pausada, cero ejecuciones activas y ninguna búsqueda real iniciada.
+- La migración 021 conserva snapshots para deshacer fusiones en orden inverso; el API de respuestas del modelo tolera bloques nulos. Suite completa: 49 correctas, 0 fallidas, 0 omitidas. La corrección del parser se cubre con respuesta simulada; no se reprodujo el error en una búsqueda real.
+- Para ejecutar una búsqueda hace falta un agente conectado a Empleo MCP y Chrome DevTools MCP; n8n guarda y pausa en cada tarea, pero no controla por sí solo Chrome del Mac. La revisión del formulario público y la comparación de requisitos obligatorios con el perfil quedan dentro del flujo, sin iniciar sesión ni enviar candidatura.
 
 ## Objetivo
 
@@ -26,7 +30,7 @@ Modelo de dominio, estados, relaciones y casos de uso: [MODELO.md](MODELO.md). E
 - n8n en Docker, con volumen persistente y puerto local `5678`.
 - Panel y servicio Node.js locales, puerto configurable, actualmente `3210`.
 - Ofertas, historial, configuración y futuras ejecuciones en Neon remoto.
-- El historial se mantiene en Neon. La adaptación actual no consulta Obsidian: requiere cargar las candidaturas anteriores y confirmar `history_ready`. No se considerará equivalente a haber comprobado `Agenda/DONE.md`; esta sustitución queda explícita respecto al prompt original.
+- El historial operativo se mantiene únicamente en Neon. El workflow no lee ni depende de `Agenda/DONE.md`; los registros importados anteriormente son filas ordinarias del seguimiento y se cruzan desde Neon.
 - Acceso al modelo mediante Codex CLI autenticado con ChatGPT en el Mac. n8n llama al servicio local con una credencial, sin copiar la sesión de ChatGPT al contenedor.
 - La disponibilidad de un modelo se comprobará con la cuenta real. «Luna» define aquí el nivel de segmentación requerido; no se da por disponible como identificador público de Codex. Los límites de la suscripción siguen aplicándose.
 - Variables funcionales editables desde el panel y versionadas en Neon; credenciales solo en el servidor o en el almacén de credenciales de n8n.
@@ -201,16 +205,19 @@ Aceptación: una corrección a aplicada o rechazada se conserva inmediatamente y
 
 ## Verificación necesaria antes de considerar terminado el sistema
 
-- Pruebas de identidad, alias, enlaces saneados, antigüedad y clasificación con casos límite.
-- Pruebas de transacciones, concurrencia y reanudación contra una base de pruebas autorizada; nunca vaciar la base real para probar.
-- Comprobación de recuperación tras error del modelo y de la fuente.
-- Una ejecución real y acotada desde n8n hasta Neon y el panel, sin envíos de candidaturas.
-- Reinicio de Docker y del servicio conservando estado y credenciales.
-- Revisión de que no se guardan URLs privadas, credenciales ni datos inventados.
+- [x] Identidad, aliases, URLs privadas, antigüedad, clasificación y citas: unitarias y pruebas de integración.
+- [x] Transacciones, concurrencia, persistencia y reanudación: pruebas contra esquemas temporales en Neon.
+- [x] Errores de lectura/navegador y de validación del modelo: fixtures de integración, sin llamadas reales.
+- [x] Recorrido real del módulo de extracción n8n → Codex → Neon previamente comprobado con el texto autorizado de Scalian.
+- [ ] Búsqueda real por navegador con ficha y candidatura verificadas; requiere autorización expresa. No se ha ejecutado.
+- [x] Reinicio de los servicios Docker `web` y `n8n`: volvieron a estar activos, `/api/workflow` respondió 200 con n8n disponible y los módulos cargados; Neon conservó las 91 oportunidades, admisión pausada, programación desactivada y cero ejecuciones activas.
+- [x] Validación de URLs públicas, ausencia de secretos en respuestas y ausencia de ofertas ficticias en producción.
+
+La suite completa se ejecutó el 14/11/2026 con `node --env-file=.env --test --test-reporter=spec`: 49 correctas, 0 fallidas, 0 omitidas. Las integraciones usan esquemas temporales/rollback en Neon y fixtures; ninguna consultó vacantes ni llamó al modelo. Incluye merge reversible y tolerancia a bloques `null` en respuestas de OpenAI.
 
 ## Siguiente paso inmediato
 
-Los dos workflows están publicados en Docker. El siguiente bloque de implementación es identidad por portal/ID e historial antes de cualquier lectura automática; después, fuentes públicas con reserva transaccional de aperturas. La extracción de 15 tareas está verificada de extremo a extremo con el texto real de Scalian y autorización expresa del usuario.
+La captura de ofertas es por navegación de Chrome; no se integrarán APIs ni feeds de portales. El workflow usa el seguimiento de Neon como único historial y no consulta Obsidian. Las pruebas aisladas de navegación, formulario público, requisitos, exclusiones, continuidad y fusiones reversibles pasan en Neon. Queda pendiente una búsqueda real con navegación, solo con autorización expresa; no se inicia desde esta entrega.
 
 ## Prioridad de producto corregida
 
@@ -294,11 +301,11 @@ Esta prueba acredita la orquestación y persistencia del análisis del texto apo
 - Identidad compartida por portal/ID para InfoJobs, LinkedIn, Workable, Greenhouse, Lever, SmartRecruiters y Emploive. El tenant evita confundir IDs reutilizados. El cruce de historial de API/MCP reconoce URLs alternativas; las coincidencias solo por texto siguen requiriendo revisión.
 - El alta de publicaciones serializa el mismo ID y evita asociarlo a otro proceso, conservando aliases del mismo proceso. No se ha reescrito el historial.
 - Cliente HTTPS público con resolución DNS fijada por petición, comprobación de cada redirección, límites de tamaño/tiempo y bloqueo de redes internas.
-- Adaptadores de descubrimiento Arbeitnow, Arbeitnow UK y Remotive. Comprobación real: 300, 100 y 14 pistas respectivamente. No se han insertado pistas ni ofertas de esta comprobación en la base real.
+- El diseño anterior de fuentes por API y feeds se retiró por indicación del usuario. Las búsquedas activas solo usan Google/Bing navegados con Chrome.
 - Lector conservador de JobPosting JSON-LD: una única descripción completa o pista con motivo; no considera login, páginas genéricas ni listados como fichas leídas.
-- Documentación oficial consultada: https://www.arbeitnow.com/blog/job-board-api y https://remotive.com/remote-jobs/api . Los resultados de Remotive deben conservar atribución y enlace de origen.
 
-Pendiente para completar el objetivo: integrar estos adaptadores con configuración editable, reservas y tareas persistentes; evaluación del perfil y reglas A/B/C; coordinador n8n con pausa/reanudación y cupos; resultados/auditoría en web y MCP; prueba real completa. El módulo de búsqueda permanece deshabilitado hasta tener ese recorrido conectado y verificado.
+
+Este avance es histórico y fue sustituido por la captura mediante navegador descrita arriba. Las pruebas actuales deben usar buscador, ficha pública y formulario simulado; no realizar llamadas a APIs de portales.
 
 ### Perfil y evaluación — 12/11/2026
 
@@ -324,7 +331,7 @@ El objetivo sigue activo. Próximo bloque: tablas y coordinador de búsqueda con
 - Informe real y registro generados desde los datos persistidos. No se ha añadido ninguna de esas pistas al seguimiento ni enviado candidaturas.
 - 32 pruebas completas sin omisiones, incluidas búsqueda íntegra con fuente/modelo de prueba en esquema aislado, bloqueo de candidatura previa sin apertura, 15 extracciones, 11 comparaciones, pausa/reanudación, límites, persistencia y archivos. Los datos de prueba se eliminan al terminar.
 
-Pendiente de la auditoría de cierre del objetivo: prueba real adicional del recorrido de comparaciones con una ficha admisible actual, verificación visual del dashboard conectado, controles más cómodos que el JSON para el perfil, ordenación por encaje/preferencias, correcciones/fusiones de identidades dudosas y actualización de informes ante cambios posteriores de candidatura. Comprobar recuperación/cancelación en sus casos límite y cobertura de fuentes para España. El objetivo permanece activo; no se declara terminado por la prueba temprana C.
+Pendiente de la auditoría de cierre del objetivo: prueba autorizada con finalistas A/B reales y reparto 13+7; resolución de cualquier identidad dudosa que aparezca en los datos reales; contraste final de recuperación/cancelación en sus casos límite y cobertura efectiva de España/Europa. La ordenación por encaje y preferencias y las herramientas de resolución/corrección ya están implementadas; sin candidatos A/B nuevos no se verifica su efecto semántico sobre una búsqueda real. El dashboard conectado ya se verificó visualmente con los tres módulos, historial y estado real desde Neon. El objetivo permanece activo; no se declara terminado por la prueba temprana C.
 
 ### Entrega presentada al usuario — 12/11/2026
 
@@ -335,7 +342,7 @@ El usuario pidió cerrar esta entrega y presentar el estado actual. Se detuvo la
 - Identidades: confirmar otra convocatoria, vincular al proceso conocido o fusionar pistas duplicadas y conservar aliases. Un ID ya conocido no puede eludir el bloqueo declarándose otro proceso. La fusión de dos procesos ya existentes del seguimiento sigue bloqueada explícitamente.
 - Ordenación por encaje, prioridades tecnológicas y modalidad/ubicación, sin inventar trayectos ni probabilidades. Se evita confundir RAG con fragmentos de «storage».
 - Configuración por formularios: perfil, prácticas, titulación técnica, idiomas/niveles, tecnologías/evidencias/prioridades, fuentes/páginas y consultas. JSON completo disponible como consulta.
-- Fuente corporativa configurable SmartRecruiters por empresa y país, con paginación limitada. Lectura pública por API cuando el HTML no contiene ficha completa; comprobación de ID y tenant, descripción completa y datos de procedencia. No se conservan los datos del creador del anuncio ni enlaces de referido.
+- Lector por API de SmartRecruiters retirado del flujo de búsqueda; la lectura vigente se realiza en la página pública mediante Chrome.
 - 30 herramientas MCP, incluidas resolución y corrección. Historial de cada intento y salto manual de una tarea incierta sin repetir una apertura reservada.
 - Prueba real cerrada: `5d0d271e-168b-4881-b249-4566bdc3fb40`, ejecución n8n `4`, 24 tareas completadas sin errores. Scalian, Embedded Software Developer – Aerospace; publicación 30/09/2026, 43 días; C por requisito de titulación técnica universitaria obligatoria. Se conservaron 15 extracciones, tres comparaciones y la cita literal de la causa. Una apertura. Informe y registro en `reports/5d0d271e-168b-4881-b249-4566bdc3fb40/`.
 - Configuración general restaurada: 100 aperturas, lotes de 5, 45 días, cupos 13+7; cuatro fuentes habilitadas y admisión pausada como estaba. Las 40 ofertas previas del seguimiento permanecen; ninguna ficha de las pruebas reales se convirtió en candidatura ni oferta de seguimiento.
@@ -406,7 +413,7 @@ Verificación de programación: 38 pruebas locales correctas, 5 integraciones om
 
 ### Alternativas públicas de lectura
 
-Migración 015 aditiva: opción versionada `public_alternatives` y tabla de lecturas por representación, con backfill explícito `legacy` para documentos anteriores. Plan de dos rutas máximo para un mismo ID público SmartRecruiters: API→HTML para fuentes corporativas y HTML→API si llega desde un agregador. No añade llamadas del modelo ni modifica la segmentación n8n: cada petición reutiliza el nodo singular `read` y otro `step_id`. No hay reintentos de una petición reservada ni de resultados inciertos. La siguiente ruta se encola únicamente tras una respuesta terminada no verificable. Se vuelve a comprobar el historial y el cupo antes de cada ruta. La reserva original cuenta una única ficha del mismo anuncio y permite completar la representación alternativa aun si esa reserva alcanzó el máximo. Otros portales sin adaptador verificable continúan como pistas.
+La migración 015 conserva compatibilidad de lecturas anteriores. Las alternativas API→HTML descritas entonces son históricas y no forman parte del flujo activo; las fichas nuevas se capturan por navegador.
 
 Pruebas: 39 locales correctas y 6 integraciones omitidas en el comando general; integración específica de lectura correcta (20 s), MCP HTTP correcta (32,5 s) y regresión de búsqueda correcta (90,9 s), cada una en esquema temporal eliminado. La prueba de lectura acredita API 403→HTML verificado con max_openings=1, caché de tarea sin nuevas peticiones y bloqueo de la segunda ruta si aparece una candidatura. Comprobación pública sin IA de la oferta real Scalian 744000152675659: API HTTP 200 y ficha completa; HTML HTTP 200 sin ficha estructurada, correctamente no verificable. No se ha creado una oferta de prueba en producción.
 
@@ -434,4 +441,18 @@ Encaje independiente verificado y desplegado: migración 017, 41 unitarias corre
 
 ### Continuidad entre búsquedas — desplegada 13/11/2026
 
-Migración 018 y los cuatro workflows se publicaron. `recover_previous` recupera A/B anteriores compatibles con fuentes y consultas, revalida historial antes de leer y conserva IDs estables; `reuse_evidence` solo reutiliza extracciones con el mismo documento completo y contrato. Las decisiones, el encaje y la vigencia se revisan en cada ejecución. Ambas opciones se gestionan desde web y MCP. La auditoría documenta lo implementado y la comprobación operativa del panel. Sigue pendiente una búsqueda de integración que pruebe la continuidad completa y una búsqueda real con finalistas A/B; no se activaron la admisión ni la programación.
+Migración 018 y los cuatro workflows se publicaron. `recover_previous` recupera A/B anteriores compatibles con fuentes y consultas, revalida historial antes de leer y conserva IDs estables; `reuse_evidence` solo reutiliza extracciones con el mismo documento completo y contrato. Las decisiones, el encaje y la vigencia se revisan en cada ejecución. Ambas opciones se gestionan desde web y MCP. Integración de continuidad verificada en esquema temporal: recuperación, deduplicación de alias, bloqueo de candidatura aplicada, reutilización de extracción/cita y recálculo con corrección heredada; portales y modelos simulados. Sigue pendiente una búsqueda real con finalistas A/B para verificar resultados semánticos y cobertura del reparto. No se activaron la admisión ni la programación ni se lanzó una búsqueda real.
+
+### Simplificación de la configuración — 14/11/2026
+
+La vista inicial resume los puestos y el perfil actuales; fuentes, reglas, datos extensos del perfil y límites quedan en secciones desplegables. El proveedor y el modelo permanecen visibles. Los campos ocultos siguen editables y la validación abre el bloque que contiene un dato inválido. Cambio reconstruido en Docker y revisado en `127.0.0.1:3210`; no se guardó configuración ni se lanzó una búsqueda.
+
+La configuración vigente no incluye fuentes ATS ni adaptadores externos; cualquier prueba de búsqueda debe capturar la página navegando con Chrome. La migración 019 solo conserva formatos históricos en la base.
+
+## Captura con navegador y verificación de candidatura — 14/11/2026
+
+La captura por APIs o feeds queda descartada. `search_steps` se detiene de forma persistente ante descubrimiento, lectura y revisión de formulario; Empleo MCP reclama una tarea y devuelve evidencia observada desde Chrome DevTools MCP, y después reanuda n8n. Google/Bing son seleccionables y cada consulta conserva `max_pages`. Las URLs se validan como HTTPS públicas antes de entregarlas al navegador.
+
+Las fichas capturadas desde DOM se guardan como documento y pasan a las tareas existentes de extracción y comparación de requisitos obligatorios contra el perfil. El enlace de candidatura abre una comprobación separada; se registran acceso, bloqueo, cierre y campos obligatorios, sin autenticación ni interacción con controles. Si no se confirma formulario accesible, queda pendiente y no computa. Las reglas actuales de publicación y país pueden dejar una oferta no computable si la página no ofrece evidencia verificable.
+
+Migración 020 añade comprobaciones de candidatura normalizadas, habilita `browser` en las lecturas y cambia las fuentes configuradas a Google/Bing. MCP incorpora estado, reclamación y herramientas para entregar evidencia. El dashboard explica por qué una ejecución espera al navegador. La migración está aplicada en Neon y pasa la suite aislada. No se inició una búsqueda ni se visitaron portales en esta verificación.

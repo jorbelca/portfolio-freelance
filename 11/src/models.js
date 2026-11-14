@@ -13,9 +13,9 @@ export async function openaiExtraction(prompt,model,fetcher=fetch,timeoutMs=Numb
  if(typeof model!=='string' || !model.trim()) throw new Error('La API requiere un modelo explícito');
  const result=await request('responses',{method:'POST',body:JSON.stringify({model,input:prompt,store:false,text:{format:{type:'json_schema',name:'extraction',strict:true,schema}}})},fetcher,timeoutMs);
  if(result.status!=='completed') throw new Error('La API no completó la respuesta');
- const content=(result.output || []).filter(item=>item.type==='message').flatMap(item=>item.content || []);
- if(content.some(item=>item.type==='refusal')) throw new Error('El modelo rechazó la tarea');
- return JSON.parse(content.filter(item=>item.type==='output_text').map(item=>item.text).join(''));
+ const content=(result.output || []).filter(item=>item?.type==='message').flatMap(item=>item.content || []);
+ if(content.some(item=>item?.type==='refusal')) throw new Error('El modelo rechazó la tarea');
+ return JSON.parse(content.filter(item=>item?.type==='output_text').map(item=>item.text).join(''));
 }
 export async function modelCatalog() {
  const codex={id:'codex',models:[],message:'No hay catálogo local. Introduce el identificador exacto. La disponibilidad se verifica al ejecutar.'};

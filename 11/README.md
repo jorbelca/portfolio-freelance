@@ -7,7 +7,7 @@ Consola local para configurar, ejecutar y supervisar módulos de n8n en Docker, 
 
 ## Entrega verificada — 12/11/2026
 
-Panel: http://127.0.0.1:3210. Workflow n8n: http://localhost:5678/workflow/empleoSearch03. Migraciones 001–018 aplicadas en Neon.
+Panel: http://127.0.0.1:3210. Workflow n8n: http://localhost:5678/workflow/empleoSearch03. Migraciones 001–020 aplicadas en Neon.
 
 Prueba real `5d0d271e-168b-4881-b249-4566bdc3fb40`, ejecución n8n 4: descubrimiento corporativo → ficha completa → 15 extracciones → 3 comparaciones → evaluación → lote → auditoría. 24 tareas sin errores; Scalian, Embedded Software Developer – Aerospace, clasificada C por titulación técnica universitaria obligatoria, con cita literal. Máximo una apertura; parámetros originales 100/5/45 días/13+7 restaurados y admisión nuevamente pausada. No se ha enviado candidatura ni añadido la ficha al seguimiento.
 
@@ -50,6 +50,8 @@ La imagen incluye Node, Codex CLI y certificados CA del sistema para las conexio
 ## Centro de control y n8n
 
 La pantalla inicial controla el workflow: muestra la conexión del motor, permite o pausa nuevas ejecuciones, ejecuta el módulo disponible y consulta resultados y errores. «Configurar búsqueda» edita los parámetros con formularios; «Seguimiento de ofertas» es la sección secundaria. No hay datos de demostración. Cada fila muestra un único estado: Pendiente, Inscrito o Rechazado. El desplegable guarda al seleccionar y registra el cambio en el historial. «Actualizar estado» vuelve a consultar el workflow y, en «Seguimiento», recarga también la lista y el detalle seleccionado. «Detalles» abre el formulario dentro de la fila para editar notas, enlaces y acciones. Los estados técnicos anteriores se conservan en la base de datos y MCP; guardar sin cambiar el estado visible conserva sus detalles originales. La columna «Fechas» muestra alta, inscripción y último cambio de estado. Marcar por primera vez como Inscrito registra automáticamente la fecha actual; se puede corregir en «Detalles». Las fechas históricas desconocidas no se muestran en la lista; los cambios de estado se fechan automáticamente desde la migración 004, sin deducir fechas anteriores. Editar notas o enlaces no cambia la fecha de estado. La columna «Enlaces» muestra todas las publicaciones; «Añadir URL a esta oferta» vincula otros portales al mismo proceso y mantiene su exclusión de búsquedas.
+
+«Detalles» también permite fusionar dos registros solo cuando confirmas que son la misma convocatoria. La fusión más reciente puede deshacerse si ambos procesos siguen en las versiones guardadas; queda motivo de auditoría y se restauran candidatura, enlaces y acciones. MCP ofrece `merge_offers`, `list_offer_merges` y `unmerge_offer` con los mismos controles.
 
 Desde `11`, ejecuta `npm run setup:n8n`. El comando arranca Docker, instala una credencial Header Auth desde `N8N_TOKEN`, importa y publica los cuatro workflows y reinicia n8n para registrar el webhook. No imprime el secreto y elimina el archivo temporal del contenedor. Repetir el comando reemplaza los cuatro workflows y esta credencial por la versión del repositorio: guarda antes cualquier edición realizada en el editor de n8n.
 
@@ -97,17 +99,19 @@ Para probar la migración contra Neon sin tocar los datos de la aplicación: `no
 
 Para probar operaciones MCP contra la API y Neon: `node --env-file=.env --test test/mcp-api.test.js`. Levanta una instancia en otro puerto y un esquema `test_mcp_*`, verifica que su conexión usa exclusivamente ese esquema y lo elimina al terminar. No crea datos en el seguimiento real ni llama al modelo.
 
+La suite completa, incluidas las integraciones de Neon en esquemas temporales, se ejecuta con `node --env-file=.env --test --test-reporter=spec`. Las fixtures no consultan vacantes ni llaman a modelos; la integración de búsqueda completa tarda varios minutos.
+
 La migración conserva registros y configuración existente. Para verificar Neon, ejecuta la migración y prueba alta, edición, recarga e historial desde el panel.
 
 ## Búsqueda conectada y límites
 
-El módulo de búsqueda usa el perfil estructurado y sus habilidades/evidencias, idiomas, consultas, fuentes, exclusiones y prioridades. Descubre pistas en Arbeitnow, Arbeitnow UK, Remotive y fuentes corporativas configurables de SmartRecruiters (`smartrecruiters:Empresa:país`). El número máximo de páginas es editable por fuente. No confunde fragmentos de buscador con fichas completas.
+El módulo de búsqueda usa el perfil estructurado y sus habilidades/evidencias, idiomas, consultas, buscadores y exclusiones. Google y Bing se consultan navegando con Chrome MCP; no se usan APIs de portales. n8n guarda la cola y se detiene en cada tarea de navegador. Un agente conectado a Empleo MCP y Chrome DevTools MCP navega en un contexto aislado y anónimo, devuelve la página observada y el workflow continúa. El número máximo de páginas es editable por buscador.
 
-Cada apertura se reserva en Neon antes de consultar la ficha. Se cruza el historial antes de abrir y al evaluar/cerrar. Quince extracciones y hasta once comparaciones independientes guardan citas literales; una causa C acreditada detiene las comparaciones restantes. Clasificación, cómputo, antigüedad, país y déficits se resuelven con código. Las B no se presentan como recomendadas.
+Cada apertura se reserva en Neon antes de navegar. Se cruza el historial antes de abrir y al evaluar/cerrar. Se comprueba el enlace público de candidatura y los campos obligatorios visibles sin iniciar sesión, rellenar ni enviar formularios. Quince extracciones y hasta once comparaciones independientes guardan citas literales y contrastan los requisitos del anuncio con el perfil; una causa C acreditada detiene las comparaciones restantes. Clasificación, cómputo, antigüedad, país y déficits se resuelven con código. Las B no se presentan como recomendadas.
 
 El panel permite pausar entre tareas, reanudar, cancelar conservando datos, resolver identidades y corregir datos con evidencia. Cada corrección y cada intento quedan registrados. Marcar un proceso como inscrito o rechazado incrementa la revisión del historial; consultar de nuevo resultados/informe recalcula las filas y los cupos sin reabrir fichas. Los informes Markdown y registros JSON se generan por lote/cierre en `reports/<run_id>/`, excluidos de git.
 
-Pendiente de validación general: una ejecución real con finalistas A/B y el reparto completo. Dos registros confirmados como el mismo proceso pueden fusionarse desde el detalle o MCP (`merge_offers`): se conservan URLs, acciones e historial, el absorbido queda archivado y se elige explícitamente la candidatura vigente. Las versiones de ambos evitan fusionar cambios obsoletos. No se consultan automáticamente Obsidian ni portales con sesión; Neon contiene el historial importado. La cobertura se limita a los adaptadores soportados. Las llamadas usan la sesión y cuota de Codex, sin garantía de disponibilidad de Luna.
+Una búsqueda queda esperando si no hay un cliente MCP con Chrome DevTools conectado para ejecutar la siguiente navegación. Esto es intencional: Docker conserva y coordina el workflow, pero no comparte ni controla el navegador del Mac. No se inicia sesión. El workflow no lee ni depende de Obsidian; usa únicamente el historial que ya existe en Neon para excluir ofertas inscritas o rechazadas. Una ejecución real con finalistas A/B y reparto completo sigue pendiente y no se lanzará sin nueva autorización.
 
 ## Validación de esta entrega
 
@@ -129,13 +133,11 @@ Las 15 extracciones reciben solo el texto aportado y su instrucción acotada. No
 
 El 11/11/2026, con autorización expresa, la ejecución `ed04ae76-6267-4a64-bb20-360e3a0a32c5` completó las 15 tareas con el texto real de Scalian: n8n `2`, configuración v3, 92 segundos, seis datos con cita y nueve desconocidos. Todas las citas y los resultados agregados quedaron verificados contra la entrada y Neon; el dashboard mostró 15/15. Repetir el mismo ID devolvió el resultado existente sin otra ejecución. No se creó ninguna oferta ni candidatura; N029 y sus dos URLs se conservaron. La admisión quedó pausada. Esto verifica el análisis del texto, sin acreditar vigencia o elegibilidad del puesto.
 
-## Importación del historial de Obsidian
+## Historial existente en Neon
 
-Importación realizada el 11/11/2026 desde `Agenda/DONE.md` a Neon: 41 acciones reales, 40 ofertas distintas (35 inscritas y 5 descartadas). Se crearon 39 ofertas; las entradas de VoxJobs e InfoJobs se vincularon a N029, que ya existía. Todas quedan excluidas de nuevas búsquedas.
+Importación histórica realizada el 11/11/2026: 41 acciones reales, 40 ofertas distintas (35 inscritas y 5 descartadas) quedaron guardadas en Neon. Se crearon 39 ofertas; las entradas de VoxJobs e InfoJobs se vincularon a N029, que ya existía. El workflow no vuelve a consultar la nota: estas filas son registros de Neon y se procesan como el resto del seguimiento.
 
-Se conservaron las líneas originales, identificadores públicos, enlaces y procedencia en eventos `obsidian_import`. Los nombres de portales no se convierten en empresas: se muestran como «Empresa no indicada» cuando corresponde. Las fechas tienen precisión de día; el timestamp UTC representa esa fecha civil, sin acreditar una hora. El alta refleja la importación, no el descubrimiento original.
-
-Para importar una copia local de esa nota, revisar primero con `node scripts/import-obsidian.js /ruta/DONE.md` y aplicar con `node --env-file=.env scripts/import-obsidian.js /ruta/DONE.md --apply`. Se ejecuta en una sola transacción y conserva los estados actuales de las ofertas conocidas. Repetir líneas idénticas no crea registros nuevos. Una modificación de una entrada sin URL ni ID requiere revisión manual, pues no permite demostrar identidad automáticamente.
+Los eventos conservan la procedencia de esos registros. Esa carga fue una operación puntual: el workflow no lee la nota ni sincroniza cambios posteriores. Desde entonces Neon es la única fuente de historial para excluir procesos ya inscritos o rechazados.
 
 
 ### Elegir motor y modelo
@@ -153,9 +155,7 @@ Programación periódica: `get_schedule` y `set_schedule` (o sección «Búsqued
 
 `GET/PUT /api/workflow/schedule` expone configuración y estado. `POST /api/workflow/schedule/tick` es exclusivo de `N8N_TOKEN`, no accesible con el token MCP ni con la cabecera del panel. La reserva de ejecución y el avance de fecha se confirman juntos en Neon; si falla el envío posterior a n8n, la ejecución queda incierta y bloquea nuevos lanzamientos hasta su revisión.
 
-La opción `public_alternatives` (web y `patch_settings`, activada por defecto en nuevas ejecuciones) permite probar la API pública o la ficha HTML de SmartRecruiters cuando la primera representación es incompleta. Ambas deben identificar el mismo tenant y anuncio; no se siguen enlaces arbitrarios ni se emplean sesiones. Cada petición es una tarea `read` distinta, con reserva previa y resultado en `get_search_candidate → reads` y en el registro JSON. Las dos representaciones del mismo anuncio cuentan una sola ficha; otro anuncio o portal exige otra reserva. Se revalida el historial antes de cada petición. Respuestas incompletas o ambiguas siguen como pistas; no se convierte texto genérico en evidencia. Los snapshots antiguos sin esta opción conservan una sola ruta.
-
-Referencia de la API pública: https://developers.smartrecruiters.com/reference/v1getposting
+Cada tarea de navegador requiere un cliente que tenga conectados Empleo MCP y Chrome DevTools MCP. Consulta [MCP.md](MCP.md) para reclamar la tarea, abrir una pestaña anónima aislada y devolver resultados, ficha o comprobación del formulario. Un formulario accesible queda registrado como vacío y sin enviar; si no se confirma acceso, la oferta queda pendiente.
 
 La generación de informes tiene estado independiente del análisis: `report_files_revision` y `report_files_error` aparecen en el estado de búsqueda. Un fallo de disco/permisos conserva los resultados y el cierre de la búsqueda; las siguientes consultas intentan regenerar solo Markdown/JSON desde Neon. Las descargas responden 503 mientras los archivos no correspondan a la revisión actual. Si un archivo ya generado se pierde, su siguiente descarga intenta reconstruirlo. Comprueba espacio/permisos de `11/reports`; no relances la búsqueda para reparar un informe.
 

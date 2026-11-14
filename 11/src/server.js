@@ -3,11 +3,11 @@ import {readFile} from 'node:fs/promises';
 import {timingSafeEqual} from 'node:crypto';
 import {pool, transaction} from './db.js';
 import {offerInput, validateSettings, validId, availabilityStates, reviewStates, applicationStates, actionStates} from './domain.js';
-import {saveOffer, saveAction, appendPublication, checkHistory, mergeOffers} from './store.js';
+import {saveOffer, saveAction, appendPublication, checkHistory, mergeOffers, listOfferMerges, unmergeOffer} from './store.js';
 import {workflowStatus,startRun,recoverRuns,runTask,finishRun,dispatchSearch} from './workflow.js';
 import {handleMcpHttp,integrationInfo} from './mcp.js';
 import {getSearchConfig,saveSearchConfig} from './search-config.js';
-import {searchNext,runSearchStep,controlSearch,getSearchResults,getSearchCandidate,trackSearchCandidate,ensureFreshSearch,resolveSearchIdentity,correctSearchCandidate} from './search.js';
+import {searchNext,runSearchStep,controlSearch,getSearchResults,getSearchCandidate,trackSearchCandidate,ensureFreshSearch,resolveSearchIdentity,correctSearchCandidate,getBrowserTaskStatus,claimBrowserTask,submitBrowserDiscovery,submitBrowserRead,submitBrowserApplication} from './search.js';
 import {getSchedule,saveSchedule,tickSchedule} from './schedule.js';
 import {modelCatalog} from './models.js';
 const port = Number(process.env.PORT || 3210);
@@ -67,7 +67,7 @@ http.createServer(async (req, res) => {
       res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"});
       return res.end(await readFile(new URL('../public/index.html', import.meta.url)));
     }
-    if (['/app.js', '/offer-state.js', '/style.css'].includes(path) && req.method === 'GET') {
+    if (['/app.js', '/offer-state.js', '/workflow-state.js', '/style.css'].includes(path) && req.method === 'GET') {
       res.writeHead(200, {'Content-Type': path.endsWith('.js') ? 'text/javascript' : 'text/css'});
       return res.end(await readFile(new URL(`../public${path}`, import.meta.url)));
     }
@@ -157,6 +157,23 @@ http.createServer(async (req, res) => {
       if (section==='next' && req.method==='POST') return send(res,200,await searchNext(id));
       if (section==='steps' && searchRoute[3] && req.method==='POST') {const value=await body(req);return send(res,200,await runSearchStep(id,searchRoute[3],value.kind,value.execution_id));}
     }
+    const browserRoute=path.match(/^\/api\/search\/runs\/([0-9a-f-]{36})\/browser-task(?:\/(claim|([0-9a-f-]{36})\/(discovery|read|application)))?$/);
+    if(browserRoute) {
+      const id=validId(browserRoute[1]);
+      if(req.method==='GET' && !browserRoute[2]) return send(res,200,await getBrowserTaskStatus(id));
+      if(!authenticated(req,process.env.MCP_TOKEN)) return send(res,401,{error:'MCP_TOKEN requerido para controlar tareas de navegador.'});
+      if(req.method==='POST' && browserRoute[2]==='claim') {
+        const task=await claimBrowserTask(id);
+        if(task.status==='skipped') void dispatchSearch(id);
+        return send(res,200,task);
+      }
+      if(req.method==='POST' && browserRoute[3]) {
+        const input=await body(req),stepId=validId(browserRoute[3]),kind=browserRoute[4];
+        const result=kind==='discovery'?await submitBrowserDiscovery(id,stepId,input):kind==='read'?await submitBrowserRead(id,stepId,input):await submitBrowserApplication(id,stepId,input);
+        if(result.status!=='already_completed') void dispatchSearch(id);
+        return send(res,200,result);
+      }
+    }
     if (path === '/api/catalogs' && req.method === 'GET') return send(res,200,{availability:availabilityStates,review_state:reviewStates,application_state:applicationStates,action_state:actionStates});
     if (path === '/api/companies' && req.method === 'GET') return send(res,200,(await pool.query('SELECT id,name FROM companies WHERE ($1::text IS NULL OR name ILIKE $1) ORDER BY name,id LIMIT $2 OFFSET $3',[url.searchParams.has('q')?`%${url.searchParams.get('q')}%`:null,...pagination(url)])).rows);
     if (path === '/api/search/config' && req.method === 'GET') return send(res,200,await getSearchConfig());
@@ -183,10 +200,12 @@ http.createServer(async (req, res) => {
       return send(res,200,(await pool.query(`SELECT summary.*,coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'url',p.url,'is_primary',p.is_primary) ORDER BY p.is_primary DESC,p.created_at,p.id) FROM publications p WHERE p.opportunity_id=summary.id),'[]'::jsonb) AS publications FROM offer_summary summary WHERE ($1::text IS NULL OR company ILIKE $1 OR title ILIKE $1) AND ($2::text IS NULL OR application_state=$2) ORDER BY updated_at DESC,id DESC LIMIT $3 OFFSET $4`,[url.searchParams.has('q')?`%${url.searchParams.get('q')}%`:null,state,...pagination(url)])).rows);
     }
     if (path === '/api/offers' && req.method === 'POST') return send(res,201,await saveOffer(null,offerInput(await body(req))));
-    const match = path.match(/^\/api\/offers\/([0-9a-f-]{36})(?:\/(events|publications|actions|merge)(?:\/([0-9a-f-]{36}))?)?$/);
+    const match = path.match(/^\/api\/offers\/([0-9a-f-]{36})(?:\/(events|publications|actions|merge|merges|unmerge)(?:\/([0-9a-f-]{36}))?)?$/);
     if (match) {
       const id=validId(match[1]), section=match[2], childId=match[3];
       if (section==='merge' && req.method==='POST') return send(res,200,await mergeOffers(id,await body(req)));
+      if (section==='unmerge' && childId && req.method==='POST') return send(res,200,await unmergeOffer(id,{...await body(req),source_id:childId}));
+      if (section==='merges' && !childId && req.method==='GET') return send(res,200,await listOfferMerges(id));
       if (['PUT','PATCH'].includes(req.method) && !section) {
         const raw = await body(req);
         let value=raw;
@@ -200,12 +219,12 @@ http.createServer(async (req, res) => {
       }
       if (req.method==='GET' && !section) {
         const offer=(await pool.query('SELECT * FROM offer_summary WHERE id=$1',[id])).rows[0];
-        if(!offer) {const merged=(await pool.query('SELECT target_id FROM opportunity_merges WHERE source_id=$1',[id])).rows[0];if(merged) return send(res,410,{error:'Proceso fusionado',target_id:merged.target_id});}
+        if(!offer) {const merged=(await pool.query('SELECT target_id FROM opportunity_merges WHERE source_id=$1 AND undone_at IS NULL',[id])).rows[0];if(merged) return send(res,410,{error:'Proceso fusionado',target_id:merged.target_id});}
         return send(res,offer?200:404,offer || {error:'Proceso no encontrado'});
       }
       if (req.method === 'GET' && !childId) {
         const queries = {
-          events:'SELECT * FROM opportunity_events WHERE opportunity_id=$1 OR opportunity_id IN (SELECT source_id FROM opportunity_merges WHERE target_id=$1) ORDER BY id DESC LIMIT $2 OFFSET $3',
+          events:'SELECT * FROM opportunity_events WHERE opportunity_id=$1 OR opportunity_id IN (SELECT source_id FROM opportunity_merges WHERE target_id=$1 AND undone_at IS NULL) ORDER BY id DESC LIMIT $2 OFFSET $3',
           publications:'SELECT p.*,s.label AS source FROM publications p JOIN sources s ON s.id=p.source_id WHERE opportunity_id=$1 ORDER BY is_primary DESC,p.created_at,p.id LIMIT $2 OFFSET $3',
           actions:'SELECT * FROM follow_up_actions WHERE opportunity_id=$1 ORDER BY due_on NULLS LAST,created_at,id LIMIT $2 OFFSET $3'
         };

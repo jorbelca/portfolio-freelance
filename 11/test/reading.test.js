@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile,readdir,rm} from 'node:fs/promises';
 import pg from 'pg';
-test('lectura alternativa: tarea singular, misma ficha, límite reservado y cruce de historial antes de cada petición',{skip:!process.env.DATABASE_URL,timeout:120000},async()=>{
+import {finishBrowserTask,nextSearchTask} from '../test-support/browser-fixtures.js';
+
+test('lectura browser: identidad exacta, captura persistida y revisión vacía del formulario público',{skip:!process.env.DATABASE_URL,timeout:120000},async()=>{
  const admin=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='test_reading_'+randomUUID().replaceAll('-','');
- const previous=process.env.DATABASE_URL;let pool;const runIds=[];
+ const previous=process.env.DATABASE_URL;let pool;const runId=randomUUID();
  await admin.connect();
  try {
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path TO ${schema}`);
@@ -15,37 +17,42 @@ test('lectura alternativa: tarea singular, misma ficha, límite reservado y cruc
   }
   const scoped=new URL(previous);scoped.searchParams.set('options',`-c search_path=${schema}`);process.env.DATABASE_URL=scoped.href;
   ({pool}=await import('../src/db.js'));
-  const {startSearchRun,searchNext,runSearchStep,getSearchCandidate}=await import('../src/search.js');
-  const {saveOffer}=await import('../src/store.js');const {offerInput}=await import('../src/domain.js');
+  const search=await import('../src/search.js');
   await admin.query('UPDATE search_configuration SET recover_previous=false');
   await admin.query('UPDATE workflow_control SET enabled=true');
-  await admin.query('UPDATE search_settings SET history_ready=true,max_openings=1,batch_size=1,public_alternatives=true');
-  await admin.query("UPDATE search_source_settings SET enabled=(source='smartrecruiters:Scalian:es')");
-  const url='https://jobs.smartrecruiters.com/Scalian/123',day=new Date().toISOString().slice(0,10);
-  const job={'@type':'JobPosting',title:'Developer junior',hiringOrganization:{name:'Fixture lectura'},datePosted:day,jobLocation:{address:{addressCountry:'ES'}},description:'Desarrollo de software. '.repeat(30),url};
-  const calls=[];
-  const deps={discoverSource:async source=>({leads:[{source,external_id:'123',company:'Fixture lectura',title:job.title,url}]}),publicGet:async target=>{calls.push(target);return {status:target.includes('api.smartrecruiters.com')?403:200,url:target,checked_at:new Date().toISOString(),text:`<script type="application/ld+json">${JSON.stringify(job)}</script>`};}};
-  const start=async()=>{const id=randomUUID();runIds.push(id);await startSearchRun({id});return id;};
-  const execute=async id=>{const next=await searchNext(id);assert.equal(next.continue,true);await runSearchStep(id,next.step_id,next.kind,'1',deps);return next;};
-  const id=await start();await execute(id);await execute(id);await execute(id);
-  assert.equal(calls.length,1);
-  let candidate=(await admin.query('SELECT id FROM search_candidates WHERE run_id=$1',[id])).rows[0];
-  let detail=await getSearchCandidate(candidate.id);assert.equal(detail.reads[0].http_status,403);assert.equal(detail.document.status,'incomplete');
-  const alternate=await execute(id);assert.equal(alternate.kind,'read');assert.equal(calls.length,2);assert.ok(calls[1].startsWith('https://jobs.smartrecruiters.com/'));
-  detail=await getSearchCandidate(candidate.id);assert.equal(detail.document.status,'complete');assert.deepEqual(detail.reads.map(row=>row.status),['incomplete','complete']);
-  assert.equal((await admin.query('SELECT count(*)::int AS n FROM search_documents WHERE run_id=$1',[id])).rows[0].n,1);
-  assert.ok((await searchNext(id)).kind.startsWith('extract_'));
-  assert.equal((await runSearchStep(id,alternate.step_id,'read','1',deps)).status,'succeeded');assert.equal(calls.length,2);
-  await admin.query("UPDATE workflow_runs SET status='failed' WHERE id=$1",[id]);
-  // Una nueva candidatura entre las dos rutas debe bloquear la segunda petición.
-  const second=await start();await execute(second);await execute(second);await execute(second);assert.equal(calls.length,3);
-  await saveOffer(null,offerInput({company:'Fixture lectura',title:job.title,url,availability:'abierta',review_state:'guardada',application_state:'enviada'}));
-  await execute(second);assert.equal(calls.length,3);
-  candidate=(await admin.query('SELECT * FROM search_candidates WHERE run_id=$1',[second])).rows[0];assert.equal(candidate.stage,'excluded');assert.equal(candidate.evaluation.classification,'C');
-  assert.equal((await admin.query('SELECT count(*)::int AS n FROM search_document_reads WHERE candidate_id=$1',[candidate.id])).rows[0].n,1);
+  await admin.query('UPDATE search_settings SET history_ready=true,max_openings=2,batch_size=2');
+  await admin.query("UPDATE search_source_settings SET enabled=(source='browser:google')");
+  await admin.query('DELETE FROM search_queries WHERE configuration_id=1');
+  await admin.query("INSERT INTO search_queries(id,configuration_id,zone,language,term) VALUES($1,1,'spain','en','Developer')",[randomUUID()]);
+  await search.startSearchRun({id:runId});
+  let step=await search.searchNext(runId);assert.equal(step.status,'awaiting_browser');assert.equal(step.kind,'discover');
+  await finishBrowserTask(search,runId,step,{candidates:[
+   {title:'Developer incorrecta',company:'Fixture A',url:'https://8.8.8.8/bad'},
+   {title:'Developer válida',company:'Fixture B',url:'https://8.8.8.8/good'}
+  ]});
+  step=await search.searchNext(runId);assert.equal(step.kind,'precheck');
+  await search.runSearchStep(runId,step.step_id,step.kind,'1');
+  step=await nextSearchTask(search,runId,{read:task=>task.candidate.url.endsWith('/bad')?{complete:false,page_url:'https://8.8.4.4/wrong',application_url:null}:{}});
+  assert.equal(step.kind,'precheck');await search.runSearchStep(runId,step.step_id,step.kind,'2');
+  step=await nextSearchTask(search,runId,{read:task=>task.candidate.url.endsWith('/bad')?{complete:false,page_url:'https://8.8.4.4/wrong',application_url:null}:{},application:task=>task.candidate.url.endsWith('/good')?{page_url:'https://1.1.1.1/public-application',identity_evidence:'Developer válida Fixture B'}:{status:'closed'}});
+  assert.equal(step.continue,true);assert.equal(step.kind,'extract_company');
+  const candidates=(await admin.query('SELECT id,url FROM search_candidates WHERE run_id=$1 ORDER BY url',[runId])).rows;
+  const bad=candidates.find(row=>row.url.endsWith('/bad')),good=candidates.find(row=>row.url.endsWith('/good'));
+  const documents=(await admin.query('SELECT candidate_id,status,source_payload FROM search_documents WHERE run_id=$1',[runId])).rows;
+  assert.equal(documents.find(row=>row.candidate_id===bad.id).status,'incomplete');
+  assert.equal(documents.find(row=>row.candidate_id===good.id).status,'complete');
+  assert.equal(documents.find(row=>row.candidate_id===good.id).source_payload.capture_method,'browser');
+  assert.deepEqual((await admin.query('SELECT format,status FROM search_document_reads WHERE candidate_id=$1',[good.id])).rows,[{format:'browser',status:'complete'}]);
+  const checks=(await admin.query('SELECT candidate_id,status,page_url,form_found,required_fields,evidence FROM search_application_checks ORDER BY candidate_id')).rows;
+  assert.equal(checks.find(row=>row.candidate_id===good.id).status,'accessible');
+  assert.equal(checks.find(row=>row.candidate_id===good.id).form_found,true);
+  assert.equal(checks.find(row=>row.candidate_id===good.id).page_url,'https://1.1.1.1/public-application');
+  assert.match(checks.find(row=>row.candidate_id===good.id).evidence,/Developer válida Fixture B/);
+  assert.deepEqual(checks.find(row=>row.candidate_id===good.id).required_fields,['Correo electrónico','CV']);
+  assert.equal(checks.find(row=>row.candidate_id===bad.id).status,'unknown');
  } finally {
   if(pool) await pool.end();
   await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();process.env.DATABASE_URL=previous;
-  for(const id of runIds) await rm(new URL(`../reports/${id}/`,import.meta.url),{recursive:true,force:true});
+  await rm(new URL(`../reports/${runId}/`,import.meta.url),{recursive:true,force:true});
  }
 });

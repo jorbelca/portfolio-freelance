@@ -4,6 +4,7 @@ import {publicationIdentity,samePublication} from './identity.js';
 import {cleanUrl} from './domain.js';
 import {validateExtraction} from './codex.js';
 export const publicationKey=url=>publicationIdentity(url) || `url:${cleanUrl(url)}`;
+const assessmentProfile=['residence','technical_degree','professional_years','internship_details','relocation','work_authorization','max_required_years','skills','qualifications','languages','criteria','fit_instruction'];
 export async function previousCandidate(client,runId,lead) {
  const rows=(await client.query(`SELECT c.id,c.run_id,c.process_id,c.url,c.opportunity_id,c.identity_resolution,
   ARRAY(SELECT url FROM search_candidate_links WHERE candidate_id=c.id) AS links
@@ -35,8 +36,8 @@ export async function previousFinalists(client,run) {
   SELECT DISTINCT ON (COALESCE(c.process_id,c.id)) c.id,c.process_id,c.run_id,c.source,c.external_id,c.url,c.company,c.title,c.opportunity_id,c.identity_resolution,c.evaluation,c.created_at,
    ARRAY(SELECT url FROM search_candidate_links WHERE candidate_id=c.id) AS links
   FROM search_candidates c WHERE c.run_id<>$1 AND c.identity_resolution<>'duplicate' AND c.evaluation IS NOT NULL ORDER BY COALESCE(c.process_id,c.id),c.created_at DESC,c.id DESC
- ) latest WHERE evaluation->>'classification' IN ('A','B') AND source=ANY($2::text[]) AND title ILIKE ANY($3::text[])
- ORDER BY CASE evaluation->>'classification' WHEN 'A' THEN 0 ELSE 1 END,created_at DESC,id DESC`,[run.id,profile.sources.filter(row=>row.enabled).map(row=>row.source),profile.queries.map(row=>`%${row.term.replace(/[\\%_]/g,'\\$&')}%`)])).rows;
+ ) latest WHERE evaluation->>'classification' IN ('A','B') AND title ILIKE ANY($2::text[])
+ ORDER BY CASE evaluation->>'classification' WHEN 'A' THEN 0 ELSE 1 END,created_at DESC,id DESC`,[run.id,profile.queries.map(row=>`%${row.term.replace(/[\\%_]/g,'\\$&')}%`)])).rows;
  const seen=new Map(),finalists=[];
  for(const row of rows) {
   const keys=new Set([`process:${row.process_id || row.id}`,...[row.url,...row.links].map(publicationKey)]);
@@ -50,7 +51,8 @@ export async function inheritCorrections(client,run,candidate,document) {
  const prior=(await client.query('SELECT d.text,r.settings_snapshot FROM search_documents d JOIN search_candidates c ON c.id=d.candidate_id JOIN workflow_runs r ON r.id=c.run_id WHERE d.candidate_id=$1',[candidate.prior_candidate_id])).rows[0];
  const corrections=(await client.query('SELECT * FROM search_candidate_overrides WHERE candidate_id=$1',[candidate.prior_candidate_id])).rows;
  if(!corrections.length) return;
- const sameText=prior?.text===document.text,sameProfile=isDeepStrictEqual(prior?.settings_snapshot?.search_config?.value,run.settings_snapshot.search_config.value);
+ const priorProfile=prior?.settings_snapshot?.search_config?.value,currentProfile=run.settings_snapshot.search_config.value;
+ const sameText=prior?.text===document.text,sameProfile=assessmentProfile.every(key=>isDeepStrictEqual(priorProfile?.[key],currentProfile[key]));
  const inherited=[];
  for(const correction of corrections) {
   if(!sameText || !document.text.includes(correction.evidence) || (!['country','publication'].includes(correction.field) && !sameProfile)) continue;

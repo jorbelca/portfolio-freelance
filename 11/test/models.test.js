@@ -36,3 +36,12 @@ test('API respeta el límite temporal de la ejecución',async()=>{
  },5),/tiempo verificado/);}
  finally{if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
 });
+
+test('ignora bloques nulos en la respuesta de Responses API',async()=>{
+ const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='test-only';
+ try {
+  const expected={value:'indefinido',evidence:'contrato indefinido',state:'acreditado'};
+  const result=await openaiExtraction('documento','chosen-model',async()=>({ok:true,json:async()=>({status:'completed',output:[null,{type:'message',content:[null,{type:'output_text',text:JSON.stringify(expected)}]}]})}));
+  assert.deepEqual(result,expected);
+ }finally{if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
+});

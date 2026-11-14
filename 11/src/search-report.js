@@ -41,6 +41,12 @@ export function reportMarkdown(report,candidates) {
    if(row.prior_candidate_id) lines.push(`Continuidad: observación anterior ${row.prior_candidate_id}. Ficha actual releída y contada en esta ejecución.`,``);
    if(row.evaluation?.publication_source) lines.push(`Fecha original conservada: ${escape(row.evaluation.publication_source.date)} de ${row.evaluation.publication_source.prior_candidate_id}.`,``);
    if(row.checked_at) lines.push(`Comprobada: ${escape(row.checked_at)}.`,``);
+   if(row.application_check) {
+    const check=row.application_check;
+    lines.push(`Comprobación de candidatura: ${escape(check.status)}${check.form_found?' · formulario visible':''}. ${check.application_url?`[Abrir formulario](${check.application_url.replace(/\(/g,'%28').replace(/\)/g,'%29')})`:''}`,``);
+    if(check.required_fields?.length) lines.push(`Campos obligatorios visibles: ${check.required_fields.map(escape).join('; ')}.`,``);
+    if(check.evidence || check.reason) lines.push(`Evidencia de candidatura: ${escape(check.evidence || check.reason)}.`,``);
+   }
    if(row.reason) lines.push(escape(row.reason),``);
    for(const item of row.evaluation?.exclusions || []) lines.push(`- Exclusión ${escape(item.rule)}: ${escape(item.evidence)}`);
    for(const item of row.evaluation?.pending || []) lines.push(`- Pendiente (${escape(item.owner)}): ${escape(item.resolution)}`);
@@ -79,6 +85,7 @@ async function writeReportFiles(runId,report) {
  const tasks=(await pool.query("SELECT candidate_id,kind,input,result FROM search_steps WHERE run_id=$1 AND status='succeeded' AND (kind LIKE 'extract_%' OR kind LIKE 'decide_%' OR kind='assess_fit') ORDER BY created_at,id",[runId])).rows;
  for(const candidate of candidates) {candidate.overrides=(await pool.query('SELECT field,value,evidence,reason FROM search_candidate_overrides WHERE candidate_id=$1',[candidate.id])).rows;candidate.evidence=tasks.filter(task=>task.candidate_id===candidate.id);delete candidate.hint;}
  for(const candidate of candidates) candidate.reads=(await pool.query('SELECT * FROM search_document_reads WHERE candidate_id=$1 ORDER BY route',[candidate.id])).rows;
+ for(const candidate of candidates) candidate.application_check=(await pool.query('SELECT * FROM search_application_checks WHERE candidate_id=$1',[candidate.id])).rows[0] || null;
  const directory=new URL(`../reports/${runId}/`,import.meta.url);await mkdir(directory,{recursive:true});
  const staged=[];
  try {

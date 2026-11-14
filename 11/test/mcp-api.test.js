@@ -17,10 +17,12 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
   try {
     await admin.query('BEGIN'); await admin.query(`CREATE SCHEMA ${schema}`); await admin.query(`SET LOCAL search_path TO ${schema}`);
     const sql=async name=>(await readFile(new URL(`../sql/${name}`,import.meta.url),'utf8')).replace(/^BEGIN;\s*/i,'').replace(/COMMIT;\s*$/i,'');
-    await admin.query(await sql('001.sql'));
     const defaults=JSON.parse(await readFile(new URL('../defaults.json',import.meta.url),'utf8'));
-    await admin.query('INSERT INTO settings(id,value) VALUES(1,$1)',[defaults]);
-    await admin.query(await sql('002.sql')); await admin.query(await sql('003.sql')); await admin.query(await sql('004.sql')); await admin.query(await sql('005.sql')); await admin.query(await sql('006.sql')); await admin.query(await sql('007.sql')); await admin.query(await sql('008.sql')); await admin.query(await sql('009.sql')); await admin.query(await sql('010.sql')); await admin.query(await sql('011.sql')); await admin.query(await sql('012.sql')); await admin.query(await sql('013.sql')); await admin.query(await sql('014.sql')); await admin.query(await sql('015.sql')); await admin.query(await sql('016.sql')); await admin.query(await sql('017.sql')); await admin.query(await sql('018.sql')); await admin.query('COMMIT'); created=true;
+    for(const file of (await readdir(new URL('../sql/',import.meta.url))).filter(file=>/^\d+\.sql$/.test(file)).sort()) {
+      await admin.query(await sql(file));
+      if(file==='001.sql') await admin.query('INSERT INTO settings(id,value) VALUES(1,$1)',[defaults]);
+    }
+    await admin.query('COMMIT'); created=true;
     await admin.query(`SET search_path TO ${schema}`);
     assert.equal((await admin.query('SELECT current_schema() AS schema')).rows[0].schema,schema);
     const scoped=new URL(process.env.DATABASE_URL); scoped.searchParams.set('options',`-c search_path=${schema}`);
@@ -36,6 +38,12 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
       child.once('exit',()=>{clearTimeout(timer);reject(new Error('El servicio aislado terminó antes de arrancar'));});
       child.stdout.on('data',chunk=>{if(chunk.toString().includes('Panel disponible')){clearTimeout(timer);resolve();}});
     });
+    for(const asset of ['app.js','offer-state.js','workflow-state.js']) {
+      const response=await fetch(`${base}/${asset}`);
+      assert.equal(response.status,200,asset);
+      assert.match(response.headers.get('content-type'),/javascript/);
+      assert.ok((await response.text()).length>0);
+    }
     client=new Client({name:'isolated-integration-test',version:'1'});
     await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`),{requestInit:{headers:{Authorization:`Bearer ${token}`}}}));
     const call=async(name,args={})=>client.callTool({name,arguments:args});
@@ -125,6 +133,7 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     const sourceAction=await ok('create_action',{offer_id:duplicate.id,description:'Acción duplicada',state:'pendiente'});
     const mergeSource=await ok('get_offer',{id:duplicate.id});
     offer=await ok('get_offer',{id:offer.id});
+    const targetBeforeMerge=offer;
     assert.equal((await call('merge_offers',{target_id:offer.id,source_id:duplicate.id,expected_version:offer.version,source_version:duplicateOffer.version,application_from:'target',reason:'Mismo proceso confirmado'})).structuredContent.error.code,'CONFLICT');
     assert.equal((await call('merge_offers',{target_id:offer.id,source_id:duplicate.id,expected_version:offer.version,source_version:mergeSource.version,application_from:'source',reason:'No se permite borrar candidatura previa'})).structuredContent.error.code,'CONFLICT');
     await admin.query("INSERT INTO applications(id,opportunity_id,state,submitted_at) VALUES($1,$2,'enviada','2026-11-09T00:00:00Z')",[randomUUID(),duplicate.id]);
@@ -145,6 +154,26 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     const archived=await fetch(`${base}/api/offers/${duplicate.id}`);assert.equal(archived.status,410);assert.equal((await archived.json()).target_id,offer.id);
     const archivedMcp=await call('get_offer',{id:duplicate.id});assert.equal(archivedMcp.structuredContent.error.code,'MERGED');assert.equal(archivedMcp.structuredContent.error.target_id,offer.id);
     assert.equal((await call('patch_offer',{id:duplicate.id,expected_version:mergeSource.version,patch:{notes:'No se edita el archivo'}})).isError,true);
+    const newer=await ok('create_offer',{offer:{company:offer.company,title:offer.title,url:'https://example.test/newer-duplicate',availability:'desconocida',review_state:'nueva',application_state:'sin_candidatura',notes:'Nota de la fusión posterior'}});
+    const newerState=await ok('get_offer',{id:newer.id}),targetAfterMerge=await ok('get_offer',{id:offer.id});
+    await ok('merge_offers',{target_id:offer.id,source_id:newer.id,expected_version:targetAfterMerge.version,source_version:newerState.version,application_from:'target',reason:'Misma convocatoria confirmada en otra URL'});
+    const stack=await ok('list_offer_merges',{offer_id:offer.id});
+    assert.equal(stack.items.length,2);assert.equal(stack.items[0].source_id,newer.id);assert.equal(stack.items[0].undoable,true);assert.equal(stack.items[1].undoable,false);
+    assert.equal((await call('unmerge_offer',{target_id:offer.id,source_id:duplicate.id,expected_version:(await ok('get_offer',{id:offer.id})).version,source_version:mergeSource.version,reason:'Prueba de que se respeta el orden inverso'})).structuredContent.error.code,'CONFLICT');
+    const latest=await ok('get_offer',{id:offer.id});
+    await ok('unmerge_offer',{target_id:offer.id,source_id:newer.id,expected_version:latest.version,source_version:newerState.version,reason:'La última asociación se añadió por error'});
+    let remaining=await ok('list_offer_merges',{offer_id:offer.id});
+    assert.equal(remaining.items.length,1);assert.equal(remaining.items[0].source_id,duplicate.id);assert.equal(remaining.items[0].undoable,true);
+    const beforeLastUndo=await ok('get_offer',{id:offer.id});
+    await ok('unmerge_offer',{target_id:offer.id,source_id:duplicate.id,expected_version:beforeLastUndo.version,source_version:remaining.items[0].source_version,reason:'Se confirmó que eran convocatorias distintas'});
+    const restoredTarget=await ok('get_offer',{id:offer.id}),restoredSource=await ok('get_offer',{id:duplicate.id});
+    assert.equal(restoredTarget.notes,targetBeforeMerge.notes);assert.equal(restoredTarget.application_state,targetBeforeMerge.application_state);assert.equal(restoredTarget.submitted_at,targetBeforeMerge.submitted_at);
+    assert.equal(restoredSource.application_state,'enviada');assert.equal(restoredSource.submitted_at,'2026-11-09T00:00:00.000Z');assert.equal(restoredSource.notes,'Nota del duplicado');
+    assert.equal((await ok('list_publications',{offer_id:offer.id})).items.length,2);assert.equal((await ok('list_publications',{offer_id:duplicate.id})).items.length,1);
+    assert.ok((await ok('list_actions',{offer_id:duplicate.id})).items.some(item=>item.id===sourceAction.id));
+    assert.equal((await ok('list_offer_merges',{offer_id:offer.id})).items.length,0);
+    assert.equal((await ok('list_offer_events',{offer_id:offer.id})).items.some(event=>event.kind==='offers_unmerged'),true);
+    assert.equal((await ok('check_history',{url:'https://example.test/duplicate'})).matches[0].id,duplicate.id);
 
     assert.equal((await call('get_run',{id:randomUUID()})).structuredContent.error.code,'NOT_FOUND');
     assert.equal((await call('start_run',{request_id:randomUUID(),module:'contract',text:'Fixture nunca enviada al modelo: admisión pausada'})).structuredContent.error.code,'CONFLICT');

@@ -22,6 +22,8 @@ test('valida altas y fechas sin normalizar días imposibles', () => {
 test('la configuración inicial exige registrar el historial', () => {
   const defaults = JSON.parse(readFileSync(new URL('../defaults.json',import.meta.url)));
   assert.equal(validateSettings(defaults).history_ready,false);
+  assert.match(defaults.source_prompt,/historial de Neon/);
+  assert.doesNotMatch(defaults.source_prompt,/Agenda\/DONE\.md|Obsidian|DONE\.md/);
   assert.throws(()=>validateSettings({...defaults,public_alternatives:'true'}));
   assert.equal(validateSettings({...defaults,public_alternatives:false}).public_alternatives,false);
   for(const model_timeout_seconds of [4,121,1.5,'30',null]) assert.throws(()=>validateSettings({...defaults,model_timeout_seconds}));

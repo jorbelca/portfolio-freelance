@@ -1,9 +1,11 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
+import {launchBlocked,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
 let searchConfig,schedule;
 const searchOffsets={},taskOffsets={},taskStatuses={};
 let offers=[], companies=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
 const fields=['company','company_id','title','url','notes'];
+document.addEventListener('invalid',event=>{for(let parent=event.target.parentElement;parent;parent=parent.parentElement) if(parent.tagName==='DETAILS') parent.open=true;},true);
 function message(text) { $('#message').textContent=text; }
 async function api(path,method='GET',value) {
   const response=await fetch(`/api/${path}`,{method,headers:{'Content-Type':'application/json','X-Empleo-Client':'panel'},body:value===undefined?undefined:JSON.stringify(value)});
@@ -49,11 +51,11 @@ function render() {
         await api(`offers/${offer.id}`,'PATCH',{version:offer.version,patch:statePatch(offer,next)});
       } catch(error) {stateSelect.value=offerState(offer);message(error.message);stateSelect.disabled=false;return;}
       try {
-        if (selected?.id===offer.id) await refreshSelected(); else await load();
-      } catch(error) {message(`Estado guardado; no se pudo recargar la oferta: ${error.message}`);return;}
-      try {await refreshWorkflow();message('Estado de postulación e informes actualizados.');}
-      catch(error) {message(`Estado guardado; no se pudo actualizar el panel: ${error.message}`);}
-      finally {stateSelect.disabled=false;}
+        try {if (selected?.id===offer.id) await refreshSelected(); else await load();}
+        catch(error) {message(`Estado guardado; no se pudo recargar la oferta: ${error.message}`);return;}
+        try {await refreshWorkflow();message('Estado de postulación e informes actualizados.');}
+        catch(error) {message(`Estado guardado; no se pudo actualizar el panel: ${error.message}`);}
+      } finally {stateSelect.disabled=false;}
     };
     row.children[2].replaceChildren(stateSelect);
     const dates=document.createElement('td'); dates.className='offer-dates';
@@ -101,8 +103,15 @@ async function selectOffer(offer) {
   $('#offer-detail').hidden=false;
   const mergeSelect=$('#merge-form [name=source_id]');mergeSelect.replaceChildren(new Option('Selecciona el duplicado',''));
   for(const other of offers.filter(item=>item.id!==offer.id)) mergeSelect.add(new Option(`${other.company} · ${other.title} · ${offerState(other)}`,other.id));
-  const [events,publications,actions]=await Promise.all([api(`offers/${offer.id}/events`),api(`offers/${offer.id}/publications`),api(`offers/${offer.id}/actions`)]);
+  const [events,publications,actions,merges]=await Promise.all([api(`offers/${offer.id}/events`),api(`offers/${offer.id}/publications`),api(`offers/${offer.id}/actions`),api(`offers/${offer.id}/merges`)]);
   $('#events').textContent=JSON.stringify(events,null,2);
+  const latestMerge=merges.items[0],unmergeForm=$('#unmerge-form');
+  $('#unmerge-details').hidden=!latestMerge;
+  if(latestMerge) {
+    unmergeForm.reset();unmergeForm.elements.source_id.value=latestMerge.source_id;unmergeForm.elements.source_version.value=latestMerge.source_version;
+    $('#unmerge-status').textContent=`Fusión más reciente: ${latestMerge.company} · ${latestMerge.title}. ${latestMerge.undoable?'Puedes separarla y restaurar ambos historiales.':latestMerge.undo_blocked_reason}`;
+    $('#unmerge-submit').disabled=!latestMerge.undoable;
+  }
   $('#publications').replaceChildren();
   for (const p of publications) {
     const li=document.createElement('li'), a=document.createElement('a'); a.href=p.url; a.textContent=p.url; a.target='_blank'; a.rel='noopener noreferrer'; li.append(a); $('#publications').append(li);
@@ -160,29 +169,47 @@ $('#merge-form').onsubmit=async event=>{
     event.target.reset();await refreshSelected();message('Duplicado fusionado. Enlaces e historial conservados.');
   } catch(error) {message(error.message);}
 };
+$('#unmerge-form').onsubmit=async event=>{
+  event.preventDefault();if(!selected) return;
+  const value=Object.fromEntries(new FormData(event.target));
+  try {
+    await api(`offers/${selected.id}/unmerge/${value.source_id}`,'POST',{version:selected.version,source_version:Number(value.source_version),reason:value.reason});
+    await refreshSelected();message('Fusión deshecha; ambos procesos y sus enlaces están separados.');
+  } catch(error) {message(error.message);}
+};
 $('#action-form').onsubmit=async event=>{
   event.preventDefault(); if (!selected) return;
   try {await api(`offers/${selected.id}/actions`,'POST',{...Object.fromEntries(new FormData(event.target)),state:'pendiente'}); event.target.reset(); await refreshSelected(); message('Acción guardada.');} catch(error) {message(error.message);}
 };
 const profileKeys=['recover_previous','reuse_evidence','fit_instruction','residence','technical_degree','professional_years','internship_details','relocation','work_authorization','max_required_years'];
 const configRows={
- skills:[['name','Habilidad'],['evidence','Evidencia'],['priority','Prioridad','number']],
+ skills:[['name','Tecnología o habilidad'],['evidence','Dónde la has usado'],['priority','Preferencia (1 = mayor)','number']],
  languages:[['language','Idioma'],['level','Nivel',['A1','A2','B1','B2','C1','C2','nativo']]],
- sources:[['source','Fuente'],['enabled','Habilitada','checkbox'],['max_pages','Páginas máximas','number']],
- queries:[['zone','Cupo',['any','spain','europe']],['language','Idioma',['es','en']],['term','Término del título']]
+ sources:[['source','Buscador web',['browser:google','browser:bing']],['enabled','Activo','checkbox'],['max_pages','Páginas por búsqueda','number']],
+ queries:[['term','Puesto o especialidad'],['zone','Zona de búsqueda',['any','spain','europe']],['language','Idioma del anuncio',['es','en']]]
 };
 function addConfigRow(group,value={}) {
  const row=document.createElement('div');row.className='config-row';row.dataset.collection=group;
  for(const [key,label,type] of configRows[group]) {
   const wrapper=document.createElement('label');wrapper.textContent=label;
   const field=document.createElement(Array.isArray(type)?'select':'input');field.dataset.field=key;field.setAttribute('aria-label',label);field.required=type!=='checkbox';
-  if(Array.isArray(type)) for(const item of type) option(field,item,({any:'Cualquier cupo',spain:'España',europe:'Resto de Europa',es:'Español',en:'Inglés'})[item] || item);
+  if(Array.isArray(type)) for(const item of type) option(field,item,({any:'Cualquier zona',spain:'España',europe:'Resto de Europa',es:'Español',en:'Inglés','browser:google':'Google (navegador)','browser:bing':'Bing (navegador)'})[item] || item);
   else {field.type=type || 'text';if(type==='number'){field.min=1;field.max=100;}}
   if(type==='checkbox') field.checked=value[key] ?? true;else field.value=value[key] ?? (type==='number'?3:Array.isArray(type)?type[0]:'');
   wrapper.append(field);row.append(wrapper);
  }
  const remove=document.createElement('button');remove.type='button';remove.textContent='Quitar';remove.setAttribute('aria-label',`Quitar fila de ${group}`);remove.onclick=()=>row.remove();row.append(remove);
  $(`#${group==='skills'||group==='languages'?'profile':'search'}-${group}`).append(row);
+}
+function updateConfigSummaries() {
+ const terms=[...document.querySelectorAll('#search-queries [data-field="term"]')].map(field=>field.value.trim()).filter(Boolean);
+ const skills=document.querySelectorAll('#profile-skills .config-row').length,languages=document.querySelectorAll('#profile-languages .config-row').length;
+ const sources=[...document.querySelectorAll('#search-sources [data-field="enabled"]')].filter(field=>field.checked).length;
+ $('#queries-summary').textContent=terms.length?`Puestos y lugares · ${terms.length} puestos configurados`:'Puestos y lugares · añade qué trabajo buscas';
+ $('#profile-summary').textContent=`Tu perfil para valorar las ofertas · ${skills} habilidades · ${languages} idiomas`;
+ $('#skills-summary').textContent=`Habilidades · ${skills}`;
+ $('#languages-summary').textContent=`Idiomas · ${languages}`;
+ $('#search-advanced-summary').textContent=`Ajustes avanzados (opcional) · ${sources} páginas activas`;
 }
 function showSearchConfig() {
  for(const key of profileKeys) {const input=$(`#profile-${key}`);if(input.type==='checkbox') input.checked=searchConfig.value[key];else input.value=searchConfig.value[key] ?? '';}
@@ -196,9 +223,11 @@ function showSearchConfig() {
   }
   criteria.append(detail);
  }
- $('#search-config-json').value=JSON.stringify(searchConfig.value,null,2);$('#search-config-state').textContent=`Revisión ${searchConfig.revision}`;
+ $('#search-config-json').value=JSON.stringify(searchConfig.value,null,2);$('#search-config-state').textContent=`Revisión ${searchConfig.revision}`;updateConfigSummaries();
 }
 for(const [button,group] of [['add-skill','skills'],['add-language','languages'],['add-source','sources'],['add-query','queries']]) $(`#${button}`).onclick=()=>addConfigRow(group);
+$('#search-config-form').addEventListener('input',updateConfigSummaries);$('#search-config-form').addEventListener('change',updateConfigSummaries);
+$('#search-config-form').addEventListener('click',event=>{if(event.target.matches('#add-skill,#add-language,#add-source,#add-query,.config-row button')) updateConfigSummaries();});
 $('#search-config-form').onsubmit=async event=>{
  event.preventDefault();$('#save-search-config').disabled=true;
  try {
@@ -214,21 +243,27 @@ let modelChoices={codex:'',openai:''};
 function showModels() {
  const provider=$('#cfg-provider').value,entry=models.providers.find(item=>item.id===provider);
  const select=$('#model-choice');select.replaceChildren();
- if(provider==='codex') option(select,'','Predeterminado de la sesión');
+ if(provider==='codex') option(select,'','Automático (usar mi sesión)');
  for(const model of entry?.models || []) option(select,model.id,model.label);
- option(select,'__custom','Otro modelo: introducir identificador');
+ option(select,'__custom','Introducir otro modelo');
  const current=$('#cfg-model').value;
  select.value=[...select.options].some(item=>item.value===current)?current:'__custom';
  $('#custom-model-label').hidden=select.value!=='__custom';
  $('#cfg-model').required=provider==='openai';
- $('#model-status').textContent=entry?.message || 'Consultando modelos…';
+ $('#model-status').textContent=provider==='openai'&&!entry?.configured
+  ?'Para usar OpenAI, configura OPENAI_API_KEY en 11/.env. El consumo se cobra al proyecto de API.'
+  :provider==='openai'
+   ?'Lista de modelos de tu clave. No todos sirven para analizar ofertas.'
+   :'Automático usa el modelo de tu sesión. También puedes elegir uno concreto.';
 }
 $('#cfg-provider').onchange=()=>{const previous=Object.keys(modelChoices).find(key=>key!==$('#cfg-provider').value);modelChoices[previous]=$('#cfg-model').value;$('#cfg-model').value=modelChoices[$('#cfg-provider').value];showModels();};
 $('#model-choice').onchange=()=>{$('#custom-model-label').hidden=$('#model-choice').value!=='__custom';if($('#model-choice').value!=='__custom') $('#cfg-model').value=$('#model-choice').value;else $('#cfg-model').focus();};
 $('#refresh-models').onclick=async()=>{try{models=await api('models');showModels();}catch(error){message(error.message);}};
 const numericSettings=['model_timeout_seconds','model_retries','max_openings','batch_size','max_age_days','quota_spain','quota_europe'];
+const settingsFields=['max_openings','batch_size','max_age_days','timezone','history_ready','model_timeout_seconds','model_retries','quota_spain','quota_europe','source_prompt'];
 function showSettings() {
-  for (const [key,value] of Object.entries(settings.value)) {
+  for (const key of settingsFields) {
+    const value=settings.value[key];
     const field=$(`#cfg-${key}`); if (field.type==='checkbox') field.checked=value; else field.value=value;
   }
   $('#cfg-provider').value=settings.value.provider || 'codex';
@@ -239,7 +274,8 @@ function showSettings() {
 $('#settings-form').onsubmit=async event=>{
   event.preventDefault();
   const value={};
-  for (const key of Object.keys(settings.value)) value[key]=$(`#cfg-${key}`).type==='checkbox'?$(`#cfg-${key}`).checked:numericSettings.includes(key)?Number($(`#cfg-${key}`).value):$(`#cfg-${key}`).value;
+  for (const key of settingsFields) value[key]=$(`#cfg-${key}`).type==='checkbox'?$(`#cfg-${key}`).checked:numericSettings.includes(key)?Number($(`#cfg-${key}`).value):$(`#cfg-${key}`).value;
+  value.provider=$('#cfg-provider').value;value.model=$('#cfg-model').value;
   $('#save-settings').disabled=true;
   try {settings=await api('settings','PUT',{revision:settings.revision,value}); showSettings(); $('#settings-save-state').textContent=` Revisión ${settings.revision} guardada.`; message('Configuración guardada para las próximas ejecuciones.');} catch(error) {message(error.message);} finally {$('#save-settings').disabled=false;}
 };
@@ -252,14 +288,13 @@ async function refreshWorkflow() {
   $('#pause-workflow').disabled=!workflow.control.enabled;
   document.body.dataset.workflowEnabled=workflow.control.enabled;
   document.body.dataset.controlRevision=workflow.control.revision;
-  const active=runs.some(run=>['queued','running','unknown'].includes(run.status));
   $('#run-active').textContent=runs.filter(run=>['queued','running','unknown'].includes(run.status)).length;
-  $('#run-submit').disabled=posting || !workflow.reachable || !workflow.control.enabled || active;
+  $('#run-submit').disabled=launchBlocked(workflow,runs,settings.value,$('#run-module').value,posting);
   const blocked=runs.find(run=>['queued','running','unknown'].includes(run.status));
-  $('#next-step').textContent=blocked?(blocked.status==='unknown'?'Revisa la ejecución incierta':'Análisis en curso'):!workflow.reachable?'Conecta el motor n8n':!workflow.control.enabled?'Permite nuevas ejecuciones':'Listo para buscar ofertas';
+  $('#next-step').textContent=blocked?(blocked.status==='unknown'?'Revisa la ejecución incierta':'Análisis en curso'):!workflow.reachable?'Conecta el motor n8n':!workflow.control.enabled?'Permite nuevas ejecuciones':!settings.value.history_ready?'Confirma el historial antes de buscar':'Listo para buscar ofertas';
   $('#next-step-detail').textContent=blocked?'Consulta las tareas y sus evidencias. Los resultados válidos se conservan.':`Objetivo configurado: ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa · ${settings.value.max_openings} fichas máximo · historial ${settings.value.history_ready?'confirmado':'pendiente de confirmar para búsqueda'}.`;
-  $('#next-step-link').textContent=blocked?'Ver ejecución ↓':!workflow.control.enabled?'Revisar control ↓':'Buscar ofertas ↓';
-  $('#next-step-link').href=blocked?'#runs':!workflow.control.enabled?'#enable-workflow':'#run-form';
+  $('#next-step-link').textContent=blocked?'Ver ejecución ↓':!workflow.control.enabled?'Revisar control ↓':!settings.value.history_ready?'Revisar configuración':'Buscar ofertas ↓';
+  $('#next-step-link').href=blocked?'#runs':!workflow.control.enabled?'#enable-workflow':!settings.value.history_ready?'#configuration':'#run-form';
   if (!$('#pipeline').children.length) for (const module of workflow.modules) {
     const card=document.createElement('article');card.className=`module-card ${module.available?'ready':'pending'}`;
     card.dataset.moduleId=module.id; card.dataset.available=module.available;
@@ -324,7 +359,7 @@ async function renderRunDetail(id) {
     const article=document.createElement('article');article.className='task-result';article.dataset.taskId=task.task_id;article.dataset.status=task.status;
     const title=document.createElement('h4');title.textContent=`${String(task.position).padStart(2,'0')} · ${labels[task.task_id] || task.task_id}`;
     const status=document.createElement('span');status.className=`badge ${task.status}`;
-    status.textContent=task.status==='succeeded'?(task.result.state==='desconocido'?'No consta en el texto':task.result.state==='acreditado'?'Con evidencia':'Completada'):task.status==='pending'?(['succeeded','failed'].includes(run.status)?'No ejecutada: cierre':'En espera'):runLabels[task.status];
+    status.textContent=taskStatusLabel(task,run.status);
     article.append(title,status);
     if (task.result?.state==='acreditado') {
       const value=document.createElement('p');value.textContent=task.result.value;
@@ -342,6 +377,14 @@ async function renderSearchPanel(run,panel) {
  const data=await api(`search/runs/${run.id}/results?limit=25&offset=${searchOffsets[run.id] || 0}`);
  const state=data.state;
  const controls=document.createElement('div');controls.className='search-controls';
+ let browserTask;
+ try {browserTask=await api(`search/runs/${run.id}/browser-task`);}
+ catch(error) {const notice=document.createElement('p');notice.className='notice';notice.textContent=`No se pudo consultar la tarea de navegador: ${error.message}. Actualiza el estado para reintentar.`;controls.append(notice);}
+ if(browserTask && ['running','unknown'].includes(run.status)) {
+  const notice=document.createElement('p');notice.className='notice';
+  notice.textContent=state.control==='paused'?'Búsqueda pausada. Reanúdala para continuar la navegación.':browserTask.status==='running'?'Hay una revisión de página en curso en Chrome.':`${{discover:'La búsqueda espera consultar el buscador',read:'La búsqueda espera leer la ficha',browser_apply:'La búsqueda espera comprobar el formulario público'}[browserTask.kind] || 'La búsqueda espera navegación'}. Para continuar hace falta un asistente conectado a Empleo MCP y Chrome DevTools MCP. No se rellenará ni enviará ningún formulario.`;
+  const link=document.createElement('a');link.href='#integrations';link.textContent='Ver conexión del asistente';controls.append(notice,link);
+ }
  if(((run.task_page.counts.failed || 0)+(run.task_page.counts.unknown || 0)) && !run.tasks.some(task=>['failed','unknown'].includes(task.status))) {const hint=document.createElement('p');hint.className='notice';hint.textContent='Hay tareas fallidas o inciertas fuera de esta página. Usa el filtro de tareas para revisarlas y resolverlas.';controls.append(hint);}
  if(['running','unknown'].includes(run.status)) {
   for(const action of state.control==='active'?['pause','cancel']:['resume','cancel']) {
@@ -375,7 +418,8 @@ if(!data.state.report_files_error && data.state.report_files_revision===data.sta
   const title=document.createElement('h4');title.textContent=`${candidate.title} · ${candidate.company}`;
   const classification=document.createElement('p');const evaluation=candidate.evaluation;
   classification.textContent=evaluation?`${{A:'A · Recomendada y verificada',B:'B · Pendiente',C:'C · Excluida',pista:'Pista sin ficha completa'}[evaluation.classification]} · ${evaluation.computable?'Computable':'No computable'}${evaluation.country?` · ${evaluation.country}`:''}`:candidate.stage==='blocked'?'Identidad o lectura pendiente · No computable':candidate.stage==='extracting'?'Ficha completa · análisis en curso':candidate.stage==='reading'?'Lectura en curso':'Pista sin ficha completa · No computable';
-  const link=document.createElement('a');link.href=candidate.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`Ver en ${candidate.source==='remotive'?'Remotive':candidate.source} ↗`;
+  const sourceLabel={'browser:google':'Google','browser:bing':'Bing'}[candidate.source] || candidate.source;
+  const link=document.createElement('a');link.href=candidate.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`Ver en ${sourceLabel} ↗`;
   article.append(title,classification,link);
   if(candidate.prior_candidate_id) {const continuity=document.createElement('p');continuity.textContent=`Recuperada de una búsqueda anterior · Proceso ${candidate.process_id || candidate.id}`;article.append(continuity);}
   if(evaluation?.fit_explanation) {const fit=document.createElement('p');fit.textContent=`Encaje ${evaluation.fit}: ${evaluation.fit_explanation}${evaluation.fit_evidence?' Cita: «'+evaluation.fit_evidence+'»':''}`;article.append(fit);}
@@ -397,6 +441,15 @@ if(!data.state.report_files_error && data.state.report_files_revision===data.sta
  }panel.append(paging);
 }
 function renderCandidateTools(candidate,article,candidates) {
+ const application=candidate.application_check;
+ if(application) {
+  const status={pending:'Pendiente de revisar',accessible:'Formulario público accesible',login_required:'Requiere iniciar sesión',captcha:'Protegido por CAPTCHA',closed:'La vacante aparece cerrada',blocked:'Acceso bloqueado',unknown:'No se pudo confirmar'}[application.status] || application.status;
+  const check=document.createElement('section'),heading=document.createElement('h5'),result=document.createElement('p');heading.textContent='Comprobación de candidatura';result.textContent=`${status}${application.form_found===true?' · formulario visible':''}`;check.append(heading,result);
+  if(application.required_fields?.length) {const p=document.createElement('p');p.textContent=`Campos obligatorios visibles: ${application.required_fields.join(', ')}`;check.append(p);}
+  if(application.evidence || application.reason) {const quote=document.createElement('blockquote');quote.textContent=application.evidence || application.reason;check.append(quote);}
+  if(application.application_url) {const link=document.createElement('a');link.href=application.application_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir página de candidatura ↗';check.append(link);}
+  article.append(check);
+ }
  const section=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Resolver identidad o corregir un dato';section.append(summary);
  const identity=document.createElement('form'),resolution=document.createElement('select'),target=document.createElement('select'),reason=document.createElement('input'),save=document.createElement('button');
  const labelled=(text,field)=>{const label=document.createElement('label');label.textContent=text;label.append(field);return label;};
@@ -412,6 +465,7 @@ function renderCandidateTools(candidate,article,candidates) {
  correction.onsubmit=async event=>{event.preventDefault();apply.disabled=true;try{await api(`search/candidates/${candidate.id}/correction`,'POST',{version:candidate.version,field:field.value,value:field.value.startsWith('decision:') || field.value==='fit'?verdict.value:value.value,evidence:evidence.value,reason:why.value});await refreshWorkflow();message('Corrección, evidencias y recuentos guardados.');}catch(error){message(error.message);apply.disabled=false;}};section.append(correction);article.append(section);
 }
 function updateRunScope() {
+  if(workflow && settings) $('#run-submit').disabled=launchBlocked(workflow,runs,settings.value,$('#run-module').value,posting);
   const search=$('#run-module').value==='search';$('#run-text').required=!search;$('#run-text').closest('label').hidden=search;
   if(search) {$('#run-scope').textContent=`Busca en las fuentes habilitadas. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'predeterminado'}. Cada ficha completa puede consumir 15 extracciones, 11 comparaciones y una valoración de encaje. Puedes pausar entre tareas.`;return;}
   $('#run-scope').textContent=$('#run-module').value==='extraction'?'15 llamadas consecutivas al modelo. Cada dato se guarda por separado con su cita literal. Puede tardar varios minutos. No clasifica ni verifica páginas externas.':'Una llamada al modelo para extraer únicamente el contrato y su cita.';
@@ -459,12 +513,13 @@ function route() {
   document.body.dataset.page=page;
   for (const view of document.querySelectorAll('[data-view]')) view.hidden=view.dataset.view!==page;
   for (const link of document.querySelectorAll('[data-page]')) link.classList.toggle('active',link.dataset.page===page);
-  $('#page-title').textContent={control:'Tu búsqueda, bajo control.',configuration:'Configura el workflow.',seguimiento:'Sigue tus oportunidades.',integrations:'Conecta tu asistente.'}[page];
-  $('#page-subtitle').textContent={control:'Ejecuta módulos y revisa su estado en n8n.',configuration:'Define los parámetros de las próximas ejecuciones.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
+  $('#page-title').textContent={control:'Tu búsqueda, bajo control.',configuration:'Configura tu búsqueda.',seguimiento:'Sigue tus oportunidades.',integrations:'Conecta tu asistente.'}[page];
+  $('#page-subtitle').textContent={control:'Ejecuta módulos y revisa su estado en n8n.',configuration:'Elige qué buscar, qué perfil usar y qué modelo lo analizará.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
 }
 window.addEventListener('hashchange',route); route();
 try {
   for (const [state,label] of Object.entries(offerStates)) {option($('[name=status]'),state,label); option($('#filter'),state,label);}
+  $('#filter').value='inscrita';
   await load(); await refreshSchedule(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
   const integration=await api('integration');
   $('#integration-state').textContent=integration.configured?'MCP configurado · stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';

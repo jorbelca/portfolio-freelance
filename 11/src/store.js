@@ -6,11 +6,11 @@ const fail = (message, status=400) => Object.assign(new Error(message), {status}
 export async function recordEvent(client, id, kind, value, reason='') {
   await client.query('INSERT INTO opportunity_events(opportunity_id,kind,value,reason) VALUES($1,$2,$3,$4)', [id,kind,value,reason]);
 }
-async function lock(client, id) {
+async function lock(client, id, {allowMerged=false}={}) {
   validId(id);
   const row = (await client.query('SELECT * FROM opportunities WHERE id=$1 FOR UPDATE', [id])).rows[0];
   if (!row) throw fail('Proceso no encontrado',404);
-  if ((await client.query('SELECT 1 FROM opportunity_merges WHERE source_id=$1',[id])).rowCount) throw fail('Proceso fusionado; consulta su registro principal.',409);
+  if (!allowMerged && (await client.query('SELECT 1 FROM opportunity_merges WHERE source_id=$1 AND undone_at IS NULL',[id])).rowCount) throw fail('Proceso fusionado; consulta su registro principal.',409);
   return row;
 }
 export async function addPublication(client, id, url) {
@@ -114,6 +114,12 @@ export async function mergeOffers(targetId,raw) {
     const applications=(await client.query('SELECT * FROM applications WHERE opportunity_id=ANY($1::uuid[]) FOR UPDATE',[[targetId,source.id]])).rows;
     const chosen=applications.find(row=>row.opportunity_id===(raw.application_from==='target'?targetId:source.id));
     if(applications.length && !chosen) throw fail('No puedes eliminar una candidatura: elige el registro que la conserva.',409);
+    const targetApplication=applications.find(row=>row.opportunity_id===targetId) || null;
+    const movedPublications=(await client.query('SELECT id,is_primary FROM publications WHERE opportunity_id=$1 FOR UPDATE',[source.id])).rows;
+    const movedActions=(await client.query('SELECT id FROM follow_up_actions WHERE opportunity_id=$1 FOR UPDATE',[source.id])).rows.map(row=>row.id);
+    const movedCandidates=(await client.query('SELECT id FROM search_candidates WHERE opportunity_id=$1 FOR UPDATE',[source.id])).rows.map(row=>row.id);
+    const reparentedMerges=(await client.query("SELECT source_id FROM opportunity_merges WHERE target_id=$1 AND undone_at IS NULL FOR UPDATE",[source.id])).rows.map(row=>row.source_id);
+    const targetSnapshot={availability:target.availability,review_state:target.review_state,notes:target.notes,state_changed_at:target.state_changed_at};
     if(chosen) await client.query('INSERT INTO applications(id,opportunity_id,state,submitted_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(opportunity_id) DO UPDATE SET state=excluded.state,submitted_at=excluded.submitted_at,updated_at=excluded.updated_at',[randomUUID(),targetId,chosen.state,chosen.submitted_at,chosen.created_at,chosen.updated_at]);
     await recordEvent(client,targetId,'offers_merged',{target,source,applications,application_from:raw.application_from},raw.reason);
     const hasPrimary=(await client.query('SELECT 1 FROM publications WHERE opportunity_id=$1 AND is_primary',[targetId])).rowCount;
@@ -127,8 +133,76 @@ export async function mergeOffers(targetId,raw) {
     const notes=[target.notes,source.notes && `[Fusionada: ${source.company} — ${source.title}]\n${source.notes}`].filter(Boolean).join('\n\n');
     if(notes.length>20000) throw fail('Las notas combinadas superan 20000 caracteres; reduce su tamaño antes de fusionar.');
     await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,version=version+1,updated_at=now(),state_changed_at=$5 WHERE id=$1',[targetId,availability,review,notes,raw.application_from==='source'?source.state_changed_at:target.state_changed_at]);
-    await client.query('UPDATE opportunity_merges SET target_id=$1 WHERE target_id=$2',[targetId,source.id]);
-    await client.query('INSERT INTO opportunity_merges(source_id,target_id,reason) VALUES($1,$2,$3)',[source.id,targetId,raw.reason]);
+    await client.query("UPDATE opportunity_merges SET target_id=$1 WHERE target_id=$2 AND undone_at IS NULL",[targetId,source.id]);
+    await client.query(`INSERT INTO opportunity_merges(source_id,target_id,reason,target_snapshot,target_application,moved_publications,moved_action_ids,moved_candidate_ids,reparented_merges,target_version_after,source_version_at_merge)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      ON CONFLICT(source_id) DO UPDATE SET target_id=excluded.target_id,reason=excluded.reason,created_at=now(),undone_at=NULL,undo_reason=NULL,target_snapshot=excluded.target_snapshot,target_application=excluded.target_application,moved_publications=excluded.moved_publications,moved_action_ids=excluded.moved_action_ids,moved_candidate_ids=excluded.moved_candidate_ids,reparented_merges=excluded.reparented_merges,target_version_after=excluded.target_version_after,source_version_at_merge=excluded.source_version_at_merge`,
+      [source.id,targetId,raw.reason,targetSnapshot,{exists:Boolean(targetApplication),row:targetApplication},JSON.stringify(movedPublications),movedActions,movedCandidates,reparentedMerges,target.version+1,source.version]);
     return {id:targetId,merged_id:source.id};
+  });
+}
+
+export async function listOfferMerges(targetId) {
+  validId(targetId);
+  const target=(await pool.query('SELECT version FROM offer_summary WHERE id=$1',[targetId])).rows[0];
+  if(!target) throw fail('Proceso no encontrado',404);
+  const rows=(await pool.query(`SELECT m.source_id,m.target_id,m.reason,m.created_at,m.target_snapshot,m.target_version_after,m.source_version_at_merge,
+    o.version AS source_version,c.name AS company,o.title,
+    m.source_id=(SELECT newest.source_id FROM opportunity_merges newest WHERE newest.target_id=$1 AND newest.undone_at IS NULL ORDER BY newest.created_at DESC,newest.source_id DESC LIMIT 1) AS is_latest
+    FROM opportunity_merges m JOIN opportunities o ON o.id=m.source_id JOIN companies c ON c.id=o.company_id
+    WHERE m.target_id=$1 AND m.undone_at IS NULL ORDER BY m.created_at DESC,m.source_id DESC`,[targetId])).rows;
+  return {items:rows.map(row=>{
+    const current=Number(row.source_version)===row.source_version_at_merge && Number(target.version)===row.target_version_after;
+    const undoable=Boolean(row.target_snapshot && current && row.is_latest);
+    const reason=!row.target_snapshot?'Esta fusión es anterior al guardado de snapshots reversibles.':!row.is_latest?'Deshaz primero la fusión más reciente.':!current?'El proceso cambió después de la fusión; revísalo antes de separarlo.':null;
+    return {source_id:row.source_id,target_id:row.target_id,company:row.company,title:row.title,reason:row.reason,created_at:row.created_at,source_version:Number(row.source_version),target_version:Number(target.version),undoable,undo_blocked_reason:reason};
+  })};
+}
+
+export async function unmergeOffer(targetId,raw) {
+  validId(targetId);validId(raw?.source_id);
+  if(targetId===raw.source_id || !Number.isSafeInteger(raw.version) || !Number.isSafeInteger(raw.source_version) || typeof raw.reason!=='string' || !raw.reason.trim() || raw.reason.length>2000) throw fail('Indica las versiones actuales y un motivo para separar los procesos.');
+  return transaction(async client=>{
+    for(const id of [targetId,raw.source_id].sort()) await lock(client,id,{allowMerged:id===raw.source_id});
+    const target=(await client.query('SELECT * FROM offer_summary WHERE id=$1',[targetId])).rows[0];
+    const source=(await client.query('SELECT o.*,c.name AS company FROM opportunities o JOIN companies c ON c.id=o.company_id WHERE o.id=$1',[raw.source_id])).rows[0];
+    const merge=(await client.query('SELECT * FROM opportunity_merges WHERE source_id=$1 AND target_id=$2 AND undone_at IS NULL FOR UPDATE',[raw.source_id,targetId])).rows[0];
+    if(!target || !source || !merge) throw fail('No existe esa fusión activa.',409);
+    if(target.version!==raw.version || source.version!==raw.source_version) throw fail('Uno de los procesos cambió; recarga antes de deshacer la fusión.',409);
+    const latest=(await client.query("SELECT source_id FROM opportunity_merges WHERE target_id=$1 AND undone_at IS NULL ORDER BY created_at DESC,source_id DESC LIMIT 1",[targetId])).rows[0];
+    if(latest?.source_id!==source.id) throw fail('Deshaz primero la fusión más reciente.',409);
+    if(!merge.target_snapshot || target.version!==merge.target_version_after || source.version!==merge.source_version_at_merge) throw fail('El proceso cambió después de la fusión o no tiene snapshot reversible. Revisa el historial antes de separarlo.',409);
+
+    const movedPublications=merge.moved_publications || [];
+    for(const publication of movedPublications) {
+      const restored=await client.query('UPDATE publications SET opportunity_id=$2,is_primary=$3 WHERE id=$1 AND opportunity_id=$4',[publication.id,source.id,publication.is_primary,targetId]);
+      if(!restored.rowCount) throw fail('Cambió un enlace desde la fusión; no se separaron los procesos.',409);
+    }
+    if(merge.moved_action_ids.length) {
+      const restored=await client.query('UPDATE follow_up_actions SET opportunity_id=$2,version=version+1 WHERE id=ANY($1::uuid[]) AND opportunity_id=$3',[merge.moved_action_ids,source.id,targetId]);
+      if(restored.rowCount!==merge.moved_action_ids.length) throw fail('Cambió una acción desde la fusión; no se separaron los procesos.',409);
+    }
+    if(merge.moved_candidate_ids.length) {
+      const restored=await client.query('UPDATE search_candidates SET opportunity_id=$2,version=version+1 WHERE id=ANY($1::uuid[]) AND opportunity_id=$3',[merge.moved_candidate_ids,source.id,targetId]);
+      if(restored.rowCount!==merge.moved_candidate_ids.length) throw fail('Cambió una pista desde la fusión; no se separaron los procesos.',409);
+    }
+    if(merge.target_application.exists) {
+      const previous=merge.target_application.row;
+      await client.query('INSERT INTO applications(id,opportunity_id,state,submitted_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(opportunity_id) DO UPDATE SET id=excluded.id,state=excluded.state,submitted_at=excluded.submitted_at,created_at=excluded.created_at,updated_at=excluded.updated_at',[previous.id,targetId,previous.state,previous.submitted_at,previous.created_at,previous.updated_at]);
+    } else await client.query('DELETE FROM applications WHERE opportunity_id=$1',[targetId]);
+
+    const snapshot=merge.target_snapshot;
+    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,state_changed_at=$5,version=version+1,updated_at=now() WHERE id=$1',[targetId,snapshot.availability,snapshot.review_state,snapshot.notes,snapshot.state_changed_at]);
+    await client.query('UPDATE opportunities SET version=version+1,updated_at=now() WHERE id=$1',[source.id]);
+    if(merge.reparented_merges.length) {
+      const restored=await client.query("UPDATE opportunity_merges SET target_id=$2 WHERE source_id=ANY($1::uuid[]) AND target_id=$3 AND undone_at IS NULL",[merge.reparented_merges,source.id,targetId]);
+      if(restored.rowCount!==merge.reparented_merges.length) throw fail('Cambió una fusión subordinada; no se separaron los procesos.',409);
+    }
+    await client.query('UPDATE opportunity_merges SET undone_at=now(),undo_reason=$2 WHERE source_id=$1',[source.id,raw.reason]);
+    const restoredTargetVersion=target.version+1,restoredSourceVersion=source.version+1;
+    for(const [parent,version] of [[targetId,restoredTargetVersion],[source.id,restoredSourceVersion]]) await client.query(`UPDATE opportunity_merges SET target_version_after=$2 WHERE source_id=(SELECT source_id FROM opportunity_merges WHERE target_id=$1 AND undone_at IS NULL ORDER BY created_at DESC,source_id DESC LIMIT 1)`,[parent,version]);
+    await recordEvent(client,targetId,'offers_unmerged',{source_id:source.id,source_company:source.company,source_title:source.title,restored_version:restoredTargetVersion},raw.reason);
+    await recordEvent(client,source.id,'offers_unmerged',{target_id:targetId,restored_version:restoredSourceVersion},raw.reason);
+    return {id:targetId,restored_id:source.id};
   });
 }

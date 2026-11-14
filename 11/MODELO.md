@@ -104,8 +104,8 @@ No habrá una opción general «ignorar historial». Una investigación manual d
 | Varias entrevistas/pruebas | Varias etapas/actividades fechadas, con estado propio; el campo de etapa actual es un resumen. |
 | Dos seguimientos el mismo día | Dos acciones independientes. Completar una no elimina otra. |
 | Cierre detectado con seguimiento pendiente | Advertir incompatibilidad; conservar acción hasta que el usuario complete/cancele. |
-| Fusión de duplicados | Elegir superviviente, trasladar referencias/acciones/eventos, conservar redirección del ID y bloqueo más restrictivo; conflicto de candidaturas exige revisión. Pendiente. |
-| Fusión equivocada | Debe poder deshacerse con registro de procedencia. No borrar IDs durante la fusión. Pendiente. |
+| Fusión de duplicados | Elegir superviviente, trasladar referencias/acciones/eventos, conservar redirección del ID y bloqueo más restrictivo; conflicto de candidaturas exige elección explícita. Implementado en `opportunity_merges`. |
+| Fusión equivocada | Deshacer solo la última fusión si las versiones siguen intactas; restaurar referencias y candidatura desde snapshots, registrar motivo y eventos en ambos procesos. Implementado en la migración 021. |
 | Cambio de perfil o criterio | Nueva versión de evaluación, invalidar solo dependencias afectadas. Conservar resultado anterior y motivo. |
 | Fuentes contradictorias | Guardar observaciones por fuente y fecha. No sobrescribir silenciosamente contrato/fecha/cierre. |
 | Multipaís o remoto europeo genérico | Varias ubicaciones permitidas; país del cupo puede seguir sin resolver. No usar una lista de países como país atribuido. |
@@ -161,7 +161,7 @@ Migración 002, API y panel para empresas reutilizables, estados independientes,
 
 Verificación realizada: seis pruebas unitarias correctas; prueba SQL de migración correcta en Neon con rollback; migración aplicada y repetida en la base de la aplicación; APIs de procesos, empresas, configuración y catálogos responden 200. Revisión de configuración conservada en 1; cero registros anteriores y cero procesos después de migrar. Panel comprobado con los tres selectores de estado independientes. No se ha probado alta/edición desde el panel con una oferta real.
 
-Todavía faltan fusión/deshacer, extracción automática de IDs, observaciones por publicación, perfil/reglas versionados, evaluaciones, entrevistas estructuradas, corrección de candidatura errónea, importación masiva y ejecuciones persistentes. La búsqueda automática debe seguir desactivada hasta cerrar identidad, historial, idempotencia y límites de ejecución del plan.
+La lista de pendientes de este apartado describe el estado inicial de la migración 002. Las fusiones y su reversión se incorporaron después; la búsqueda actual usa capturas de navegador y tareas persistentes. Las entrevistas estructuradas, la corrección destructiva de candidaturas y la importación masiva no forman parte del flujo de búsqueda.
 
 ## Control del workflow implementado (003)
 

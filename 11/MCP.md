@@ -93,23 +93,37 @@ Repetir el lanzamiento con el mismo UUID y texto no crea otra ejecución. Los re
 
 `start_run(request_id, module="search")` utiliza el snapshot de parámetros y perfil guardados; no necesita text. Requiere historial confirmado, admisión habilitada y ninguna ejecución activa/incierta. n8n ejecuta `empleoSearch03`, una operación persistida por nodo.
 
+El historial del workflow procede exclusivamente de Neon. No consultes Obsidian ni otras notas al buscar ofertas; las candidaturas previas se comprueban contra los procesos y estados guardados en Neon.
+
 - `get_search_results(run_id, limit, offset)`: estado/revisión, candidatos A/B/C y pistas. B no significa recomendada ni siempre computable.
 - `get_search_candidate(id, include_text=false)`: documento, aliases, tareas, citas y pendientes.
 - `control_search(run_id, expected_revision, action)`: pause/resume/cancel. retry exige step_id y reason tras comprobar n8n. No repetir una lectura reservada.
 - `track_search_candidate(id)`: incorporar A/B con identidad resuelta al seguimiento, sin postular.
 - `get_search_report(run_id, format="markdown", offset, max_chars)`: informe/registro generado por lote y al cerrar. Continúa con next_offset.
 
-Ante un dato desconocido, conserva el pendiente. Una ejecución completada puede terminar con cero ofertas computables y un déficit: no equivale a haber cumplido el reparto. Las fuentes actuales son Arbeitnow, Arbeitnow UK y Remotive; conservan sus enlaces y atribución. El módulo solo considera ficha completa un JobPosting estructurado único con descripción suficiente; las páginas bloqueadas o no verificables siguen como pistas.
+Ante un dato desconocido, conserva el pendiente. Una ejecución completada puede terminar con cero ofertas computables y un déficit: no equivale a haber cumplido el reparto. Las fuentes configurables son Google y Bing; se consultan navegando en Chrome, no mediante APIs de portales. La ficha puede aportar una estructura `JobPosting` o texto DOM visible suficiente; si no, queda como pista.
+
+### Navegación y comprobación de candidatura
+
+n8n persiste y ordena las tareas, pero no controla el Chrome del cliente MCP. Cuando el workflow devuelve `awaiting_browser`, un agente debe tener conectados tanto Empleo MCP como Chrome DevTools MCP. Sigue esta secuencia:
+
+1. `get_browser_task_status(run_id)` indica si hay una página pendiente.
+2. `get_browser_task(run_id)` reclama una tarea singular y devuelve URL, instrucciones y un nombre de contexto aislado. Abre esa URL con `new_page({url, isolatedContext: browser_context})`; no uses una sesión con cuentas iniciadas.
+3. Para `discover`, recoge solo resultados y paginación que veas en la página. No llames `fetch`, XHR ni APIs. Envía los enlaces directos observados con `submit_browser_discovery`.
+4. Para `read`, navega a la ficha. Devuelve `location.href`, `document.documentElement.outerHTML` y `document.body.innerText` (recortados a los límites de la herramienta). `application_url` solo puede ser un enlace visible de candidatura en esa ficha. Envía la captura con `submit_browser_read`.
+5. Para `browser_apply`, navega al enlace público. Inspecciona etiquetas y campos `required`, sin escribir ni pulsar nada. Envía `accessible` solo si el formulario vacío está visible. Si la página redirige a otro dominio, incluye en `identity_evidence` un fragmento visible que contenga el puesto y la empresa; usa `login_required`, `captcha`, `closed`, `blocked` o `unknown` cuando corresponda, junto con evidencia visible, mediante `submit_browser_application`.
+
+El formulario no se rellena ni se envía. Tampoco se crea una cuenta, se inicia sesión, se resuelve un CAPTCHA ni se hace clic en botones de candidatura. La comparación de requisitos obligatorios del anuncio usa las tareas `extract_*` y `decide_*` posteriores contra el perfil guardado. El estado `accessible` confirma acceso al formulario vacío, no que se haya completado ni enviado una candidatura. Los campos obligatorios del formulario quedan registrados para revisión.
 
 ## Correcciones y revisión del historial
 
-Hay 35 herramientas. `resolve_search_identity` usa expected_version y reason: distinct, same_process con target_offer_id, o duplicate con duplicate_candidate_id de la misma ejecución. Los aliases confirmados se conservan y una candidatura previa sigue excluida. No se admite eludir una coincidencia por ID ni fusionar dos procesos existentes de forma implícita.
+Hay 42 herramientas. `resolve_search_identity` usa expected_version y reason: distinct, same_process con target_offer_id, o duplicate con duplicate_candidate_id de la misma ejecución. Los aliases confirmados se conservan y una candidatura previa sigue excluida. No se admite eludir una coincidencia por ID ni fusionar dos procesos existentes de forma implícita.
 
 `correct_search_candidate` acepta country (código ISO), publication (YYYY-MM-DD) o decision:<regla> (cumple/incumple/desconocido), con evidence literal del documento conservado y reason. Registra versión, evento y capa de corrección; no borra la extracción original.
 
 `control_search(action="skip")` permite cerrar una tarea fallida/incierta tras comprobarla, con step_id y reason. No vuelve a abrir una ficha reservada. Los intentos anteriores permanecen visibles.
 
-Las consultas de ejecución, resultados e informes comparan la revisión del historial de Neon y recalculan si cambió, conservando el corte de la ejecución. Las fuentes corporativas se configuran como `smartrecruiters:Scalian:es`, con enabled y max_pages. Ninguna herramienta rellena formularios ni envía candidaturas.
+Las consultas de ejecución, resultados e informes comparan la revisión del historial de Neon y recalculan si cambió, conservando el corte de la ejecución. Las fuentes son `browser:google` y `browser:bing`; `max_pages` limita la paginación visible por consulta. Ninguna herramienta rellena formularios ni envía candidaturas.
 
 `get_models` consulta motores/modelos sin secretos. Para elegirlos: `get_settings`, después `patch_settings` con `expected_revision` y `patch: {provider: "codex" | "openai", model: "identificador"}`. Solo afecta a nuevas ejecuciones.
 
@@ -117,6 +131,8 @@ Las consultas de ejecución, resultados e informes comparan la revisión del his
 ### Fusionar registros duplicados
 
 `merge_offers` requiere `target_id`, `source_id`, `expected_version` del principal, `source_version` del duplicado, `application_from` (`target` o `source`) y `reason`. Lee ambas ofertas primero y confirma que representan la misma convocatoria. Los nombres parecidos no lo acreditan. Conserva enlaces, acciones, notas e historial; el duplicado se archiva y su consulta individual devuelve HTTP 410 con `target_id`. Una candidatura existente no puede borrarse eligiendo un registro sin candidatura. Si ambos tienen candidatura, la elección explícita determina cuál sigue vigente y el evento conserva las dos anteriores. No envía solicitudes ni reabre una oferta para buscarla de nuevo.
+
+`list_offer_merges` enseña las fusiones activas y si la última aún admite reversión. `unmerge_offer` solo deshace la fusión más reciente, exige las versiones actuales y un motivo, y restaura las dos fichas, publicaciones, acciones, candidatura y referencias movidas. La operación se rechaza si hubo cambios posteriores; el evento de reversión se conserva en ambos procesos. Las migraciones guardan los snapshots necesarios; las fusiones antiguas sin snapshot no se ofrecen como reversibles.
 
 ## Tareas de ejecuciones largas
 
@@ -136,9 +152,7 @@ Programación periódica: `get_schedule` y `set_schedule` (o sección «Búsqued
 
 `GET/PUT /api/workflow/schedule` expone configuración y estado. `POST /api/workflow/schedule/tick` es exclusivo de `N8N_TOKEN`, no accesible con el token MCP ni con la cabecera del panel. La reserva de ejecución y el avance de fecha se confirman juntos en Neon; si falla el envío posterior a n8n, la ejecución queda incierta y bloquea nuevos lanzamientos hasta su revisión.
 
-La opción `public_alternatives` (web y `patch_settings`, activada por defecto en nuevas ejecuciones) permite probar la API pública o la ficha HTML de SmartRecruiters cuando la primera representación es incompleta. Ambas deben identificar el mismo tenant y anuncio; no se siguen enlaces arbitrarios ni se emplean sesiones. Cada petición es una tarea `read` distinta, con reserva previa y resultado en `get_search_candidate → reads` y en el registro JSON. Las dos representaciones del mismo anuncio cuentan una sola ficha; otro anuncio o portal exige otra reserva. Se revalida el historial antes de cada petición. Respuestas incompletas o ambiguas siguen como pistas; no se convierte texto genérico en evidencia. Los snapshots antiguos sin esta opción conservan una sola ruta.
-
-Referencia de la API pública: https://developers.smartrecruiters.com/reference/v1getposting
+La comprobación de candidatura se conserva por candidato en `application_check` (`get_search_candidate`) y se incluye en el informe JSON/Markdown. Si el formulario es inaccesible o no se encontró un enlace, la oferta queda B y no computa hasta resolver la comprobación. Una página que confirma el cierre es C. No se infiere acceso por la existencia de un botón «Solicitar».
 
 La generación de informes tiene estado independiente del análisis: `report_files_revision` y `report_files_error` aparecen en el estado de búsqueda. Un fallo de disco/permisos conserva los resultados y el cierre de la búsqueda; las siguientes consultas intentan regenerar solo Markdown/JSON desde Neon. Las descargas responden 503 mientras los archivos no correspondan a la revisión actual. Si un archivo ya generado se pierde, su siguiente descarga intenta reconstruirlo. Comprueba espacio/permisos de `11/reports`; no relances la búsqueda para reparar un informe.
 

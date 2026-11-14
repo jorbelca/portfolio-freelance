@@ -30,7 +30,7 @@ test('programación persistente: revisión, pausa, historial, exclusión mutua y
   assert.equal((await tickSchedule()).status,'configuration_error');
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM workflow_runs')).rows[0].n,0);
   assert.equal(new Date((await getSchedule()).next_run_at).getUTCFullYear(),2020);
-  await admin.query("UPDATE search_source_settings SET enabled=(source='arbeitnow')");
+  await admin.query("UPDATE search_source_settings SET enabled=(source='browser:google')");
   const ticks=await Promise.all([tickSchedule(),tickSchedule()]);
   assert.deepEqual(ticks.map(t=>t.status).sort(),['not_due','started']);
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM workflow_runs')).rows[0].n,1);
