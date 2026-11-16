@@ -1,8 +1,8 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
-import {launchBlocked,taskStatusLabel} from './workflow-state.js';
+import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
-let searchConfig,schedule;
-const searchOffsets={},taskOffsets={},taskStatuses={};
+let searchConfig;
+const taskOffsets={},taskStatuses={};
 let offers=[], companies=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
 const fields=['company','company_id','title','url','notes'];
 document.addEventListener('invalid',event=>{for(let parent=event.target.parentElement;parent;parent=parent.parentElement) if(parent.tagName==='DETAILS') parent.open=true;},true);
@@ -243,7 +243,7 @@ let modelChoices={codex:'',openai:''};
 function showModels() {
  const provider=$('#cfg-provider').value,entry=models.providers.find(item=>item.id===provider);
  const select=$('#model-choice');select.replaceChildren();
- if(provider==='codex') option(select,'','Automático (usar mi sesión)');
+ if(provider==='codex') option(select,'','Predeterminado: GPT-6-Luna');
  for(const model of entry?.models || []) option(select,model.id,model.label);
  option(select,'__custom','Introducir otro modelo');
  const current=$('#cfg-model').value;
@@ -254,20 +254,21 @@ function showModels() {
   ?'Para usar OpenAI, configura OPENAI_API_KEY en 11/.env. El consumo se cobra al proyecto de API.'
   :provider==='openai'
    ?'Lista de modelos de tu clave. No todos sirven para analizar ofertas.'
-   :'Automático usa el modelo de tu sesión. También puedes elegir uno concreto.';
+   :'El modelo predeterminado es GPT-6-Luna. El esfuerzo de razonamiento se configura por separado.';
 }
 $('#cfg-provider').onchange=()=>{const previous=Object.keys(modelChoices).find(key=>key!==$('#cfg-provider').value);modelChoices[previous]=$('#cfg-model').value;$('#cfg-model').value=modelChoices[$('#cfg-provider').value];showModels();};
 $('#model-choice').onchange=()=>{$('#custom-model-label').hidden=$('#model-choice').value!=='__custom';if($('#model-choice').value!=='__custom') $('#cfg-model').value=$('#model-choice').value;else $('#cfg-model').focus();};
 $('#refresh-models').onclick=async()=>{try{models=await api('models');showModels();}catch(error){message(error.message);}};
 const numericSettings=['model_timeout_seconds','model_retries','max_openings','batch_size','max_age_days','quota_spain','quota_europe'];
-const settingsFields=['max_openings','batch_size','max_age_days','timezone','history_ready','model_timeout_seconds','model_retries','quota_spain','quota_europe','source_prompt'];
+const settingsFields=['reasoning_effort','max_openings','batch_size','max_age_days','timezone','history_ready','model_timeout_seconds','model_retries','quota_spain','quota_europe','source_prompt'];
 function showSettings() {
   for (const key of settingsFields) {
     const value=settings.value[key];
     const field=$(`#cfg-${key}`); if (field.type==='checkbox') field.checked=value; else field.value=value;
   }
   $('#cfg-provider').value=settings.value.provider || 'codex';
-  modelChoices[$('#cfg-provider').value]=settings.value.model;showModels();
+  $('#cfg-model').value=settings.value.model || '';
+  modelChoices[$('#cfg-provider').value]=$('#cfg-model').value;showModels();
   $('#settings-revision').textContent=`v${settings.revision}`;
   document.body.dataset.settingsRevision=settings.revision;
 }
@@ -289,12 +290,7 @@ async function refreshWorkflow() {
   document.body.dataset.workflowEnabled=workflow.control.enabled;
   document.body.dataset.controlRevision=workflow.control.revision;
   $('#run-active').textContent=runs.filter(run=>['queued','running','unknown'].includes(run.status)).length;
-  $('#run-submit').disabled=launchBlocked(workflow,runs,settings.value,$('#run-module').value,posting);
-  const blocked=runs.find(run=>['queued','running','unknown'].includes(run.status));
-  $('#next-step').textContent=blocked?(blocked.status==='unknown'?'Revisa la ejecución incierta':'Análisis en curso'):!workflow.reachable?'Conecta el motor n8n':!workflow.control.enabled?'Permite nuevas ejecuciones':!settings.value.history_ready?'Confirma el historial antes de buscar':'Listo para buscar ofertas';
-  $('#next-step-detail').textContent=blocked?'Consulta las tareas y sus evidencias. Los resultados válidos se conservan.':`Objetivo configurado: ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa · ${settings.value.max_openings} fichas máximo · historial ${settings.value.history_ready?'confirmado':'pendiente de confirmar para búsqueda'}.`;
-  $('#next-step-link').textContent=blocked?'Ver ejecución ↓':!workflow.control.enabled?'Revisar control ↓':!settings.value.history_ready?'Revisar configuración':'Buscar ofertas ↓';
-  $('#next-step-link').href=blocked?'#runs':!workflow.control.enabled?'#enable-workflow':!settings.value.history_ready?'#configuration':'#run-form';
+  $('#run-submit').disabled=launchBlocked(workflow,runs,settings.value,runModule(),posting);
   if (!$('#pipeline').children.length) for (const module of workflow.modules) {
     const card=document.createElement('article');card.className=`module-card ${module.available?'ready':'pending'}`;
     card.dataset.moduleId=module.id; card.dataset.available=module.available;
@@ -330,7 +326,22 @@ async function refreshWorkflow() {
   }
   if (selectedRunId) await renderRunDetail(selectedRunId);
   updateRunScope();
+  if(location.hash==='#results') await refreshResults();
 }
+let resultsRunId=null;
+async function refreshResults() {
+ const searches=runs.filter(run=>run.module==='search'),select=$('#results-run'),panel=$('#search-results');
+ resultsRunId=searches.some(run=>run.id===resultsRunId)?resultsRunId:searches[0]?.id;
+ select.replaceChildren();for(const run of searches) option(select,run.id,`${new Date(run.created_at).toLocaleString('es-ES')} · ${runLabels[run.status]}`);
+ select.value=resultsRunId || '';panel.replaceChildren();
+ if(!resultsRunId) {panel.textContent='Todavía no has ejecutado ninguna búsqueda.';return;}
+ const run=searches.find(run=>run.id===resultsRunId);
+ if(run.result) {const status=document.createElement('p');status.className='notice';status.textContent=`España ${run.result.spain}/${run.result.quota_spain} · Europa ${run.result.europe}/${run.result.quota_europe}. ${run.result.reason || ''}`;panel.append(status);}
+ const content=document.createElement('div');
+ await renderSearchPanel(run,content,true);
+ if(resultsRunId===run.id) panel.append(content);
+}
+$('#results-run').onchange=()=>{resultsRunId=$('#results-run').value;refreshResults().catch(error=>message(error.message));};
 async function renderRunDetail(id) {
   const run=await api(`workflow/runs/${id}?limit=25&offset=${taskOffsets[id] || 0}${taskStatuses[id]?`&task_status=${taskStatuses[id]}`:''}`);
   if (id!==selectedRunId) return;
@@ -373,17 +384,24 @@ async function renderRunDetail(id) {
   if (run.n8n_execution_id) {const link=document.createElement('a');link.href=`http://localhost:5678/workflow/${run.module==='search'?'empleoSearch03':run.module==='extraction'?'empleoExtraction02':'empleoContract01'}/executions/${encodeURIComponent(run.n8n_execution_id)}`;link.target='_blank';link.rel='noopener';link.textContent=`Ejecución ${run.n8n_execution_id} en n8n ↗`;panel.append(link);}
   const meta=document.createElement('p');meta.className='muted';meta.textContent=`ID: ${id} · ${new Date(run.created_at).toLocaleString('es-ES')}`;panel.append(meta);
 }
-async function renderSearchPanel(run,panel) {
- const data=await api(`search/runs/${run.id}/results?limit=25&offset=${searchOffsets[run.id] || 0}`);
+async function renderSearchPanel(run,panel,resultsOnly=false) {
+ const data=await api(`search/runs/${run.id}/results?limit=25&offset=0`);
+ if(resultsOnly) {
+  for(let offset=data.candidates.length;data.candidates.length && offset%25===0;offset+=25) {
+   const page=await api(`search/runs/${run.id}/results?limit=25&offset=${offset}`);
+   data.candidates.push(...page.candidates);if(page.candidates.length<25) break;
+  }
+ }
  const state=data.state;
+ if(!resultsOnly) {
  const controls=document.createElement('div');controls.className='search-controls';
  let browserTask;
  try {browserTask=await api(`search/runs/${run.id}/browser-task`);}
  catch(error) {const notice=document.createElement('p');notice.className='notice';notice.textContent=`No se pudo consultar la tarea de navegador: ${error.message}. Actualiza el estado para reintentar.`;controls.append(notice);}
  if(browserTask && ['running','unknown'].includes(run.status)) {
   const notice=document.createElement('p');notice.className='notice';
-  notice.textContent=state.control==='paused'?'Búsqueda pausada. Reanúdala para continuar la navegación.':browserTask.status==='running'?'Hay una revisión de página en curso en Chrome.':`${{discover:'La búsqueda espera consultar el buscador',read:'La búsqueda espera leer la ficha',browser_apply:'La búsqueda espera comprobar el formulario público'}[browserTask.kind] || 'La búsqueda espera navegación'}. Para continuar hace falta un asistente conectado a Empleo MCP y Chrome DevTools MCP. No se rellenará ni enviará ningún formulario.`;
-  const link=document.createElement('a');link.href='#integrations';link.textContent='Ver conexión del asistente';controls.append(notice,link);
+  notice.textContent=state.control==='paused'?'Búsqueda pausada. Reanúdala para continuar la navegación.':browserTask.status==='running'?'El navegador automático está revisando la página.':`${{discover:'La búsqueda espera consultar el buscador',read:'La búsqueda espera leer la ficha',browser_apply:'La búsqueda espera comprobar el formulario público'}[browserTask.kind] || 'La búsqueda espera navegación'}. El navegador automático continuará la tarea; si aparece un error, revísalo antes de reintentar. No se rellenará ni enviará ningún formulario.`;
+  controls.append(notice);
  }
  if(((run.task_page.counts.failed || 0)+(run.task_page.counts.unknown || 0)) && !run.tasks.some(task=>['failed','unknown'].includes(task.status))) {const hint=document.createElement('p');hint.className='notice';hint.textContent='Hay tareas fallidas o inciertas fuera de esta página. Usa el filtro de tareas para revisarlas y resolverlas.';controls.append(hint);}
  if(['running','unknown'].includes(run.status)) {
@@ -408,11 +426,34 @@ async function renderSearchPanel(run,panel) {
    report.append(p);
    if(summary.fit['débil']>summary.computable/2) {const warning=document.createElement('p');warning.className='notice';warning.textContent='Predominan los encajes débiles entre las finalistas computables.';report.append(warning);}
   }
-if(!data.state.report_files_error && data.state.report_files_revision===data.state.report_revision) for(const [label,path] of [['Descargar informe',run.result.files?.report],['Descargar registro',run.result.files?.register]]) if(path){const link=document.createElement('a');link.href=path;link.textContent=label;link.style.marginRight='16px';report.append(link);}panel.append(report);
+ const link=document.createElement('a');link.href='#results';link.textContent='Ver ofertas clasificadas →';link.onclick=()=>{resultsRunId=run.id;};report.append(link);panel.append(report);
  }
- if(data.state.report_files_error) {const warning=document.createElement('p');warning.className='notice';warning.textContent=data.state.report_files_error;panel.append(warning);}
- const heading=document.createElement('h3');heading.textContent='Ofertas y pistas investigadas';panel.append(heading);
- if(!data.candidates.length) {const empty=document.createElement('p');empty.textContent='Todavía no hay resultados en esta página.';panel.append(empty);}
+ }
+ if(!resultsOnly) return;
+ const diagnostics=document.createElement('section'),diagnosticTitle=document.createElement('h3');
+ diagnosticTitle.textContent='Estado de la búsqueda y fuentes';diagnostics.append(diagnosticTitle);
+ if(run.error) {const error=document.createElement('p');error.className='notice';error.textContent=run.error;diagnostics.append(error);}
+ if(data.state.report_files_error) {const error=document.createElement('p');error.className='notice';error.textContent=data.state.report_files_error;diagnostics.append(error);}
+ const issues=data.diagnostics || [];
+ if(!issues.length) {const status=document.createElement('p');status.textContent=['queued','running'].includes(run.status)?'Búsqueda en curso. Aún no hay diagnósticos de las fuentes.':run.status==='unknown'?'Resultado incierto. Revisa la ejecución antes de volver a iniciarla.':run.status==='failed'?'La búsqueda ha fallado. Consulta las tareas en Ejecutar.':'No hay fallos registrados en las tareas.';diagnostics.append(status);}
+ for(const task of issues) {
+  const item=document.createElement('article'),title=document.createElement('h4'),reason=document.createElement('p');
+  const result=task.result || {},status=result.status || task.status;
+  const labels={captcha:'Bloqueada por CAPTCHA',blocked:'Acceso bloqueado',error:'Error',failed:'Tarea fallida',unknown:'Resultado incierto',ok:'Fuente consultada',succeeded:'Consulta terminada'};
+  const source={'browser:google':'Google','browser:bing':'Bing'}[task.input?.source] || task.input?.source || task.kind;
+  title.textContent=`${source}${task.input?.term?' · '+task.input.term:''} — ${result.skipped?'Consulta omitida tras bloqueo':labels[status] || status}`;
+  item.className=['captcha','blocked','error','failed','unknown'].includes(status) || task.error?'notice':'source-diagnostic';
+  reason.textContent=task.error || result.reason || (task.kind==='discover'?`Páginas leídas: ${result.pages ?? 0}. Ofertas recibidas: ${result.received ?? 0}; aceptadas: ${result.accepted ?? 0}.`:'Sin causa adicional registrada.');
+  item.append(title,reason);diagnostics.append(item);
+ }
+ panel.append(diagnostics);
+ const groups=new Map();
+ for(const [key,label] of [['A','Recomendadas y verificadas'],['B','Pendientes de comprobar'],['C','Excluidas'],['pista','Sin clasificar · pistas']]) {
+  const section=document.createElement('section'),heading=document.createElement('h3');
+  heading.textContent=`${key==='pista'?'':key+' · '}${label} (${data.candidates.filter(item=>(item.evaluation?.classification || 'pista')===key).length})`;section.append(heading);groups.set(key,section);panel.append(section);
+  if(!data.candidates.some(item=>(item.evaluation?.classification || 'pista')===key)) {const empty=document.createElement('p');empty.className='muted';empty.textContent='Sin ofertas en este grupo.';section.append(empty);}
+ }
+ const heading=document.createElement('h3');heading.textContent='Ofertas y pistas investigadas';panel.prepend(heading);
  for(const candidate of data.candidates) {
   const article=document.createElement('article');article.className='search-result';article.dataset.candidateId=candidate.id;article.dataset.classification=candidate.evaluation?.classification || 'pista';
   const title=document.createElement('h4');title.textContent=`${candidate.title} · ${candidate.company}`;
@@ -426,19 +467,16 @@ if(!data.state.report_files_error && data.state.report_files_revision===data.sta
   for(const exclusion of evaluation?.exclusions || []) {const p=document.createElement('p');p.textContent=`${exclusion.rule}: ${exclusion.evidence}`;article.append(p);}
   if(evaluation?.pending?.length) {const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');summary.textContent=`${evaluation.pending.length} pendientes por resolver`;for(const pending of evaluation.pending){const li=document.createElement('li');li.textContent=`${pending.owner}: ${pending.resolution}`;list.append(li);}details.append(summary,list);article.append(details);}
   if(candidate.reason) {const p=document.createElement('p');p.textContent=candidate.reason;article.append(p);}
-  const detailsButton=document.createElement('button');detailsButton.type='button';detailsButton.textContent='Ver citas y comprobaciones';
-  detailsButton.onclick=async()=>{detailsButton.disabled=true;try{const detail=await api(`search/candidates/${candidate.id}?include_text=true`);renderCandidateTools(detail,article,data.candidates);const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Documento, tareas y evidencia';pre.textContent=JSON.stringify(detail,null,2);details.open=true;details.append(summary,pre);article.append(details);}catch(error){message(error.message);detailsButton.disabled=false;}};article.append(detailsButton);
+  const detailsButton=document.createElement('button');detailsButton.type='button';detailsButton.textContent='Ver detalles de la oferta';
+  detailsButton.onclick=async()=>{detailsButton.disabled=true;try{const detail=await api(`search/candidates/${candidate.id}?include_text=true`);renderCandidateTools(detail,article,data.candidates);const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Descripción y datos extraídos';details.open=true;if(detail.document?.text){const description=document.createElement('p');description.className='offer-description';description.textContent=detail.document.text;details.append(description);}for(const task of detail.tasks.filter(item=>item.kind.startsWith('extract_'))) {const field=document.createElement('p');field.textContent=`${task.kind.slice(8)}: ${task.result?.value || 'No consta'}`;details.append(field);if(task.result?.evidence){const quote=document.createElement('blockquote');quote.textContent=task.result.evidence;details.append(quote);}}details.prepend(summary);article.append(details);}catch(error){message(error.message);detailsButton.disabled=false;}};article.append(detailsButton);
   if(['A','B'].includes(evaluation?.classification) && !candidate.history?.needs_review) {
    const track=document.createElement('button');track.type='button';track.textContent=candidate.opportunity_id?'Ya en seguimiento':'Añadir al seguimiento';track.disabled=Boolean(candidate.opportunity_id);
    track.onclick=async()=>{track.disabled=true;try{await api(`search/candidates/${candidate.id}/track`,'POST',{});await load();await refreshWorkflow();message('Oferta incorporada al seguimiento; no se ha enviado candidatura.');}catch(error){message(error.message);track.disabled=false;}};article.append(track);
   }
-  panel.append(article);
+  groups.get(candidate.evaluation?.classification || 'pista').append(article);
  }
- const paging=document.createElement('div');
- for(const [label,offset] of [['Anterior',Math.max(0,(searchOffsets[run.id] || 0)-25)],['Siguiente',(searchOffsets[run.id] || 0)+25]]) {
-  const button=document.createElement('button');button.type='button';button.textContent=label;button.disabled=label==='Anterior'?!searchOffsets[run.id]:data.candidates.length<25;
-  button.onclick=async()=>{searchOffsets[run.id]=offset;await renderRunDetail(run.id);};paging.append(button);
- }panel.append(paging);
+ return;
+
 }
 function renderCandidateTools(candidate,article,candidates) {
  const application=candidate.application_check;
@@ -464,13 +502,22 @@ function renderCandidateTools(candidate,article,candidates) {
  correction.append(labelled('Dato a corregir',field),labelled('Valor corregido',value),labelled('Veredicto corregido',verdict),labelled('Cita literal del documento',evidence),labelled('Motivo de la corrección',why),apply);
  correction.onsubmit=async event=>{event.preventDefault();apply.disabled=true;try{await api(`search/candidates/${candidate.id}/correction`,'POST',{version:candidate.version,field:field.value,value:field.value.startsWith('decision:') || field.value==='fit'?verdict.value:value.value,evidence:evidence.value,reason:why.value});await refreshWorkflow();message('Corrección, evidencias y recuentos guardados.');}catch(error){message(error.message);apply.disabled=false;}};section.append(correction);article.append(section);
 }
+function runModule() {return document.querySelector('[name=run-module]:checked').value;}
 function updateRunScope() {
-  if(workflow && settings) $('#run-submit').disabled=launchBlocked(workflow,runs,settings.value,$('#run-module').value,posting);
-  const search=$('#run-module').value==='search';$('#run-text').required=!search;$('#run-text').closest('label').hidden=search;
-  if(search) {$('#run-scope').textContent=`Busca en las fuentes habilitadas. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'predeterminado'}. Cada ficha completa puede consumir 15 extracciones, 11 comparaciones y una valoración de encaje. Puedes pausar entre tareas.`;return;}
-  $('#run-scope').textContent=$('#run-module').value==='extraction'?'15 llamadas consecutivas al modelo. Cada dato se guarda por separado con su cita literal. Puede tardar varios minutos. No clasifica ni verifica páginas externas.':'Una llamada al modelo para extraer únicamente el contrato y su cita.';
+  const module=runModule();
+  $('#run-submit').textContent=posting?'Iniciando…':({search:'Iniciar búsqueda completa',extraction:'Analizar esta oferta',contract:'Extraer contrato'})[module];
+  if(workflow && settings) {
+   const reason=launchBlockReason(workflow,runs,settings.value,module,posting);
+   $('#run-submit').disabled=Boolean(reason);
+   $('#run-blocker').textContent=reason;$('#run-blocker').hidden=!reason;
+   $('#enable-workflow').hidden=workflow.control.enabled;
+   $('#pause-workflow').hidden=!workflow.control.enabled;
+  }
+  const search=runModule()==='search';$('#run-text').required=!search;$('#run-text').closest('label').hidden=search;
+  if(search) {$('#run-scope').textContent=`Recorrido completo: buscar → revisar → evaluar → resultados. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'gpt-6-luna'} · thinking ${settings.value.reasoning_effort || 'max'}. Puedes pausar entre tareas.`;return;}
+  $('#run-scope').textContent=runModule()==='extraction'?'15 llamadas consecutivas al modelo. Cada dato se guarda por separado con su cita literal. Puede tardar varios minutos. No clasifica ni verifica páginas externas.':'Una llamada al modelo para extraer únicamente el contrato y su cita.';
 }
-$('#run-module').onchange=()=>{requestId=null;updateRunScope();};
+document.querySelectorAll('[name=run-module]').forEach(input=>{input.onchange=()=>{requestId=null;updateRunScope();};});
 for (const id of ['enable-workflow','pause-workflow']) $(`#${id}`).onclick=async()=>{
   $('#enable-workflow').disabled=true; $('#pause-workflow').disabled=true;
   try {await api('workflow/control','PUT',{enabled:id==='enable-workflow',revision:workflow.control.revision}); await refreshWorkflow();} catch(error) {message(error.message); await refreshWorkflow().catch(()=>{});}
@@ -486,41 +533,23 @@ $('#refresh-workflow').onclick=async()=>{
 $('#run-text').oninput=()=>{requestId=null;};
 $('#run-form').onsubmit=async event=>{
   event.preventDefault(); if (posting) return;
-  posting=true; $('#run-submit').disabled=true; requestId ||= crypto.randomUUID();
-  try {const run=await api('workflow/runs','POST',{id:requestId,module:$('#run-module').value,text:$('#run-text').value}); selectedRunId=run.id; requestId=null; message('Ejecución enviada a n8n. Puedes seguirla abajo.');} catch(error) {message(error.message);} finally {posting=false; await refreshWorkflow().catch(error=>message(error.message));}
-};
-async function refreshSchedule() {
-  schedule=await api('workflow/schedule');
-  $('#schedule-enabled').checked=schedule.enabled;
-  $('#schedule-interval').value=schedule.interval_minutes;
-  const date=new Date(schedule.next_run_at);
-  $('#schedule-next').value=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
-  const labels={disabled:'Programación desactivada',not_due:'Esperando a la próxima fecha',paused:'Admisión de nuevas ejecuciones pausada',busy:'Esperando a cerrar la ejecución activa o incierta',history_pending:'Pendiente de confirmar el historial',started:'Búsqueda iniciada',configuration_error:'Revisa la configuración de búsqueda'};
-  $('#schedule-status').textContent=`${schedule.enabled?'Activada':'Desactivada'} · Próxima: ${date.toLocaleString('es-ES')}${schedule.last_status?' · '+(labels[schedule.last_status] || schedule.last_status):''}${schedule.last_checked_at?' · Última comprobación: '+new Date(schedule.last_checked_at).toLocaleString('es-ES'):''}${schedule.last_run_id?' · Última ejecución: '+schedule.last_run_id:''}${schedule.last_error?' · '+schedule.last_error:''}`;
-}
-$('#refresh-schedule').onclick=()=>refreshSchedule().catch(error=>message(error.message));
-$('#schedule-form').onsubmit=async event=>{
-  event.preventDefault();$('#save-schedule').disabled=true;
-  try {
-    await api('workflow/schedule','PUT',{revision:schedule.revision,enabled:$('#schedule-enabled').checked,interval_minutes:Number($('#schedule-interval').value),next_run_at:new Date($('#schedule-next').value).toISOString()});
-    await refreshSchedule();message('Programación guardada. n8n comprobará la fecha cada minuto.');
-  } catch(error) {message(error.message);}
-  finally {$('#save-schedule').disabled=false;}
+  posting=true; updateRunScope(); requestId ||= crypto.randomUUID();
+  try {const run=await api('workflow/runs','POST',{id:requestId,module:runModule(),text:$('#run-text').value}); selectedRunId=run.id; requestId=null; message('Ejecución iniciada. Sigue el progreso en «Ejecuciones y resultados».');document.querySelector('#runs').scrollIntoView({behavior:'smooth',block:'start'});} catch(error) {message(error.message);} finally {posting=false; await refreshWorkflow().catch(error=>message(error.message));}
 };
 function route() {
   if (['run-form','runs','enable-workflow'].includes(location.hash.slice(1))) return;
-  const page=['control','configuration','seguimiento','integrations'].includes(location.hash.slice(1))?location.hash.slice(1):'control';
+  const page=['control','configuration','results','seguimiento','integrations'].includes(location.hash.slice(1))?location.hash.slice(1):'control';
   document.body.dataset.page=page;
   for (const view of document.querySelectorAll('[data-view]')) view.hidden=view.dataset.view!==page;
   for (const link of document.querySelectorAll('[data-page]')) link.classList.toggle('active',link.dataset.page===page);
-  $('#page-title').textContent={control:'Tu búsqueda, bajo control.',configuration:'Configura tu búsqueda.',seguimiento:'Sigue tus oportunidades.',integrations:'Conecta tu asistente.'}[page];
-  $('#page-subtitle').textContent={control:'Ejecuta módulos y revisa su estado en n8n.',configuration:'Elige qué buscar, qué perfil usar y qué modelo lo analizará.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
+  $('#page-title').textContent={control:'Ejecutar',results:'Resultados de la búsqueda.',configuration:'Configura tu búsqueda.',seguimiento:'Sigue tus oportunidades.',integrations:'Conecta tu asistente.'}[page];
+  $('#page-subtitle').textContent={control:'Elige el alcance, inicia una ejecución y consulta sus resultados.',results:'Ofertas separadas por clasificación, con sus detalles y comprobaciones.',configuration:'Elige qué buscar, qué perfil usar y qué modelo lo analizará.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
 }
-window.addEventListener('hashchange',route); route();
+window.addEventListener('hashchange',()=>{route();if(location.hash==='#results') refreshResults().catch(error=>message(error.message));}); route();
 try {
   for (const [state,label] of Object.entries(offerStates)) {option($('[name=status]'),state,label); option($('#filter'),state,label);}
   $('#filter').value='inscrita';
-  await load(); await refreshSchedule(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
+  await load(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
   const integration=await api('integration');
   $('#integration-state').textContent=integration.configured?'MCP configurado · stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';
   $('#mcp-stdio-config').value=JSON.stringify(integration.stdio,null,2);

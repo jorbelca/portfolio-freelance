@@ -55,8 +55,9 @@ export function actionInput(body) {
 export function validateSettings(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Configuración inválida');
   for (const key of ['max_openings', 'batch_size', 'max_age_days', 'quota_spain', 'quota_europe']) {
-    if (!Number.isSafeInteger(value[key]) || value[key] < 1) throw new Error(`Revisa ${key}`);
+    if (!Number.isSafeInteger(value[key]) || value[key] < (key.startsWith('quota_') ? 0 : 1)) throw new Error(`Revisa ${key}`);
   }
+  if (value.quota_spain + value.quota_europe < 1) throw new Error('El objetivo total debe ser al menos 1 oferta');
   if (value.batch_size > value.max_openings || typeof value.history_ready !== 'boolean') throw new Error('Revisa lotes e historial');
   new Intl.DateTimeFormat('es', {timeZone: value.timezone});
   if (typeof value.source_prompt !== 'string' || !value.source_prompt.trim()) throw new Error('Falta el prompt del perfil');
@@ -66,7 +67,8 @@ export function validateSettings(value) {
   if(value.model_retries!==undefined && (!Number.isSafeInteger(value.model_retries) || value.model_retries<0 || value.model_retries>3)) throw new Error('Reintentos inválidos: de 0 a 3');
   if(value.model_timeout_seconds!==undefined && (!Number.isSafeInteger(value.model_timeout_seconds) || value.model_timeout_seconds<5 || value.model_timeout_seconds>120)) throw new Error('Tiempo máximo inválido: de 5 a 120 segundos');
   if(value.public_alternatives!==undefined && typeof value.public_alternatives!=='boolean') throw new Error('Alternativas públicas: usa verdadero o falso');
-  const keys = ['public_alternatives','model_timeout_seconds','model_retries','provider','max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
+  if(value.reasoning_effort!==undefined && !['low','medium','high','xhigh','max'].includes(value.reasoning_effort)) throw new Error('Esfuerzo de razonamiento inválido');
+  const keys = ['reasoning_effort','public_alternatives','model_timeout_seconds','model_retries','provider','max_openings','batch_size','max_age_days','quota_spain','quota_europe','history_ready','timezone','model','source_prompt'];
   if (Object.keys(value).some(key => !keys.includes(key))) throw new Error('Variable no admitida');
   return value;
 }

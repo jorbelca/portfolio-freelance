@@ -59,17 +59,14 @@ test('búsqueda n8n: nodo singular por operación, cierre por estado persistido 
  assert.equal(JSON.stringify(workflow).includes('Bearer '),false);
 });
 
-test('programación n8n: comprobación cada minuto autenticada sin acceso directo a modelos',()=>{
+test('programación retirada: sin reloj ni peticiones automáticas',()=>{
  const workflow=JSON.parse(readFileSync(new URL('../workflows/04-programacion.json',import.meta.url)));
- assert.equal(workflow.nodes.length,2);
- const [clock,tick]=workflow.nodes;
- assert.equal(clock.type,'n8n-nodes-base.scheduleTrigger');
- assert.deepEqual(clock.parameters.rule.interval,[{field:'minutes',minutesInterval:1}]);
- assert.equal(workflow.settings.timezone,'Europe/Madrid');
- assert.ok(tick.parameters.url.endsWith('/api/workflow/schedule/tick'));
- assert.equal(tick.credentials.httpHeaderAuth.id,'empleoPanelHeader');
- assert.equal(workflow.connections[clock.name].main[0][0].node,tick.name);
- assert.equal(JSON.stringify(workflow).includes('Bearer '),false);
+ assert.equal(workflow.active,false);
+ assert.deepEqual(workflow.nodes,[]);
+ assert.deepEqual(workflow.connections,{});
+ const setup=readFileSync(new URL('../scripts/setup-n8n.js',import.meta.url),'utf8');
+ assert.match(setup,/unpublish:workflow/);
+ assert.match(setup,/if\(workflow.id==='empleoSchedule04'\)/);
 });
 
 import {scheduleSchema} from '../src/schedule.js';

@@ -20,6 +20,11 @@ export function candidateTotals(candidates) {
 }
 export function reportMarkdown(report,candidates) {
  const lines=[`# Búsqueda de empleo`, ``, `Fecha de corte: ${new Date(report.cutoff).toLocaleString('es-ES',{timeZone:report.timezone})} (${report.timezone}).`, `Fichas: ${report.openings}/${report.max_openings}. España: ${report.spain}/${report.quota_spain}. Resto de Europa: ${report.europe}/${report.quota_europe}.`, `Déficit: España ${report.deficit_spain}; Europa ${report.deficit_europe}.`, `Motivo de cierre: ${report.reason}. ${report.fulfilled?'Reparto verificado.':'Objetivo de cupos no cumplido.'}`,``];
+ if(report.discovery?.length) {
+  lines.push('## Diagnóstico de fuentes','');
+  for(const row of report.discovery) lines.push(`- ${escape(row.input.source)} · ${escape(row.input.term)}: ${escape(row.result?.status || 'ok')}; páginas ${row.result?.pages || 0}; recibidos ${row.result?.received || 0}; aceptados ${row.result?.accepted || 0}. ${escape(row.result?.reason || '')}`);
+  lines.push('');
+ }
  const totals=candidateTotals(candidates);
  lines.push(`Total computable: ${totals.computable}/${report.quota_spain+report.quota_europe}. Clases: A ${totals.classes.A}; B ${totals.classes.B}; C ${totals.classes.C}; pistas ${totals.classes.pista}.`, `B computables: ${totals.b_computable}; B no computables: ${totals.b_not_computable}.`, `Encaje entre finalistas computables: favorable ${totals.fit.favorable}; condicionado ${totals.fit.condicionado}; débil ${totals.fit['débil']}; desconocido ${totals.fit.desconocido}.`,``);
  if(totals.fit['débil']>totals.computable/2) lines.push('Predominan los encajes débiles entre las finalistas computables.',``);

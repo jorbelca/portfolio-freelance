@@ -101,11 +101,11 @@ El historial del workflow procede exclusivamente de Neon. No consultes Obsidian 
 - `track_search_candidate(id)`: incorporar A/B con identidad resuelta al seguimiento, sin postular.
 - `get_search_report(run_id, format="markdown", offset, max_chars)`: informe/registro generado por lote y al cerrar. Continúa con next_offset.
 
-Ante un dato desconocido, conserva el pendiente. Una ejecución completada puede terminar con cero ofertas computables y un déficit: no equivale a haber cumplido el reparto. Las fuentes configurables son Google y Bing; se consultan navegando en Chrome, no mediante APIs de portales. La ficha puede aportar una estructura `JobPosting` o texto DOM visible suficiente; si no, queda como pista.
+Ante un dato desconocido, conserva el pendiente. Una ejecución completada puede terminar con cero ofertas computables y un déficit: no equivale a haber cumplido el reparto. Las fuentes configurables son Google y Bing; se consultan automáticamente con Playwright, no mediante APIs de portales. La ficha puede aportar una estructura `JobPosting` o texto DOM visible suficiente; si no, queda como pista.
 
 ### Navegación y comprobación de candidatura
 
-n8n persiste y ordena las tareas, pero no controla el Chrome del cliente MCP. Cuando el workflow devuelve `awaiting_browser`, un agente debe tener conectados tanto Empleo MCP como Chrome DevTools MCP. Sigue esta secuencia:
+n8n persiste y ordena las tareas; el servicio consume `awaiting_browser` automáticamente con Playwright y Codex CLI. La siguiente secuencia manual con Chrome MCP queda para diagnóstico, sin ejecutar a la vez la tarea automática:
 
 1. `get_browser_task_status(run_id)` indica si hay una página pendiente.
 2. `get_browser_task(run_id)` reclama una tarea singular y devuelve URL, instrucciones y un nombre de contexto aislado. Abre esa URL con `new_page({url, isolatedContext: browser_context})`; no uses una sesión con cuentas iniciadas.
@@ -148,7 +148,7 @@ El perfil también incluye `recover_previous` y `reuse_evidence` (booleanos, act
 
 El parámetro `model_timeout_seconds` permite fijar entre 5 y 120 segundos por tarea de IA (120 por defecto). Se guarda con revisión y se copia al iniciar cada ejecución; se aplica tanto a Codex como a OpenAI. El máximo mantiene margen frente al límite HTTP de n8n. Un tiempo agotado exige revisión manual y no consume reintentos automáticos.
 
-Programación periódica: `get_schedule` y `set_schedule` (o sección «Búsqueda programada» del panel) permiten activar, fijar intervalo de 15 a 525600 minutos y próxima fecha UTC. Lee `revision` antes de guardar. El workflow n8n `empleoSchedule04` comprueba cada minuto usando la credencial del puente. La programación empieza desactivada. Respeta admisión global, historial confirmado y ejecuciones activas o inciertas. Los intervalos se cuentan desde el lanzamiento, sin ráfagas para recuperar fechas perdidas. Cambiar el intervalo en el panel no requiere republicar n8n. Deben estar arrancados Docker, n8n y la web. La programación autoriza consumo periódico del motor elegido; no envía candidaturas.
+Programación automática retirada por petición del usuario. El workflow `empleoSchedule04` está despublicado y la instalación solo publica los tres workflows manuales. Los ajustes históricos se conservan; no hay comprobaciones cada minuto.
 
 `GET/PUT /api/workflow/schedule` expone configuración y estado. `POST /api/workflow/schedule/tick` es exclusivo de `N8N_TOKEN`, no accesible con el token MCP ni con la cabecera del panel. La reserva de ejecución y el avance de fecha se confirman juntos en Neon; si falla el envío posterior a n8n, la ejecución queda incierta y bloquea nuevos lanzamientos hasta su revisión.
 
@@ -159,3 +159,9 @@ La generación de informes tiene estado independiente del análisis: `report_fil
 Los lotes cuentan fichas terminadas, tanto evaluadas como incompletas o con error de lectura. Una representación alternativa pendiente no termina la ficha ni suma otra apertura. Al alcanzar `batch_size`, n8n ejecuta la actualización del informe antes de abrir la siguiente ficha. Una ficha completa espera a su evaluación antes de cerrar el lote; una lectura incierta conserva la revisión manual.
 
 Las nuevas búsquedas incluyen una tarea independiente `assess_fit` tras las 11 comparaciones, salvo que ya exista una causa C. Valora favorable/condicionado/débil con cita literal; no excluye por sí sola. La instrucción `fit_instruction` se edita en perfil/configuración y por MCP. El encaje desconocido queda pendiente y fuera del cómputo hasta aclararlo. Informe, registro y panel muestran la valoración, su explicación y cita. `correct_search_candidate` admite `field: "fit"` con valor favorable, condicionado, débil o desconocido, cita y motivo. Las ejecuciones anteriores conservan su heurística hasta una corrección explícita. Máximo por ficha sin exclusión temprana: 15 extracciones + 11 comparaciones + 1 valoración de encaje. Se aplican los mismos reintentos acotados, tiempo máximo y recuperación manual.
+
+### Navegación autónoma
+
+El servicio consume automáticamente las tareas de navegador que prepara n8n usando Playwright y Codex CLI con la sesión local de ChatGPT. No requiere un cliente Chrome MCP conectado. Las herramientas de captura manual se conservan para diagnóstico; no reclames una tarea mientras el trabajador automático la está ejecutando. El navegador vive en un contenedor separado sin credenciales y solo admite navegación pública HTTPS por GET. No envía candidaturas. Ante un fallo de proceso/cuota se pausa la búsqueda con tarea incierta; inspecciona el error antes de reintentar.
+
+`reasoning_effort` es independiente de `model`: low, medium, high, xhigh o max (inicial). Se edita mediante ajustes/MCP y se copia a cada nueva ejecución; no altera las ya iniciadas. El modelo debe admitir el nivel elegido.

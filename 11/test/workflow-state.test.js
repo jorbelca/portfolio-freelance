@@ -23,3 +23,13 @@ test('las tareas sin resultado no rompen la vista y conservan su estado real',()
  assert.equal(taskStatusLabel({status:'pending'},'running'),'En espera');
  assert.equal(taskStatusLabel({status:'unknown'},'running'),'Resultado incierto');
 });
+
+test('cada bloqueo explica la acción necesaria antes de lanzar',async()=>{
+ const {launchBlockReason}=await import('../public/workflow-state.js');
+ const workflow={reachable:true,control:{enabled:true}},settings={history_ready:true};
+ assert.equal(launchBlockReason(workflow,[],settings,'search'),'');
+ assert.match(launchBlockReason({...workflow,control:{enabled:false}},[],settings,'search'),/Habilitar ejecuciones/);
+ assert.match(launchBlockReason(workflow,[{status:'unknown'}],settings,'search'),/incierto/);
+ assert.match(launchBlockReason(workflow,[],{history_ready:false},'search'),/Configuración/);
+ assert.equal(launchBlockReason(workflow,[],{history_ready:false},'contract'),'');
+});

@@ -12,9 +12,9 @@ test('solo admite Google y Bing por navegador, sin adaptadores de portales',()=>
  }
  const google=new URL(browserSearchUrl('browser:google',{term:'software developer junior',zone:'spain',language:'en'}));
  assert.equal(google.origin,'https://www.google.com');assert.equal(google.pathname,'/search');
- assert.equal(google.searchParams.get('q'),'software developer junior Spain España');assert.equal(google.searchParams.get('hl'),'en');
+ assert.equal(google.searchParams.get('q'),'software developer junior job vacancy Spain España');assert.equal(google.searchParams.get('hl'),'en');
  const bing=new URL(browserSearchUrl('browser:bing',{term:'React',zone:'europe',language:'es'}));
- assert.equal(bing.searchParams.get('q'),'React Europe jobs');assert.equal(bing.searchParams.has('hl'),false);
+ assert.equal(bing.searchParams.get('q'),'React oferta de empleo Europe jobs');assert.equal(bing.searchParams.has('hl'),false);
  assert.throws(()=>browserSearchUrl('browser:google',{term:' '}));
 });
 

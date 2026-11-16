@@ -12,7 +12,7 @@ export function browserSearchUrl(source,{term,zone,language}) {
  const spec=sourceSpec(source);
  if(typeof term!=='string' || !term.trim()) throw new Error('Tarea de búsqueda en navegador inválida');
  const suffix=zone==='spain'?' Spain España':zone==='europe'?' Europe jobs':'';
- const url=new URL(spec.url);url.searchParams.set('q',`${term.trim()}${suffix}`);
+ const url=new URL(spec.url);url.searchParams.set('q',`${term.trim()} ${language==='en'?'job vacancy':'oferta de empleo'}${suffix}`);
  if(spec.engine==='google') url.searchParams.set('hl',language==='en'?'en':'es');
  return url.href;
 }

@@ -4,6 +4,8 @@ RUN npm install --global @openai/codex@0.167.0 && npm cache clean --force
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
 COPY src ./src
 COPY public ./public
 COPY MCP.md ./MCP.md

@@ -38,6 +38,14 @@ test('rechaza evidencia inventada y desconocidos contradictorios', () => {
   assert.throws(() => validateExtraction({value:'indefinido',evidence:'permanente',state:'acreditado'},text));
   assert.throws(() => validateExtraction({value:'indefinido',evidence:'',state:'desconocido'},text));
 });
+test('permite buscar una sola oferta en una zona y exige un objetivo total positivo', () => {
+  const defaults=JSON.parse(readFileSync(new URL('../defaults.json',import.meta.url)));
+  for(const [quota_spain,quota_europe] of [[1,0],[0,1]]) {
+    assert.doesNotThrow(()=>validateSettings({...defaults,max_openings:1,batch_size:1,quota_spain,quota_europe}));
+  }
+  assert.throws(()=>validateSettings({...defaults,quota_spain:0,quota_europe:0}),/objetivo total/);
+  for(const quota_spain of [-1,0.5,'0',null]) assert.throws(()=>validateSettings({...defaults,quota_spain}));
+});
 
 test('reapertura no elimina candidatura ni desbloquea una rechazada', () => {
   const base={availability:'abierta',review_state:'guardada',application_state:'sin_candidatura'};

@@ -9,9 +9,9 @@ async function request(path,options={},fetcher=fetch,timeoutMs=Number(process.en
  if(!response.ok) throw new Error(`OpenAI API: HTTP ${response.status}. Comprueba clave, acceso al modelo y cuota; no se cambia de motor automáticamente.`);
  return response.json();
 }
-export async function openaiExtraction(prompt,model,fetcher=fetch,timeoutMs=Number(process.env.CODEX_TIMEOUT_MS || 120000)) {
+export async function openaiExtraction(prompt,model,fetcher=fetch,timeoutMs=Number(process.env.CODEX_TIMEOUT_MS || 120000),reasoning_effort='max') {
  if(typeof model!=='string' || !model.trim()) throw new Error('La API requiere un modelo explícito');
- const result=await request('responses',{method:'POST',body:JSON.stringify({model,input:prompt,store:false,text:{format:{type:'json_schema',name:'extraction',strict:true,schema}}})},fetcher,timeoutMs);
+ const result=await request('responses',{method:'POST',body:JSON.stringify({model,reasoning:{effort:reasoning_effort},input:prompt,store:false,text:{format:{type:'json_schema',name:'extraction',strict:true,schema}}})},fetcher,timeoutMs);
  if(result.status!=='completed') throw new Error('La API no completó la respuesta');
  const content=(result.output || []).filter(item=>item?.type==='message').flatMap(item=>item.content || []);
  if(content.some(item=>item?.type==='refusal')) throw new Error('El modelo rechazó la tarea');

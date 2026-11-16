@@ -1,3 +1,4 @@
+import {runBrowserTask} from './browser-worker.js';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {timingSafeEqual} from 'node:crypto';
@@ -154,7 +155,12 @@ http.createServer(async (req, res) => {
         return send(res,200,result);
       }
       if (!authenticated(req)) return send(res,401,{error:'Credencial n8n requerida'});
-      if (section==='next' && req.method==='POST') return send(res,200,await searchNext(id));
+      if (section==='next' && req.method==='POST') {
+        const next=await searchNext(id);
+        send(res,200,next);
+        if(next.status==='awaiting_browser') setImmediate(()=>runBrowserTask(id).catch(error=>console.error('Navegador:',error.message)));
+        return;
+      }
       if (section==='steps' && searchRoute[3] && req.method==='POST') {const value=await body(req);return send(res,200,await runSearchStep(id,searchRoute[3],value.kind,value.execution_id));}
     }
     const browserRoute=path.match(/^\/api\/search\/runs\/([0-9a-f-]{36})\/browser-task(?:\/(claim|([0-9a-f-]{36})\/(discovery|read|application)))?$/);
@@ -187,7 +193,7 @@ http.createServer(async (req, res) => {
         const current=(await client.query('SELECT * FROM settings_summary WHERE id=1')).rows[0];
         if (input.revision!==current.revision) return null;
         const value=validateSettings(req.method==='PATCH'?{...current.value,...patchInput(input.patch,Object.keys(current.value))}:input.value);
-        const result = await client.query('UPDATE search_settings SET max_openings=$1,batch_size=$2,max_age_days=$3,timezone=$4,history_ready=$5,model=$6,source_prompt=$7,provider=$9,model_retries=COALESCE($10,model_retries),model_timeout_seconds=COALESCE($11,model_timeout_seconds),public_alternatives=COALESCE($12,public_alternatives),revision=revision+1 WHERE id=1 AND revision=$8 RETURNING id',[value.max_openings,value.batch_size,value.max_age_days,value.timezone,value.history_ready,value.model,value.source_prompt,input.revision,value.provider ?? 'codex',value.model_retries,value.model_timeout_seconds,value.public_alternatives]);
+        const result = await client.query('UPDATE search_settings SET max_openings=$1,batch_size=$2,max_age_days=$3,timezone=$4,history_ready=$5,model=$6,source_prompt=$7,provider=$9,model_retries=COALESCE($10,model_retries),model_timeout_seconds=COALESCE($11,model_timeout_seconds),public_alternatives=COALESCE($12,public_alternatives),reasoning_effort=COALESCE($13,reasoning_effort),revision=revision+1 WHERE id=1 AND revision=$8 RETURNING id',[value.max_openings,value.batch_size,value.max_age_days,value.timezone,value.history_ready,value.model,value.source_prompt,input.revision,value.provider ?? 'codex',value.model_retries,value.model_timeout_seconds,value.public_alternatives,value.reasoning_effort]);
         if (!result.rowCount) return null;
         await client.query("UPDATE search_quotas SET target=CASE zone WHEN 'spain' THEN $1::integer ELSE $2::integer END WHERE settings_id=1",[value.quota_spain,value.quota_europe]);
         return (await client.query('SELECT * FROM settings_summary WHERE id=1')).rows[0];

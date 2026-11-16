@@ -21,23 +21,26 @@ export async function extractPrompt(prompt,text,model) {
   if (!['codex','openai'].includes(config.provider ?? 'codex')) throw new Error('Motor no admitido');
   const timeoutMs=config.model_timeout_seconds===undefined?Number(process.env.CODEX_TIMEOUT_MS || 120000):config.model_timeout_seconds*1000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs<5000 || timeoutMs>120000) throw new Error('Tiempo máximo inválido: de 5 a 120 segundos');
-  if (config.provider==='openai') return validateExtraction(await openaiExtraction(prompt,config.model,undefined,timeoutMs),text);
-  model=config.model || process.env.CODEX_MODEL;
+  if (config.provider==='openai') return validateExtraction(await openaiExtraction(prompt,config.model,undefined,timeoutMs,config.reasoning_effort),text);
+  const schema = {type: 'object', additionalProperties: false, properties: {
+    value: {type: 'string'}, evidence: {type: 'string'}, state: {type: 'string', enum: ['acreditado', 'desconocido']}
+  }, required: ['value', 'evidence', 'state']};
+  return validateExtraction(await codexJson(prompt,schema,{model:config.model,timeoutMs,reasoning_effort:config.reasoning_effort}),text);
+}
+export async function codexJson(prompt,schema,{model=process.env.CODEX_MODEL || 'gpt-6-luna',timeoutMs=120000,reasoning_effort='max'}={}) {
+  if(!['low','medium','high','xhigh','max'].includes(reasoning_effort)) throw new Error('Esfuerzo de razonamiento inválido');
   if (busy) throw Object.assign(new Error('Codex ocupado, reintenta después'), {status: 429});
   busy = true;
   let directory;
   try {
     directory = await mkdtemp(join(tmpdir(), 'empleo-'));
-    const schema = {type: 'object', additionalProperties: false, properties: {
-      value: {type: 'string'}, evidence: {type: 'string'}, state: {type: 'string', enum: ['acreditado', 'desconocido']}
-    }, required: ['value', 'evidence', 'state']};
     await writeFile(join(directory, 'schema.json'), JSON.stringify(schema));
-    const args = ['exec', '--ignore-user-config', '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', directory,
+    const args = ['exec', '--ignore-user-config', '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-c', `model_reasoning_effort=${JSON.stringify(reasoning_effort)}`, '-C', directory,
       '--output-schema', join(directory, 'schema.json'), '--output-last-message', join(directory, 'output.json')];
-    if (model) args.push('--model', model);
+    args.push('--model', model || process.env.CODEX_MODEL || 'gpt-6-luna');
     args.push('-');
     await new Promise((resolve, reject) => {
-      // shortcut: una extracción simultánea por proceso, ampliar con cola persistente al añadir búsquedas.
+      // shortcut: una llamada simultánea por proceso; ampliar si se permiten ejecuciones paralelas.
       const child = spawn('codex', args, {stdio: ['pipe', 'ignore', 'ignore'], env: {
         PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: tmpdir()
       }});
@@ -50,7 +53,7 @@ export async function extractPrompt(prompt,text,model) {
       child.stdin.on('error', () => {});
       child.stdin.end(prompt);
     });
-    return validateExtraction(JSON.parse(await readFile(join(directory, 'output.json'), 'utf8')), text);
+    return JSON.parse(await readFile(join(directory, 'output.json'), 'utf8'));
   } finally {
     busy = false;
     if (directory) await rm(directory, {recursive: true, force: true});

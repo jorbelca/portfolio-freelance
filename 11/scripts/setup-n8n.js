@@ -20,7 +20,8 @@ try {
   for (const workflow of workflows) {
     await docker(['exec','-T','n8n','sh','-c','umask 077; cat > /tmp/empleo-workflow.json'],JSON.stringify(workflow));
     await docker(['exec','-T','n8n','n8n','import:workflow','--input=/tmp/empleo-workflow.json']);
-    await docker(['exec','-T','n8n','n8n','publish:workflow',`--id=${workflow.id}`]);
+    if(workflow.id==='empleoSchedule04') await docker(['exec','-T','n8n','n8n','unpublish:workflow',`--id=${workflow.id}`]);
+    else await docker(['exec','-T','n8n','n8n','publish:workflow',`--id=${workflow.id}`]);
   }
 } finally {
   await docker(['exec','-T','n8n','rm','-f','/tmp/empleo-credential.json','/tmp/empleo-workflow.json']);

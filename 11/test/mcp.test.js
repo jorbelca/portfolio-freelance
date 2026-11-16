@@ -23,7 +23,7 @@ test('MCP negocia protocolo, publica herramientas estrictas y no reenvía argume
     assert.equal(tools.find(t=>t.name==='patch_settings').inputSchema.additionalProperties,false);
     for(const input of [
       {name:'start_run',arguments:{request_id:randomUUID(),module:'discovery',text:'Documento de prueba aislado'}},
-      {name:'patch_settings',arguments:{expected_revision:1,patch:{quota_spain:0}}},
+      {name:'patch_settings',arguments:{expected_revision:1,patch:{quota_spain:-1}}},
       {name:'patch_settings',arguments:{expected_revision:1,patch:{}}},
       {name:'get_workflow',arguments:{unexpected:true}}
     ]) assert.equal((await client.callTool(input)).isError,true);
