@@ -102,6 +102,22 @@ export async function checkHistory(raw,client=pool) {
   return {excluded:[...exact.values()].some(row=>row.excluded),already_known:exact.size>0,needs_review:ambiguous || (!exact.size && possible.size>0),identity,matches};
 }
 
+export async function checkOffersBatch(raw,client=pool) {
+  if (!raw || typeof raw!=='object' || Array.isArray(raw) || Object.keys(raw).some(key=>key!=='urls') || !Array.isArray(raw.urls) || raw.urls.length<1 || raw.urls.length>100) throw fail('Indica entre 1 y 100 URLs.');
+  const urls=raw.urls.map(url=>{
+    if (typeof url!=='string' || !url || url.length>2000) throw fail('URL inválida.');
+    return cleanUrl(url);
+  });
+  const identities=urls.map(publicationIdentity);
+  const {rows}=await client.query(`WITH input AS (
+    SELECT * FROM unnest($1::text[],$2::text[]) WITH ORDINALITY AS i(url,identity,position)
+  ) SELECT i.position,EXISTS (
+    SELECT 1 FROM publications p JOIN applications a ON a.opportunity_id=p.opportunity_id
+    WHERE p.url=i.url OR (i.identity IS NOT NULL AND publication_identity(p.url)=i.identity)
+  ) AS applied FROM input i ORDER BY i.position`,[urls,identities]);
+  return {results:rows.map((row,index)=>({url:raw.urls[index],applied:row.applied}))};
+}
+
 export async function mergeOffers(targetId,raw) {
   validId(targetId);validId(raw.source_id);
   if(targetId===raw.source_id || !Number.isSafeInteger(raw.version) || !Number.isSafeInteger(raw.source_version) || !['target','source'].includes(raw.application_from) || typeof raw.reason!=='string' || !raw.reason.trim() || raw.reason.length>2000) throw fail('Indica dos procesos, sus versiones, la candidatura que conservar y el motivo.');

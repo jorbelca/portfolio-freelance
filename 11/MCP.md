@@ -165,3 +165,17 @@ Las nuevas búsquedas incluyen una tarea independiente `assess_fit` tras las 11 
 El servicio consume automáticamente las tareas de navegador que prepara n8n usando Playwright y Codex CLI con la sesión local de ChatGPT. No requiere un cliente Chrome MCP conectado. Las herramientas de captura manual se conservan para diagnóstico; no reclames una tarea mientras el trabajador automático la está ejecutando. El navegador vive en un contenedor separado sin credenciales y solo admite navegación pública HTTPS por GET. No envía candidaturas. Ante un fallo de proceso/cuota se pausa la búsqueda con tarea incierta; inspecciona el error antes de reintentar.
 
 `reasoning_effort` es independiente de `model`: low, medium, high, xhigh o max (inicial). Se edita mediante ajustes/MCP y se copia a cada nueva ejecución; no altera las ya iniciadas. El modelo debe admitir el nivel elegido.
+
+## Comprobación rápida de candidaturas
+
+Antes de abrir o analizar fichas, usa `check_offers_batch` con `urls` (entre 1 y 100 URLs HTTP/HTTPS, hasta 2000 caracteres cada una). También disponible en `POST /api/offers/check-batch`, con la autenticación habitual de la API.
+
+Entrada: `{"urls":["https://www.linkedin.com/jobs/view/123456"]}`
+
+Respuesta: `{"results":[{"url":"https://www.linkedin.com/jobs/view/123456","applied":true}]}`
+
+Conserva el orden y las URLs de entrada, incluso repetidas. Una sola consulta SQL comprueba URLs normalizadas e identidades públicas indexadas (LinkedIn, InfoJobs, Workable, Greenhouse, Lever, SmartRecruiters y Emploive), incluidos enlaces alternativos guardados. El tenant forma parte de la identidad ATS. Cualquier candidatura registrada cuenta, aunque esté rechazada, retirada o sin fecha de envío; una oferta descartada sin candidatura no cuenta. No compara por empresa/título ni navega o utiliza un LLM.
+
+`applied=true` permite omitir el análisis. `false` significa únicamente que Neon no confirma una candidatura para esa URL/identidad. No acredita ausencia de postulaciones fuera del historial ni detecta otras publicaciones del proceso sin un enlace alternativo registrado. Usa URLs de fichas concretas, no páginas genéricas de empleo. Los fallos se devuelven como errores; nunca se convierten en `false`.
+
+Antes de usarlo, ejecuta `npm run migrate` en `11/` y reinicia el servicio. La migración `025.sql` añade el índice de identidades para publicaciones existentes y futuras. Si se amplían los portales de `src/identity.js`, actualiza también la función SQL `publication_identity` mediante una migración y reconstruye su índice.

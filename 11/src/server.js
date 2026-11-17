@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {timingSafeEqual} from 'node:crypto';
 import {pool, transaction} from './db.js';
 import {offerInput, validateSettings, validId, availabilityStates, reviewStates, applicationStates, actionStates} from './domain.js';
-import {saveOffer, saveAction, appendPublication, checkHistory, mergeOffers, listOfferMerges, unmergeOffer} from './store.js';
+import {saveOffer, saveAction, appendPublication, checkHistory, checkOffersBatch, mergeOffers, listOfferMerges, unmergeOffer} from './store.js';
 import {workflowStatus,startRun,recoverRuns,runTask,finishRun,dispatchSearch} from './workflow.js';
 import {handleMcpHttp,integrationInfo} from './mcp.js';
 import {getSearchConfig,saveSearchConfig} from './search-config.js';
@@ -239,6 +239,7 @@ http.createServer(async (req, res) => {
       if (section === 'publications' && req.method === 'POST' && !childId) return send(res,201,await appendPublication(id,await body(req)));
       if (section === 'actions' && ((req.method === 'POST' && !childId) || (req.method === 'PUT' && childId))) return send(res,childId?200:201,await saveAction(id,childId,await body(req)));
     }
+    if (path === '/api/offers/check-batch' && req.method === 'POST') return send(res,200,await checkOffersBatch(await body(req)));
     if (path === '/api/history/check' && req.method === 'POST') return send(res,200,await checkHistory(await body(req)));
     if (/^\/api\/tasks\/[a-z_]+$/.test(path) && req.method==='POST') {
       if (!authenticated(req)) return send(res,401,{error:'Credencial n8n requerida'});

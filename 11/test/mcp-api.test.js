@@ -6,6 +6,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import net from 'node:net';
 import pg from 'pg';
+import {publicationIdentity} from '../src/identity.js';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -117,6 +118,26 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     assert.equal((await call('patch_offer',{id:offer.id,expected_version:offer.version,patch:{application_state:'sin_candidatura',reason:'Intento inválido de borrar historial'}})).structuredContent.error.code,'INVALID_INPUT');
     await ok('add_publication',{offer_id:offer.id,url:'https://example.test/isolated/alias'});
     assert.equal((await ok('check_history',{url:'https://example.test/isolated/alias'})).excluded,true);
+    const batchUrls=['https://example.test/isolated/alias?utm_source=test','https://example.test/not-applied'];
+    assert.deepEqual(await ok('check_offers_batch',{urls:batchUrls}),{results:batchUrls.map((url,index)=>({url,applied:index===0}))});
+    assert.equal((await call('check_offers_batch',{urls:[]})).isError,true);
+    const identityUrls=[
+      'https://www.infojobs.net/a/dev/of-i123abc?utm_source=x',
+      'https://es.linkedin.com/jobs/view/dev-123456',
+      'https://apply.workable.com/a/j/AB12/',
+      'https://job-boards.greenhouse.io/a/jobs/123',
+      'https://jobs.lever.co/a/12345678-abcd-1234-abcd-123456789abc',
+      'https://api.smartrecruiters.com/v1/companies/a/postings/123',
+      'https://emploive.com/home/jobs/8612917',
+      'https://example.test/careers',
+      'https://infojobs.net.evil.com/of-i123'
+    ];
+    for(const url of identityUrls) {
+      assert.equal((await admin.query('SELECT publication_identity($1) AS identity',[url])).rows[0].identity,publicationIdentity(url));
+    }
+    await ok('add_publication',{offer_id:offer.id,url:'https://es.linkedin.com/jobs/view/dev-123456'});
+    assert.deepEqual(await ok('check_offers_batch',{urls:['https://www.linkedin.com/jobs/view/123456','https://www.linkedin.com/jobs/view/123457']}),{results:[{url:'https://www.linkedin.com/jobs/view/123456',applied:true},{url:'https://www.linkedin.com/jobs/view/123457',applied:false}]});
+    await admin.query("DELETE FROM publications WHERE url='https://es.linkedin.com/jobs/view/dev-123456'");
     const action=await ok('create_action',{offer_id:offer.id,description:'Fixture aislada',state:'pendiente'});
     const actions=await ok('list_actions',{offer_id:offer.id});
     await ok('update_action',{offer_id:offer.id,action_id:action.id,expected_version:actions.items[0].version,description:'Fixture aislada',state:'completada'});
@@ -129,6 +150,7 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     assert.equal((await ok('list_publications',{offer_id:offer.id})).items.length,2);
     assert.equal((await ok('list_offer_events',{offer_id:offer.id,limit:1})).items.length,1);
     const duplicate=await ok('create_offer',{offer:{company:offer.company,title:offer.title,url:'https://example.test/duplicate',availability:'desconocida',review_state:'nueva',application_state:'sin_candidatura',notes:'Nota del duplicado'}});
+    assert.equal((await ok('check_offers_batch',{urls:['https://example.test/duplicate']})).results[0].applied,false);
     const duplicateOffer=await ok('get_offer',{id:duplicate.id});
     const sourceAction=await ok('create_action',{offer_id:duplicate.id,description:'Acción duplicada',state:'pendiente'});
     const mergeSource=await ok('get_offer',{id:duplicate.id});
@@ -145,6 +167,7 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     assert.ok((await ok('list_actions',{offer_id:offer.id})).items.some(item=>item.id===sourceAction.id));
     assert.equal((await ok('check_history',{url:'https://example.test/duplicate'})).matches[0].id,offer.id);
     assert.equal((await ok('check_history',{url:'https://example.test/duplicate'})).excluded,true);
+    assert.equal((await ok('check_offers_batch',{urls:['https://example.test/duplicate']})).results[0].applied,true);
     assert.equal((await ok('list_offers')).items.length,1);
     assert.equal((await admin.query('SELECT count(*)::int AS n FROM opportunities WHERE id=$1',[duplicate.id])).rows[0].n,1);
     const mergedEvents=(await ok('list_offer_events',{offer_id:offer.id})).items;

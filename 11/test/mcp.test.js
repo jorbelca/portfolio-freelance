@@ -17,7 +17,7 @@ test('MCP negocia protocolo, publica herramientas estrictas y no reenvía argume
   const {client,close}=await connect(async(...args)=>{calls.push(args);return {id:args[2]?.id || randomUUID(),status:'queued'};});
   try {
     const {tools}=await client.listTools();
-    assert.equal(tools.length,42);
+    assert.equal(tools.length,43);
     assert.equal(tools.find(t=>t.name==='get_workflow').annotations.readOnlyHint,true);
     assert.equal(tools.find(t=>t.name==='start_run').annotations.idempotentHint,true);
     assert.equal(tools.find(t=>t.name==='patch_settings').inputSchema.additionalProperties,false);
@@ -28,6 +28,14 @@ test('MCP negocia protocolo, publica herramientas estrictas y no reenvía argume
       {name:'get_workflow',arguments:{unexpected:true}}
     ]) assert.equal((await client.callTool(input)).isError,true);
     assert.equal(calls.length,0);
+    const urls=['https://www.linkedin.com/jobs/view/123'];
+    assert.equal(tools.find(t=>t.name==='check_offers_batch').annotations.readOnlyHint,true);
+    for(const urls of [[],Array(101).fill('https://example.test'),['javascript:alert(1)']]) {
+      assert.equal((await client.callTool({name:'check_offers_batch',arguments:{urls}})).isError,true);
+    }
+    assert.equal(calls.length,0);
+    await client.callTool({name:'check_offers_batch',arguments:{urls}});
+    assert.deepEqual(calls.pop(),['offers/check-batch','POST',{urls}]);
     const id=randomUUID(),args={request_id:id,module:'contract',text:'  Documento de prueba aislado \n'};
     const result=await client.callTool({name:'start_run',arguments:args});
     assert.equal(result.structuredContent.ok,true);
