@@ -1,4 +1,5 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
+import {renderCompanyHeatmap} from './company-heatmap.js';
 import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
 let searchConfig;
@@ -20,6 +21,7 @@ function displayDate(value,dateOnly=false) {
   return value ? new Date(value).toLocaleDateString('es-ES',dateOnly?{timeZone:'UTC'}:undefined) : 'Sin fecha';
 }
 function render() {
+  renderCompanyHeatmap(offers);
   $('#offer-editor-home').append($('#offer-editor'));
   $('#offers').replaceChildren();
   const visible=offers.filter(item=>!$('#filter').value || offerState(item)===$('#filter').value);
