@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
-import {createMcpServer,apiClient} from '../src/mcp.js';
+import {createMcpServer,apiClient,integrationInfo} from '../src/mcp.js';
 
 async function connect(request,readOnly=false) {
   const server=createMcpServer({request,readOnly});
@@ -75,4 +75,25 @@ test('el cliente API no usa cabecera de panel y no sigue redirecciones con el se
   assert.equal(call[1].headers['X-Empleo-Client'],undefined);
   assert.equal(call[1].redirect,'error');
   assert.throws(()=>apiClient({baseUrl:'https://user:secret@example.test',token:'test-only'}));
+});
+
+test('el catálogo público coincide con todas las herramientas reales sin llamar a la API',async()=>{
+  const info=integrationInfo('http://127.0.0.1:3210');
+  const {client,close}=await connect(()=>{throw new Error('No debe llamar a la API');});
+  try {
+    const {tools}=await client.listTools();
+    assert.deepEqual(info.tools.map(tool=>tool.name),tools.map(tool=>tool.name));
+    for(const tool of info.tools) {
+      const registered=tools.find(item=>item.name===tool.name);
+      assert.equal(tool.description,registered.description);
+      assert.equal(tool.readOnly,registered.annotations.readOnlyHint);
+      assert.deepEqual(JSON.parse(JSON.stringify(tool.inputSchema)),registered.inputSchema);
+      assert.match(tool.method,/^(GET|POST|PUT|PATCH)$/);
+      assert.match(tool.path,/^\/api\//);
+      assert.ok(tool.returns.length>20);
+    }
+    assert.equal(info.tools.find(tool=>tool.name==='check_offers_batch').inputSchema.properties.urls.maxItems,100);
+    assert.ok(info.http_endpoints.some(item=>item.path==='/api/search/runs/{run_id}/next'));
+    if(process.env.MCP_TOKEN) assert.equal(JSON.stringify(info).includes(process.env.MCP_TOKEN),false);
+  } finally {await close();}
 });

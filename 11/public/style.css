@@ -65,3 +65,7 @@ button.secondary{color:#294b36;background:#edf1e8;border:1px solid #cbd7c4}
 .launch-actions #enable-workflow{order:-1}
 
 .offer-description{white-space:pre-wrap;line-height:1.7}#search-results>div>section{margin:20px 0;padding:16px;border:1px solid #dce3d8;border-radius:8px}#search-results pre{white-space:pre-wrap;overflow-wrap:anywhere}
+
+#endpoint-catalog{min-width:0}.endpoint{border-top:1px solid #dce3d8;padding:16px 0}.endpoint summary{cursor:pointer;font-size:13px;line-height:1.7;overflow-wrap:anywhere}.endpoint p{font-size:13px;line-height:1.7}.endpoint h4{font-size:13px;margin:16px 0 8px}.endpoint pre{font-size:12px;line-height:1.6;background:#f6f8f3;padding:14px;border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto}
+
+.metrics .rejected-metric span,.metrics .rejected-metric strong{color:#a33232}

@@ -27,7 +27,7 @@ function render() {
     const row=document.createElement('tr'), cell=document.createElement('td'); cell.colSpan=6; cell.textContent='Sin ofertas para mostrar.'; row.append(cell); $('#offers').append(row);
   }
   $('#count-all').textContent=offers.length;
-  $('#count-pending').textContent=offers.filter(item=>offerState(item)==='pendiente').length;
+  $('#count-rejected').textContent=offers.filter(item=>offerState(item)==='rechazada').length;
   $('#count-active').textContent=offers.filter(item=>offerState(item)==='inscrita').length;
   for (const offer of visible) {
     const row=document.createElement('tr'); row.dataset.offerId=offer.id; row.dataset.offerState=offerState(offer);
@@ -536,6 +536,35 @@ $('#run-form').onsubmit=async event=>{
   posting=true; updateRunScope(); requestId ||= crypto.randomUUID();
   try {const run=await api('workflow/runs','POST',{id:requestId,module:runModule(),text:$('#run-text').value}); selectedRunId=run.id; requestId=null; message('Ejecución iniciada. Sigue el progreso en «Ejecuciones y resultados».');document.querySelector('#runs').scrollIntoView({behavior:'smooth',block:'start'});} catch(error) {message(error.message);} finally {posting=false; await refreshWorkflow().catch(error=>message(error.message));}
 };
+function renderEndpointCatalog(integration) {
+  const container=$('#endpoint-catalog');
+  container.replaceChildren();
+  const endpoints=[...integration.tools,...integration.http_endpoints];
+  for (const endpoint of endpoints) {
+    const item=document.createElement('details'),summary=document.createElement('summary');
+    item.className='endpoint';
+    item.dataset.search=[endpoint.name,endpoint.method,endpoint.path,endpoint.description,endpoint.returns].filter(Boolean).join(' ').toLowerCase();
+    summary.textContent=`${endpoint.method} ${endpoint.path}${endpoint.name?` · ${endpoint.name}`:' · Solo HTTP'}`;
+    item.append(summary);
+    if (endpoint.name) {
+      const description=document.createElement('p');
+      description.textContent=`${endpoint.readOnly?'Consulta':'Modifica datos o controla tareas'} · ${endpoint.description}`;
+      item.append(description);
+    }
+    const output=document.createElement('p');output.textContent=`Devuelve: ${endpoint.returns}`;item.append(output);
+    const label=document.createElement('h4');label.textContent=endpoint.name?'Parámetros MCP (JSON Schema)':'Parámetros HTTP';item.append(label);
+    const input=document.createElement('pre');input.textContent=endpoint.inputSchema?JSON.stringify(endpoint.inputSchema,null,2):endpoint.input;item.append(input);
+    container.append(item);
+  }
+  const filter=()=>{
+    const term=$('#endpoint-filter').value.trim().toLowerCase();
+    for (const item of container.children) item.hidden=!item.dataset.search.includes(term);
+    $('#endpoint-count').textContent=`${[...container.children].filter(item=>!item.hidden).length} de ${endpoints.length} operaciones · ${integration.tools.length} herramientas MCP`;
+  };
+  $('#endpoint-filter').oninput=filter;
+  filter();
+}
+
 function route() {
   if (['run-form','runs','enable-workflow'].includes(location.hash.slice(1))) return;
   const page=['control','configuration','results','seguimiento','integrations'].includes(location.hash.slice(1))?location.hash.slice(1):'control';
@@ -555,6 +584,7 @@ try {
   $('#mcp-stdio-config').value=JSON.stringify(integration.stdio,null,2);
   $('#mcp-http-config').value=JSON.stringify(integration.http,null,2);
   document.body.dataset.mcpEndpoint=integration.endpoint;
+  renderEndpointCatalog(integration);
   document.body.dataset.appState='ready';
   setInterval(()=>{if (!document.hidden && !$('#run-detail').contains(document.activeElement) && runs.some(run=>['queued','running'].includes(run.status))) refreshWorkflow().catch(error=>message(error.message));},3000);
 } catch(error) {

@@ -1,6 +1,7 @@
 import {McpServer, ResourceTemplate} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {z} from 'zod';
+import {toolEndpoints,httpEndpoints} from './api-catalog.js';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {availabilityStates,reviewStates,applicationStates,actionStates} from './domain.js';
@@ -23,7 +24,7 @@ const instructions='Controla el workflow de empleo mediante herramientas concret
 export function integrationInfo(origin) {
   return {endpoint:`${origin}/mcp`,transports:['stdio','streamable-http'],authentication:'Bearer MCP_TOKEN (solo servidor; no se muestra en la web)',configured:Boolean(process.env.MCP_TOKEN),
     stdio:{mcpServers:{empleo:{command:process.execPath,args:[fileURLToPath(new URL('./mcp-stdio.js',import.meta.url))]}}},
-    http:{url:`${origin}/mcp`,headers:{Authorization:'Bearer <MCP_TOKEN de 11/.env>'}},guide:'/MCP.md'};
+    http:{url:`${origin}/mcp`,headers:{Authorization:'Bearer <MCP_TOKEN de 11/.env>'}},guide:'/MCP.md',...integrationCatalog()};
 }
 
 export function apiClient({baseUrl,token,fetchImpl=fetch}) {
@@ -51,10 +52,21 @@ function toolError(error) {
 const query=input=>new URLSearchParams(Object.fromEntries(Object.entries(input).filter(([,v])=>v!==undefined).map(([k,v])=>[k,String(v)]))).toString();
 const nonempty=schema=>schema.refine(value=>Object.keys(value).length>0,'Indica al menos un cambio');
 
-export function createMcpServer({request,readOnly=false}) {
-  const server=new McpServer({name:'empleo-workflow',version:'1.0.0'},{instructions,maxToolInputElements:200});
+export function integrationCatalog() {
+  const tools=[];
+  createMcpServer({catalog:tools});
+  return {tools,http_endpoints:httpEndpoints};
+}
+
+export function createMcpServer({request,readOnly=false,catalog}) {
+  const server=catalog?null:new McpServer({name:'empleo-workflow',version:'1.0.0'},{instructions,maxToolInputElements:200});
   function tool(name,description,inputSchema,read,handler,idempotent=read) {
     if (readOnly && !read) return;
+    if (catalog) {
+      const [method,path,returns]=toolEndpoints[name];
+      catalog.push({name,description,method,path,returns,readOnly:read,inputSchema:z.toJSONSchema(z.object(inputSchema).strict(),{target:'draft-7',io:'input'})});
+      return;
+    }
     server.registerTool(name,{description,inputSchema:z.object(inputSchema).strict(),outputSchema,annotations:{readOnlyHint:read,destructiveHint:!read,idempotentHint:idempotent,openWorldHint:false}},async args=>{
       try {const data={ok:true,data:await handler(args)}; return {structuredContent:data,content:[{type:'text',text:JSON.stringify(data)}]};} catch(error) {return toolError(error);}
     });
@@ -107,6 +119,7 @@ export function createMcpServer({request,readOnly=false}) {
   tool('unmerge_offer','Deshace la fusión reversible más reciente. Lee list_offer_merges y ambas versiones; no se permite si hay cambios posteriores.',{target_id:uuid,source_id:uuid,expected_version:revision,source_version:revision,reason:z.string().trim().min(1).max(2000)},false,({target_id,source_id,expected_version,source_version,reason})=>request(`offers/${target_id}/unmerge/${source_id}`,'POST',{version:expected_version,source_version,reason}));
   tool('create_action','Crea una acción de seguimiento. Ante respuesta perdida, consulta list_actions antes de repetir.',{offer_id:uuid,...actionSchema},false,({offer_id,...input})=>request(`offers/${offer_id}/actions`,'POST',input));
   tool('update_action','Actualiza una acción con su version; usa list_actions para leerla antes.',{offer_id:uuid,action_id:uuid,expected_version:revision,...actionSchema},false,({offer_id,action_id,expected_version,...input})=>request(`offers/${offer_id}/actions/${action_id}`,'PUT',{version:expected_version,...input}));
+  if (catalog) return;
   server.registerResource('guide','empleo://guide',{description:'Guía operativa de MCP, límites y recuperación de errores.',mimeType:'text/markdown'},async uri=>({contents:[{uri:uri.href,mimeType:'text/markdown',text:await readFile(new URL('../MCP.md',import.meta.url),'utf8')}]}));
   for(const [name,path] of [['workflow','workflow'],['catalogs','catalogs'],['settings','settings']]) server.registerResource(name,`empleo://${name}`,{mimeType:'application/json'},async uri=>({contents:[{uri:uri.href,mimeType:'application/json',text:JSON.stringify(await request(path))}]}));
   server.registerResource('run',new ResourceTemplate('empleo://runs/{id}',{list:undefined}),{mimeType:'application/json'},async(uri,{id})=>({contents:[{uri:uri.href,mimeType:'application/json',text:JSON.stringify(await request(`workflow/runs/${uuid.parse(id)}`))}]}));
