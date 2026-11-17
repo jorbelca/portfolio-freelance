@@ -1,4 +1,5 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
+import {matchesOfferUrl,applicationsToday} from './postulations.js';
 import {renderCompanyHeatmap} from './company-heatmap.js';
 import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
@@ -22,9 +23,11 @@ function displayDate(value,dateOnly=false) {
 }
 function render() {
   renderCompanyHeatmap(offers);
+  $('#count-today').textContent=applicationsToday(offers);
   $('#offer-editor-home').append($('#offer-editor'));
   $('#offers').replaceChildren();
-  const visible=offers.filter(item=>!$('#filter').value || offerState(item)===$('#filter').value);
+  const visible=offers.filter(item=>(!$('#filter').value || offerState(item)===$('#filter').value) && matchesOfferUrl(item,$('#offer-url-search').value));
+  $('#offer-search-count').textContent=`${visible.length} de ${offers.length} ofertas`;
   if (!visible.length) {
     const row=document.createElement('tr'), cell=document.createElement('td'); cell.colSpan=6; cell.textContent='Sin ofertas para mostrar.'; row.append(cell); $('#offers').append(row);
   }
@@ -140,6 +143,7 @@ $('[name=company_id]').onchange=event=>{
   $('[name=company]').value=company?.name || ''; $('[name=company]').readOnly=Boolean(company);
 };
 $('#filter').onchange=render;
+$('#offer-url-search').oninput=()=>{if ($('#offer-url-search').value.trim()) $('#filter').value='';render();};
 $('#reset').onclick=()=>{
   selected=null; $('#offer-form').reset(); $('[name=status] option[value=pendiente]').disabled=false; $('[name=company]').readOnly=false; $('[name=url]').readOnly=false;
   $('#form-title').textContent='Registrar oferta'; $('#events').textContent='Selecciona una oferta.'; $('#offer-detail').hidden=true; render();
@@ -573,7 +577,7 @@ function route() {
   document.body.dataset.page=page;
   for (const view of document.querySelectorAll('[data-view]')) view.hidden=view.dataset.view!==page;
   for (const link of document.querySelectorAll('[data-page]')) link.classList.toggle('active',link.dataset.page===page);
-  $('#page-title').textContent={control:'Ejecutar',results:'Resultados de la búsqueda.',configuration:'Configura tu búsqueda.',seguimiento:'Sigue tus oportunidades.',integrations:'Conecta tu asistente.'}[page];
+  $('#page-title').textContent={control:'Ejecutar',results:'Resultados de la búsqueda.',configuration:'Configura tu búsqueda.',seguimiento:'Postulaciones.',integrations:'Conecta tu asistente.'}[page];
   $('#page-subtitle').textContent={control:'Elige el alcance, inicia una ejecución y consulta sus resultados.',results:'Ofertas separadas por clasificación, con sus detalles y comprobaciones.',configuration:'Elige qué buscar, qué perfil usar y qué modelo lo analizará.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
 }
 window.addEventListener('hashchange',()=>{route();if(location.hash==='#results') refreshResults().catch(error=>message(error.message));}); route();
@@ -588,6 +592,7 @@ try {
   document.body.dataset.mcpEndpoint=integration.endpoint;
   renderEndpointCatalog(integration);
   document.body.dataset.appState='ready';
+  setInterval(()=>{$('#count-today').textContent=applicationsToday(offers);},60000);
   setInterval(()=>{if (!document.hidden && !$('#run-detail').contains(document.activeElement) && runs.some(run=>['queued','running'].includes(run.status))) refreshWorkflow().catch(error=>message(error.message));},3000);
 } catch(error) {
   $('#connection-banner').hidden=false; $('#connection-banner').textContent=error.message;

@@ -3,8 +3,9 @@ import {offerState} from './offer-state.js';
 export function companyStats(offers) {
   const groups=new Map();
   for (const offer of offers) {
-    const key=offer.company_id || offer.company;
-    if (!groups.has(key)) groups.set(key,{name:offer.company,total:0,inscrita:0,rechazada:0,pendiente:0});
+    const name=offer.company.normalize('NFKC').trim().replace(/\s+/g,' ');
+    const key=name.toLocaleLowerCase('es');
+    if (!groups.has(key)) groups.set(key,{name,total:0,inscrita:0,rechazada:0,pendiente:0});
     const company=groups.get(key);
     company.total++;
     company[offerState(offer)]++;
