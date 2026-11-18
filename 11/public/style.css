@@ -8,7 +8,7 @@
 #offers [data-offer-state="rechazada"]{--offer-bg:#fff3f2;--offer-accent:#a33232;--offer-chip:#fbdedb}
 #offers [data-offer-state]>td{background:var(--offer-bg);border-bottom-color:#dce1dc}
 #offers [data-offer-state]>td:first-child{box-shadow:inset 4px 0 var(--offer-accent);padding-left:16px}
-#offers [data-offer-state] select{background:var(--offer-chip);color:var(--offer-accent);border-color:var(--offer-accent);border-radius:20px;font-weight:600;min-width:122px}
+#offers [data-offer-state] select{background-color:var(--offer-chip);color:var(--offer-accent);border-color:var(--offer-accent);border-radius:20px;font-weight:600;min-width:122px}
 #offers [data-offer-state] select option{background:#fff;color:#242e29}
 #offers [data-offer-state]:hover>td,#offers [data-offer-state]:focus-within>td{background:var(--offer-chip)}
 
@@ -73,4 +73,4 @@ button.secondary{color:#294b36;background:#edf1e8;border:1px solid #cbd7c4}
 
 .company-heatmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:5px}.company-cell{height:48px;min-width:0;margin:0;padding:6px;color:#542222;border:1px solid #d8baba;border-radius:4px;font-size:10px;line-height:1.25;overflow:hidden;overflow-wrap:anywhere}.company-cell:hover,.company-cell:focus-visible{outline:3px solid #294b36;outline-offset:1px;position:relative;z-index:1}.company-match{outline:3px solid #294b36;outline-offset:0;font-weight:700}.company-dimmed{opacity:.35}.company-legend{display:flex;align-items:center;gap:10px;font-size:11px;color:#626f5c}.company-scale{width:120px;height:12px;border-radius:3px;background:linear-gradient(to right,transparent,rgb(180 35 35 / .65))}#company-summary{min-height:2.8em;font-size:13px;line-height:1.4;overflow-wrap:anywhere}
 
-#company-section>summary{cursor:pointer}#company-section>summary h2{display:inline;margin:0 12px 0 0}#company-section>summary:focus-visible{outline:3px solid #b38631;outline-offset:3px}
+#company-section>summary{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none}#company-section>summary::-webkit-details-marker{display:none}#company-section>summary h2{display:inline;margin:0}#company-section>summary::after{content:'';width:10px;height:5px;margin-left:auto;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:left center,right center;background-size:5px 5px;background-repeat:no-repeat}#company-section[open]>summary::after{transform:rotate(180deg)}#company-section>summary:focus-visible{outline:3px solid #b38631;outline-offset:3px}
