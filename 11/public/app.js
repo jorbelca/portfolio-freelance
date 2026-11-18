@@ -1,5 +1,5 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
-import {matchesOfferUrl,applicationsToday} from './postulations.js';
+import {filterPostulations,applicationsToday} from './postulations.js';
 import {renderCompanyHeatmap} from './company-heatmap.js';
 import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
@@ -26,7 +26,12 @@ function render() {
   $('#count-today').textContent=applicationsToday(offers);
   $('#offer-editor-home').append($('#offer-editor'));
   $('#offers').replaceChildren();
-  const visible=offers.filter(item=>(!$('#filter').value || offerState(item)===$('#filter').value) && matchesOfferUrl(item,$('#offer-url-search').value));
+  const visible=filterPostulations(offers,{
+    company:$('#offer-company-search').value,
+    url:$('#offer-url-search').value,
+    state:$('#filter').value,
+    days:Number($('#offer-days-filter').value)
+  });
   $('#offer-search-count').textContent=`${visible.length} de ${offers.length} ofertas`;
   if (!visible.length) {
     const row=document.createElement('tr'), cell=document.createElement('td'); cell.colSpan=6; cell.textContent='Sin ofertas para mostrar.'; row.append(cell); $('#offers').append(row);
@@ -143,6 +148,8 @@ $('[name=company_id]').onchange=event=>{
   $('[name=company]').value=company?.name || ''; $('[name=company]').readOnly=Boolean(company);
 };
 $('#filter').onchange=render;
+$('#offer-company-search').oninput=render;
+$('#offer-days-filter').onchange=render;
 $('#offer-url-search').oninput=()=>{if ($('#offer-url-search').value.trim()) $('#filter').value='';render();};
 $('#reset').onclick=()=>{
   selected=null; $('#offer-form').reset(); $('[name=status] option[value=pendiente]').disabled=false; $('[name=company]').readOnly=false; $('[name=url]').readOnly=false;

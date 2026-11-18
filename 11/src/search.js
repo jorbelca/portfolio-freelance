@@ -7,7 +7,7 @@ import {browserSearchUrl,sourceSpec,readJobPosting} from './sources.js';
 import {verifyPublicBrowserUrl} from './public-http.js';
 import {checkHistory,saveOffer,appendPublication,addPublication} from './store.js';
 import {insertCandidate,previousFinalists,inheritCorrections,reusableExtraction} from './continuity.js';
-import {samePublication} from './identity.js';
+import {samePublication} from '../public/identity.js';
 import {extractionTasks} from './tasks.js';
 import {extractField} from './codex.js';
 import {decisionRules,evaluateRule,evaluateFit,fitValues,classifyCandidate,rankCandidate} from './evaluation.js';

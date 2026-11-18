@@ -1,3 +1,6 @@
+import {cleanUrl} from '../public/identity.js';
+export {cleanUrl};
+
 export const availabilityStates = ['desconocida','abierta','pausada','cerrada','cubierta','cancelada'];
 export const reviewStates = ['nueva','en_revision','guardada','descartada'];
 export const applicationStates = ['sin_candidatura','enviada','en_revision','prueba','entrevista','oferta','aceptada','incorporada','rechazada_empresa','oferta_rechazada','rechazada_sin_detalle','retirada','sin_respuesta'];
@@ -21,16 +24,6 @@ export function validTimestamp(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?Z$/.test(value) || !Number.isFinite(Date.parse(value))) throw new Error('Fecha de inscripción inválida');
   validDate(value.slice(0,10));
   return new Date(value).toISOString();
-}
-export function cleanUrl(value) {
-  if (!value) return null;
-  const url = new URL(value);
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Enlace público inválido');
-  url.hash = '';
-  for (const key of [...url.searchParams.keys()]) {
-    if (/^(utm_.*|tmp_ctoken|hash|requestParams|token|session|confirmation)$/i.test(key)) url.searchParams.delete(key);
-  }
-  return url.href;
 }
 export function offerInput(body) {
   if (!body || typeof body !== 'object') throw new Error('Datos inválidos');

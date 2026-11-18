@@ -1,4 +1,13 @@
-import {cleanUrl} from './domain.js';
+export function cleanUrl(value) {
+  if (!value) return null;
+  const url = new URL(value);
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Enlace público inválido');
+  url.hash = '';
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_.*|tmp_ctoken|hash|requestParams|token|session|confirmation)$/i.test(key)) url.searchParams.delete(key);
+  }
+  return url.href;
+}
 
 // El tenant forma parte del ID: dos empresas pueden reutilizar un código ATS.
 export function publicationIdentity(value) {
@@ -14,6 +23,8 @@ export function publicationIdentity(value) {
   if(host==='api.smartrecruiters.com' && (match=path.match(/^\/v1\/companies\/([^/]+)\/postings\/(\d+)(?:\/|$)/))) return `smartrecruiters:${match[1].toLowerCase()}:${match[2]}`;
   if (host==='jobs.smartrecruiters.com' && (match=path.match(/^\/([^/]+)\/(\d+)(?:-|\/|$)/))) return `smartrecruiters:${match[1].toLowerCase()}:${match[2]}`;
   if (host==='emploive.com' && (match=path.match(/^(?:\/home)?\/jobs\/(\d+)(?:\/|$)/))) return `emploive:${match[1]}`;
+  if (host==='careers.indragroup.com' && (match=path.match(/^\/(?:[a-z0-9-]+\/)?job\/[^/]+\/(\d+)\/?$/i))) return `indra:${match[1]}`;
+  if (/^[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com$/.test(host) && (match=path.match(/^\/(?:[^/]+\/)?[^/]+\/job\/(?:[^/]+\/)*[^/]*_((?:jr|r)-?\d+(?:-\d+)*)\/?$/i))) return `workday:${host}:${match[1].toLowerCase()}`;
   return null;
 }
 export function samePublication(left,right) {

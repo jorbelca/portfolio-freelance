@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {pool, transaction} from './db.js';
-import {publicationIdentity,samePublication} from './identity.js';
+import {publicationIdentity,samePublication} from '../public/identity.js';
 import {checkApplicationChange, actionInput, cleanUrl, validId} from './domain.js';
 const fail = (message, status=400) => Object.assign(new Error(message), {status});
 export async function recordEvent(client, id, kind, value, reason='') {

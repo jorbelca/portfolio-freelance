@@ -6,7 +6,7 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import net from 'node:net';
 import pg from 'pg';
-import {publicationIdentity} from '../src/identity.js';
+import {publicationIdentity} from '../public/identity.js';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -39,7 +39,7 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
       child.once('exit',()=>{clearTimeout(timer);reject(new Error('El servicio aislado terminó antes de arrancar'));});
       child.stdout.on('data',chunk=>{if(chunk.toString().includes('Panel disponible')){clearTimeout(timer);resolve();}});
     });
-    for(const asset of ['app.js','offer-state.js','workflow-state.js']) {
+    for(const asset of ['app.js','offer-state.js','workflow-state.js','postulations.js','identity.js']) {
       const response=await fetch(`${base}/${asset}`);
       assert.equal(response.status,200,asset);
       assert.match(response.headers.get('content-type'),/javascript/);
@@ -121,6 +121,11 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     const batchUrls=['https://example.test/isolated/alias?utm_source=test','https://example.test/not-applied'];
     assert.deepEqual(await ok('check_offers_batch',{urls:batchUrls}),{results:batchUrls.map((url,index)=>({url,applied:index===0}))});
     assert.equal((await call('check_offers_batch',{urls:[]})).isError,true);
+    const workdaySaved='https://juliusbaer.wd3.myworkdayjobs.com/en-US/External/job/Junior-Frontend-Engineer-100---f-m-d-_r-20206-1';
+    const workdayVariant='https://juliusbaer.wd3.myworkdayjobs.com/External/job/Madrid/Junior-Frontend-Engineer-100---f-m-d-_r-20206-1?utm_source=spain-devjobs.com&utm_medium=job_board';
+    const indraSaved='https://careers.indragroup.com/Minsait/job/Madrid-Desarrolladora-Junior-Java-MD/978237755/';
+    const indraVariant=indraSaved.replace('/Minsait/','/');
+    const indraUrls=[indraVariant,`${indraVariant.slice(0,-1)}?utm_source=job_board&source=search#details`,indraVariant.replace('978237755','978237756'),indraVariant.replace('careers.indragroup.com','jobs.example.test')];
     const identityUrls=[
       'https://www.infojobs.net/a/dev/of-i123abc?utm_source=x',
       'https://es.linkedin.com/jobs/view/dev-123456',
@@ -129,6 +134,10 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
       'https://jobs.lever.co/a/12345678-abcd-1234-abcd-123456789abc',
       'https://api.smartrecruiters.com/v1/companies/a/postings/123',
       'https://emploive.com/home/jobs/8612917',
+      workdaySaved,
+      workdayVariant,
+      indraSaved,
+      ...indraUrls,
       'https://example.test/careers',
       'https://infojobs.net.evil.com/of-i123'
     ];
@@ -138,6 +147,15 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     await ok('add_publication',{offer_id:offer.id,url:'https://es.linkedin.com/jobs/view/dev-123456'});
     assert.deepEqual(await ok('check_offers_batch',{urls:['https://www.linkedin.com/jobs/view/123456','https://www.linkedin.com/jobs/view/123457']}),{results:[{url:'https://www.linkedin.com/jobs/view/123456',applied:true},{url:'https://www.linkedin.com/jobs/view/123457',applied:false}]});
     await admin.query("DELETE FROM publications WHERE url='https://es.linkedin.com/jobs/view/dev-123456'");
+    await ok('add_publication',{offer_id:offer.id,url:workdaySaved});
+    const workdayUrls=[workdayVariant,workdayVariant.replace('r-20206-1','r-20206'),workdayVariant.replace('juliusbaer','another-company')];
+    assert.deepEqual(await ok('check_offers_batch',{urls:workdayUrls}),{results:workdayUrls.map((url,index)=>({url,applied:index===0}))});
+    assert.equal((await ok('check_history',{url:workdayVariant})).matches[0].id,offer.id);
+    await admin.query('DELETE FROM publications WHERE url=$1',[workdaySaved]);
+    await ok('add_publication',{offer_id:offer.id,url:indraSaved});
+    assert.deepEqual(await ok('check_offers_batch',{urls:indraUrls}),{results:indraUrls.map((url,index)=>({url,applied:index<2}))});
+    assert.equal((await ok('check_history',{url:indraVariant})).matches[0].id,offer.id);
+    await admin.query('DELETE FROM publications WHERE url=$1',[indraSaved]);
     const action=await ok('create_action',{offer_id:offer.id,description:'Fixture aislada',state:'pendiente'});
     const actions=await ok('list_actions',{offer_id:offer.id});
     await ok('update_action',{offer_id:offer.id,action_id:action.id,expected_version:actions.items[0].version,description:'Fixture aislada',state:'completada'});

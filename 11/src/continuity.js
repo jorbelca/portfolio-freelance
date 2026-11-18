@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
-import {publicationIdentity,samePublication} from './identity.js';
+import {publicationIdentity,samePublication} from '../public/identity.js';
 import {cleanUrl} from './domain.js';
 import {validateExtraction} from './codex.js';
 export const publicationKey=url=>publicationIdentity(url) || `url:${cleanUrl(url)}`;

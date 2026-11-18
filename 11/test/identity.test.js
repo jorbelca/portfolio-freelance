@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {publicationIdentity,samePublication} from '../src/identity.js';
+import {publicationIdentity,samePublication} from '../public/identity.js';
 import {checkHistory} from '../src/store.js';
 test('reconoce variantes sin confundir tenant, portal ni enlaces genéricos',()=>{
   assert.equal(samePublication('https://www.infojobs.net/a/dev/of-i123abc?utm_source=x','https://www.infojobs.net/b/other/of-i123abc'),true);

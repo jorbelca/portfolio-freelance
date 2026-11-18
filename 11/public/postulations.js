@@ -1,9 +1,41 @@
+import {cleanUrl,publicationIdentity} from './identity.js';
+import {normalizeCompanyName} from './company-heatmap.js';
+import {offerState} from './offer-state.js';
+
+const madridDate=now=>now.toLocaleDateString('sv-SE',{timeZone:'Europe/Madrid'});
+
 export function matchesOfferUrl(offer,query) {
-  const term=query.trim().toLowerCase();
-  return !term || [offer.url,...(offer.publications || []).map(item=>item.url)].some(url=>url?.toLowerCase().includes(term));
+  const term=query.trim();
+  if (!term) return true;
+  let normalized;
+  try { normalized=cleanUrl(term); } catch {}
+  const identity=publicationIdentity(normalized);
+  const fragment=term.toLowerCase();
+  return [offer.url,...(offer.publications || []).map(item=>item.url)].filter(Boolean).some(url=>{
+    if (identity) return publicationIdentity(url)===identity;
+    return url.toLowerCase().includes(fragment) || Boolean(normalized && cleanUrl(url)===normalized);
+  });
+}
+
+export function filterPostulations(offers,{company,url,state,days},now=new Date()) {
+  const companyTerm=normalizeCompanyName(company.trim());
+  const today=madridDate(now);
+  let firstDay;
+  if (days) {
+    const start=new Date(`${today}T00:00:00Z`);
+    start.setUTCDate(start.getUTCDate()-days+1);
+    firstDay=start.toISOString().slice(0,10);
+  }
+  return offers.filter(offer=>{
+    const submitted=offer.submitted_at?.slice(0,10);
+    return (!state || offerState(offer)===state)
+      && (!companyTerm || normalizeCompanyName(offer.company).includes(companyTerm))
+      && (!firstDay || (submitted && submitted>=firstDay && submitted<=today))
+      && matchesOfferUrl(offer,url);
+  });
 }
 
 export function applicationsToday(offers,now=new Date()) {
-  const today=now.toLocaleDateString('sv-SE',{timeZone:'Europe/Madrid'});
+  const today=madridDate(now);
   return offers.filter(offer=>offer.application_state && offer.application_state!=='sin_candidatura' && offer.submitted_at?.slice(0,10)===today).length;
 }

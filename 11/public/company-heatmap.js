@@ -1,5 +1,7 @@
 import {offerState} from './offer-state.js';
 
+export const normalizeCompanyName=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
+
 export function companyStats(offers) {
   const groups=new Map();
   for (const offer of offers) {
@@ -29,7 +31,6 @@ export function renderCompanyHeatmap(offers) {
   const max=rejections.length?Math.max(...rejections):0;
   document.querySelector('#company-scale-min').textContent=`Mínimo: ${min} rechazos`;
   document.querySelector('#company-scale-max').textContent=`Máximo: ${max} rechazos`;
-  const normalize=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
   const summary=company=>`${company.name}: ${company.total} ofertas · ${company.inscrita} inscritas · ${company.rechazada} rechazadas · ${company.pendiente} pendientes`;
   for (const company of stats) {
     const cell=document.createElement('button');
@@ -38,7 +39,7 @@ export function renderCompanyHeatmap(offers) {
     cell.textContent=company.name;
     cell.title=summary(company);
     cell.setAttribute('aria-label',summary(company));
-    cell.dataset.company=normalize(company.name);
+    cell.dataset.company=normalizeCompanyName(company.name);
     cell.style.backgroundColor=companyColor(company,min,max);
     const show=()=>{detail.textContent=summary(company);};
     cell.onmouseenter=show;
@@ -47,7 +48,7 @@ export function renderCompanyHeatmap(offers) {
     grid.append(cell);
   }
   const highlight=()=>{
-    const query=normalize(search.value.trim());
+    const query=normalizeCompanyName(search.value.trim());
     let matches=0;
     for (const cell of grid.children) {
       const match=Boolean(query) && cell.dataset.company.includes(query);

@@ -10,6 +10,9 @@
 #offers [data-offer-state]>td:first-child{box-shadow:inset 4px 0 var(--offer-accent);padding-left:16px}
 #offers [data-offer-state] select{background-color:var(--offer-chip);color:var(--offer-accent);border-color:var(--offer-accent);border-radius:20px;font-weight:600;min-width:122px}
 #offers [data-offer-state] select option{background:#fff;color:#242e29}
+.offer-filters select{display:block;width:100%;margin:7px 0 0}
+.offer-search-fields{grid-column:1/-1}
+@media(width > 850px){.offer-search-fields{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}}
 #offers [data-offer-state]:hover>td,#offers [data-offer-state]:focus-within>td{background:var(--offer-chip)}
 
 [data-view="seguimiento"] .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
