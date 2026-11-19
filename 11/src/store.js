@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {pool, transaction} from './db.js';
+import {offerState} from '../public/offer-state.js';
 import {publicationIdentity,samePublication} from '../public/identity.js';
 import {checkApplicationChange, actionInput, cleanUrl, validId} from './domain.js';
 const fail = (message, status=400) => Object.assign(new Error(message), {status});
@@ -26,7 +27,13 @@ export async function addPublication(client, id, url) {
   const source = (await client.query('INSERT INTO sources(id,namespace,label) VALUES($1,$2,$2) ON CONFLICT(namespace) DO UPDATE SET namespace=excluded.namespace RETURNING id',[randomUUID(),namespace])).rows[0];
   await client.query('INSERT INTO publications(id,opportunity_id,source_id,url,is_primary) VALUES($1,$2,$3,$4,NOT EXISTS(SELECT 1 FROM publications WHERE opportunity_id=$2))',[randomUUID(),id,source.id,url]);
 }
-export async function saveOffer(id, input, version) {
+export async function createRejectionReason(raw) {
+  const name = typeof raw?.name === 'string' ? raw.name.trim().replace(/\s+/g,' ') : '';
+  if (!name || name.length>100 || name.includes('\0')) throw fail('Introduce una causa de 1 a 100 caracteres.');
+  return (await pool.query(`INSERT INTO rejection_reasons(name) VALUES($1)
+    ON CONFLICT (lower(name)) DO UPDATE SET name=rejection_reasons.name RETURNING id,name`,[name])).rows[0];
+}
+export async function saveOffer(id, input, version, {requireRejectionReason=false}={}) {
   return transaction(async client => {
     const previous = id ? await lock(client,id) : null;
     if (previous && (!Number.isSafeInteger(version) || previous.version !== version)) throw fail('El proceso cambió. Recarga antes de guardar.',409);
@@ -34,6 +41,14 @@ export async function saveOffer(id, input, version) {
     checkApplicationChange(application?.state || 'sin_candidatura', input.application_state);
     const changed = previous && (previous.availability !== input.availability || previous.review_state !== input.review_state || (application?.state || 'sin_candidatura') !== input.application_state);
     if (changed && !input.reason) throw fail('Indica el motivo del cambio de estado.');
+    const rejected = offerState(input)==='rechazada';
+    if (!rejected && input.rejection_reason_id) throw fail('La causa solo se puede asignar a una oferta rechazada.');
+    const rejectionReasonId = rejected ? (input.rejection_reason_id === undefined ? previous?.rejection_reason_id ?? null : input.rejection_reason_id) : null;
+    const wasRejected = previous && offerState({...previous,application_state:application?.state || 'sin_candidatura'})==='rechazada';
+    if (requireRejectionReason && rejected && !rejectionReasonId && (!wasRejected || input.rejection_reason_id===null)) {
+      throw fail('Selecciona una causa del catálogo con rejection_reason_id. Consulta list_rejection_reasons.');
+    }
+    if (input.rejection_reason_id && !(await client.query('SELECT 1 FROM rejection_reasons WHERE id=$1',[rejectionReasonId])).rowCount) throw fail('La causa de rechazo no existe.');
     if (input.company_id) {
       const company = (await client.query('SELECT name FROM companies WHERE id=$1',[input.company_id])).rows[0];
       if (!company || company.name !== input.company) throw fail('Selecciona la empresa existente o crea una nueva; editar el nombre no renombra otras ofertas.');
@@ -43,9 +58,9 @@ export async function saveOffer(id, input, version) {
     }
     id ||= randomUUID();
     if (previous) {
-      await client.query('UPDATE opportunities SET company_id=$1,title=$2,availability=$3,review_state=$4,notes=$5,version=version+1,updated_at=now(),state_changed_at=CASE WHEN $7 THEN now() ELSE state_changed_at END WHERE id=$6',[input.company_id,input.title,input.availability,input.review_state,input.notes,id,Boolean(changed)]);
+      await client.query('UPDATE opportunities SET company_id=$1,title=$2,availability=$3,review_state=$4,notes=$5,version=version+1,updated_at=now(),state_changed_at=CASE WHEN $7 THEN now() ELSE state_changed_at END,rejection_reason_id=$8 WHERE id=$6',[input.company_id,input.title,input.availability,input.review_state,input.notes,id,Boolean(changed),rejectionReasonId]);
     } else {
-      await client.query('INSERT INTO opportunities(id,company_id,title,availability,review_state,notes,state_changed_at) VALUES($1,$2,$3,$4,$5,$6,now())',[id,input.company_id,input.title,input.availability,input.review_state,input.notes]);
+      await client.query('INSERT INTO opportunities(id,company_id,title,availability,review_state,notes,state_changed_at,rejection_reason_id) VALUES($1,$2,$3,$4,$5,$6,now(),$7)',[id,input.company_id,input.title,input.availability,input.review_state,input.notes,rejectionReasonId]);
     }
     if (input.application_state !== 'sin_candidatura' && (application?.state !== input.application_state || input.submitted_at !== undefined)) {
       const submitted = input.submitted_at === undefined ? application?.submitted_at ?? null : input.submitted_at;
@@ -135,7 +150,7 @@ export async function mergeOffers(targetId,raw) {
     const movedActions=(await client.query('SELECT id FROM follow_up_actions WHERE opportunity_id=$1 FOR UPDATE',[source.id])).rows.map(row=>row.id);
     const movedCandidates=(await client.query('SELECT id FROM search_candidates WHERE opportunity_id=$1 FOR UPDATE',[source.id])).rows.map(row=>row.id);
     const reparentedMerges=(await client.query("SELECT source_id FROM opportunity_merges WHERE target_id=$1 AND undone_at IS NULL FOR UPDATE",[source.id])).rows.map(row=>row.source_id);
-    const targetSnapshot={availability:target.availability,review_state:target.review_state,notes:target.notes,state_changed_at:target.state_changed_at};
+    const targetSnapshot={availability:target.availability,review_state:target.review_state,notes:target.notes,state_changed_at:target.state_changed_at,rejection_reason_id:target.rejection_reason_id};
     if(chosen) await client.query('INSERT INTO applications(id,opportunity_id,state,submitted_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(opportunity_id) DO UPDATE SET state=excluded.state,submitted_at=excluded.submitted_at,updated_at=excluded.updated_at',[randomUUID(),targetId,chosen.state,chosen.submitted_at,chosen.created_at,chosen.updated_at]);
     await recordEvent(client,targetId,'offers_merged',{target,source,applications,application_from:raw.application_from},raw.reason);
     const hasPrimary=(await client.query('SELECT 1 FROM publications WHERE opportunity_id=$1 AND is_primary',[targetId])).rowCount;
@@ -146,9 +161,13 @@ export async function mergeOffers(targetId,raw) {
     const blocked=['pausada','cerrada','cubierta','cancelada'];
     const availability=blocked.includes(target.availability)?target.availability:blocked.includes(source.availability)?source.availability:target.availability;
     const review=target.review_state==='descartada' || source.review_state==='descartada'?'descartada':target.review_state;
+    const applicationOffer=raw.application_from==='source'?source:target;
+    const rejectionReasonId=(target.review_state==='descartada' && target.rejection_reason_id)
+      || (source.review_state==='descartada' && source.rejection_reason_id)
+      || applicationOffer.rejection_reason_id;
     const notes=[target.notes,source.notes && `[Fusionada: ${source.company} — ${source.title}]\n${source.notes}`].filter(Boolean).join('\n\n');
     if(notes.length>20000) throw fail('Las notas combinadas superan 20000 caracteres; reduce su tamaño antes de fusionar.');
-    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,version=version+1,updated_at=now(),state_changed_at=$5 WHERE id=$1',[targetId,availability,review,notes,raw.application_from==='source'?source.state_changed_at:target.state_changed_at]);
+    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,version=version+1,updated_at=now(),state_changed_at=$5,rejection_reason_id=$6 WHERE id=$1',[targetId,availability,review,notes,applicationOffer.state_changed_at,rejectionReasonId]);
     await client.query("UPDATE opportunity_merges SET target_id=$1 WHERE target_id=$2 AND undone_at IS NULL",[targetId,source.id]);
     await client.query(`INSERT INTO opportunity_merges(source_id,target_id,reason,target_snapshot,target_application,moved_publications,moved_action_ids,moved_candidate_ids,reparented_merges,target_version_after,source_version_at_merge)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
@@ -208,7 +227,7 @@ export async function unmergeOffer(targetId,raw) {
     } else await client.query('DELETE FROM applications WHERE opportunity_id=$1',[targetId]);
 
     const snapshot=merge.target_snapshot;
-    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,state_changed_at=$5,version=version+1,updated_at=now() WHERE id=$1',[targetId,snapshot.availability,snapshot.review_state,snapshot.notes,snapshot.state_changed_at]);
+    await client.query('UPDATE opportunities SET availability=$2,review_state=$3,notes=$4,state_changed_at=$5,rejection_reason_id=$6,version=version+1,updated_at=now() WHERE id=$1',[targetId,snapshot.availability,snapshot.review_state,snapshot.notes,snapshot.state_changed_at,snapshot.rejection_reason_id ?? null]);
     await client.query('UPDATE opportunities SET version=version+1,updated_at=now() WHERE id=$1',[source.id]);
     if(merge.reparented_merges.length) {
       const restored=await client.query("UPDATE opportunity_merges SET target_id=$2 WHERE source_id=ANY($1::uuid[]) AND target_id=$3 AND undone_at IS NULL",[merge.reparented_merges,source.id,targetId]);

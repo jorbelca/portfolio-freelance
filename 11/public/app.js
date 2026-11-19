@@ -5,7 +5,7 @@ import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.
 const $ = selector => document.querySelector(selector);
 let searchConfig;
 const taskOffsets={},taskStatuses={};
-let offers=[], companies=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
+let offers=[], companies=[], rejectionReasons=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
 const fields=['company','company_id','title','url','notes'];
 document.addEventListener('invalid',event=>{for(let parent=event.target.parentElement;parent;parent=parent.parentElement) if(parent.tagName==='DETAILS') parent.open=true;},true);
 function message(text) { $('#message').textContent=text; }
@@ -68,6 +68,12 @@ function render() {
       } finally {stateSelect.disabled=false;}
     };
     row.children[2].replaceChildren(stateSelect);
+    if (row.dataset.offerState==='rechazada') {
+      const cause=document.createElement('small');
+      cause.className='rejection-reason';
+      cause.textContent=offer.rejection_reason || 'Sin causa registrada';
+      row.children[2].append(cause);
+    }
     const dates=document.createElement('td'); dates.className='offer-dates';
     for (const [label,value,dateOnly] of [['Alta',offer.created_at,false],['Inscripción',offer.submitted_at,true],['Estado',offer.state_changed_at,false]]) {
       if (!value) continue;
@@ -95,8 +101,32 @@ function render() {
     }
   }
 }
+const reasonSelect=$('[name=rejection_reason_id]');
+function showRejectionReasons(id) {
+  reasonSelect.replaceChildren(new Option('Sin causa registrada',''));
+  for (const reason of rejectionReasons) reasonSelect.add(new Option(reason.name,reason.id));
+  reasonSelect.value=id || '';
+}
+function showRejectionFields() {
+  $('#rejection-fields').hidden=$('[name=status]').value!=='rechazada';
+}
+$('[name=status]').onchange=showRejectionFields;
+$('#add-rejection-reason').onclick=async event=>{
+  const button=event.currentTarget, input=$('#new-rejection-reason');
+  button.disabled=true;
+  try {
+    const reason=await api('rejection-reasons','POST',{name:input.value});
+    if (!rejectionReasons.some(item=>item.id===reason.id)) rejectionReasons.push(reason);
+    showRejectionReasons(reason.id);
+    input.value='';
+    reasonSelect.focus();
+    message('Causa añadida al catálogo. Guarda la oferta para asignarla.');
+  } catch(error) {message(error.message);}
+  finally {button.disabled=false;}
+};
 async function load() {
-  [offers,companies]=await Promise.all([api('offers'),api('companies')]);
+  [offers,companies,rejectionReasons]=await Promise.all([api('offers'),api('companies'),api('rejection-reasons')]);
+  showRejectionReasons(reasonSelect.value);
   const select=$('[name=company_id]'); select.replaceChildren(); option(select,'','Crear empresa');
   for (const company of companies) option(select,company.id,`${company.name} · ${company.id.slice(0,8)}`);
   render();
@@ -107,6 +137,8 @@ async function selectOffer(offer) {
   $('[name=submitted_on]').value=offer.submitted_at?.slice(0,10) || '';
   $('[name=company]').readOnly=true;
   $('[name=status]').value=offerState(offer);
+  showRejectionReasons(offer.rejection_reason_id);
+  showRejectionFields();
   $('[name=status] option[value=pendiente]').disabled=offer.application_state!=='sin_candidatura';
   $('[name=url]').readOnly=true;
   $('#form-title').textContent='Gestionar proceso';
@@ -152,7 +184,7 @@ $('#offer-company-search').oninput=render;
 $('#offer-days-filter').onchange=render;
 $('#offer-url-search').oninput=()=>{if ($('#offer-url-search').value.trim()) $('#filter').value='';render();};
 $('#reset').onclick=()=>{
-  selected=null; $('#offer-form').reset(); $('[name=status] option[value=pendiente]').disabled=false; $('[name=company]').readOnly=false; $('[name=url]').readOnly=false;
+  selected=null; $('#offer-form').reset(); showRejectionFields(); $('[name=status] option[value=pendiente]').disabled=false; $('[name=company]').readOnly=false; $('[name=url]').readOnly=false;
   $('#form-title').textContent='Registrar oferta'; $('#events').textContent='Selecciona una oferta.'; $('#offer-detail').hidden=true; render();
 };
 $('#offer-form').onsubmit=async event=>{
@@ -161,6 +193,7 @@ $('#offer-form').onsubmit=async event=>{
     Object.assign(value,{availability:selected?.availability || 'desconocida',review_state:selected?.review_state || 'nueva',application_state:selected?.application_state || 'sin_candidatura'},statePatch(selected,value.status));
     if (value.submitted_on !== (selected?.submitted_at?.slice(0,10) || '')) value.submitted_at=value.submitted_on?`${value.submitted_on}T00:00:00.000Z`:null;
     delete value.submitted_on;
+    value.rejection_reason_id=value.status==='rechazada' ? value.rejection_reason_id || null : null;
     delete value.status;
     if (selected) {value.version=selected.version; await api(`offers/${selected.id}`,'PUT',value);} else await api('offers','POST',value);
   } catch(error) {message(error.message);return;}
@@ -590,7 +623,6 @@ function route() {
 window.addEventListener('hashchange',()=>{route();if(location.hash==='#results') refreshResults().catch(error=>message(error.message));}); route();
 try {
   for (const [state,label] of Object.entries(offerStates)) {option($('[name=status]'),state,label); option($('#filter'),state,label);}
-  $('#filter').value='inscrita';
   await load(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
   const integration=await api('integration');
   $('#integration-state').textContent=integration.configured?'MCP configurado · stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';

@@ -5,6 +5,7 @@
 
 #offers [data-offer-state="pendiente"]{--offer-bg:#fffbeb;--offer-accent:#946200;--offer-chip:#fef0bf}
 #offers [data-offer-state="inscrita"]{--offer-bg:#f0f8f3;--offer-accent:#246343;--offer-chip:#dcefe3}
+#offers .rejection-reason{display:block;margin-top:.25rem;color:var(--offer-accent);overflow-wrap:anywhere}
 #offers [data-offer-state="rechazada"]{--offer-bg:#fff3f2;--offer-accent:#a33232;--offer-chip:#fbdedb}
 #offers [data-offer-state]>td{background:var(--offer-bg);border-bottom-color:#dce1dc}
 #offers [data-offer-state]>td:first-child{box-shadow:inset 4px 0 var(--offer-accent);padding-left:16px}

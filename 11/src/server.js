@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {timingSafeEqual} from 'node:crypto';
 import {pool, transaction} from './db.js';
 import {offerInput, validateSettings, validId, availabilityStates, reviewStates, applicationStates, actionStates} from './domain.js';
-import {saveOffer, saveAction, appendPublication, checkHistory, checkOffersBatch, mergeOffers, listOfferMerges, unmergeOffer} from './store.js';
+import {createRejectionReason, saveOffer, saveAction, appendPublication, checkHistory, checkOffersBatch, mergeOffers, listOfferMerges, unmergeOffer} from './store.js';
 import {workflowStatus,startRun,recoverRuns,runTask,finishRun,dispatchSearch} from './workflow.js';
 import {handleMcpHttp,integrationInfo} from './mcp.js';
 import {getSearchConfig,saveSearchConfig} from './search-config.js';
@@ -200,12 +200,14 @@ http.createServer(async (req, res) => {
       });
       return send(res,updated?200:409,updated || {error:'Configuración modificada. Recarga.'});
     }
+    if (path === '/api/rejection-reasons' && req.method === 'GET') return send(res,200,(await pool.query('SELECT id,name FROM rejection_reasons ORDER BY name,id LIMIT $1 OFFSET $2',pagination(url))).rows);
+    if (path === '/api/rejection-reasons' && req.method === 'POST') return send(res,201,await createRejectionReason(await body(req)));
     if (path === '/api/offers' && req.method === 'GET') {
       const state=url.searchParams.get('application_state');
       if (state && !applicationStates.includes(state)) throw new Error('Estado de candidatura inválido');
       return send(res,200,(await pool.query(`SELECT summary.*,coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'url',p.url,'is_primary',p.is_primary) ORDER BY p.is_primary DESC,p.created_at,p.id) FROM publications p WHERE p.opportunity_id=summary.id),'[]'::jsonb) AS publications FROM offer_summary summary WHERE ($1::text IS NULL OR company ILIKE $1 OR title ILIKE $1) AND ($2::text IS NULL OR application_state=$2) ORDER BY updated_at DESC,id DESC LIMIT $3 OFFSET $4`,[url.searchParams.has('q')?`%${url.searchParams.get('q')}%`:null,state,...pagination(url)])).rows);
     }
-    if (path === '/api/offers' && req.method === 'POST') return send(res,201,await saveOffer(null,offerInput(await body(req))));
+    if (path === '/api/offers' && req.method === 'POST') return send(res,201,await saveOffer(null,offerInput(await body(req)),undefined,{requireRejectionReason:authenticated(req,process.env.MCP_TOKEN || '')}));
     const match = path.match(/^\/api\/offers\/([0-9a-f-]{36})(?:\/(events|publications|actions|merge|merges|unmerge)(?:\/([0-9a-f-]{36}))?)?$/);
     if (match) {
       const id=validId(match[1]), section=match[2], childId=match[3];
@@ -218,10 +220,11 @@ http.createServer(async (req, res) => {
         if (req.method==='PATCH') {
           const current=(await pool.query('SELECT * FROM offer_summary WHERE id=$1',[id])).rows[0];
           if (!current) return send(res,404,{error:'Proceso no encontrado'});
-          value={...current,...patchInput(raw.patch,['company','company_id','title','availability','review_state','application_state','submitted_at','notes','reason'])};
+          value={...current,...patchInput(raw.patch,['company','company_id','title','availability','review_state','application_state','submitted_at','notes','reason','rejection_reason_id'])};
           if (!Object.hasOwn(raw.patch,'submitted_at')) delete value.submitted_at;
+          if (!Object.hasOwn(raw.patch,'rejection_reason_id')) delete value.rejection_reason_id;
         }
-        return send(res,200,await saveOffer(id,offerInput(value),raw.version));
+        return send(res,200,await saveOffer(id,offerInput(value),raw.version,{requireRejectionReason:authenticated(req,process.env.MCP_TOKEN || '')}));
       }
       if (req.method==='GET' && !section) {
         const offer=(await pool.query('SELECT * FROM offer_summary WHERE id=$1',[id])).rows[0];

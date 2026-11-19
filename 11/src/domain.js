@@ -34,9 +34,10 @@ export function offerInput(body) {
   for (const key of ['notes', 'reason']) {
     if (body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > 20000)) throw new Error(`Revisa ${key}`);
   }
+  const rejectionReasonId = body.rejection_reason_id == null ? body.rejection_reason_id : validId(body.rejection_reason_id);
   const submitted = body.submitted_at === undefined ? undefined : validTimestamp(body.submitted_at);
   if (submitted && body.application_state === 'sin_candidatura') throw new Error('La fecha de inscripción requiere una candidatura.');
-  return {submitted_at: submitted, company: body.company.trim(), company_id: body.company_id ? validId(body.company_id) : null,
+  return {submitted_at: submitted, rejection_reason_id: rejectionReasonId, company: body.company.trim(), company_id: body.company_id ? validId(body.company_id) : null,
     title: body.title.trim(), url: cleanUrl(body.url), availability: body.availability,
     review_state: body.review_state, application_state: body.application_state,
     notes: body.notes ?? '', reason: body.reason?.trim() || ''};

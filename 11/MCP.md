@@ -39,6 +39,7 @@ Los límites, perfil e instrucciones generales de búsqueda quedan guardados, pe
 | Motor y control | `get_workflow`, `set_workflow_enabled`, `get_catalogs` |
 | Configuración | `get_settings`, `patch_settings` |
 | Ejecuciones | `list_runs`, `get_run`, `list_run_tasks`, `start_run`, `resolve_run` |
+| Causas de rechazo | `list_rejection_reasons`, `create_rejection_reason` |
 | Ofertas | `list_offers`, `get_offer`, `create_offer`, `patch_offer` |
 | Identidad e historial | `list_companies`, `check_history`, `list_offer_events` |
 | Publicaciones | `list_publications`, `add_publication` |
@@ -47,6 +48,8 @@ Los límites, perfil e instrucciones generales de búsqueda quedan guardados, pe
 Las entradas tienen esquemas estrictos, límites y enums. Cada herramienta indica si solo lee, si modifica datos y si el reintento es idempotente. Las respuestas de la aplicación contienen `structuredContent` con `{ok, data}` o `{ok: false, error: {code, status, message, recovery, retryable}}`; los fallos de dominio también llevan `isError: true`. El SDK rechaza argumentos inválidos antes de llamar a la API mediante su error estándar de validación (`isError` y descripción). No extraigas estados del workflow analizando mensajes de texto: usa los campos estructurados.
 
 Las listas reciben `limit` (1–100, por defecto 25) y `offset`. Devuelven `items`, `limit`, `offset` y `next_offset`. Si la página está completa, `next_offset` permite continuar; la siguiente puede estar vacía. Los datos pueden cambiar entre páginas: usa los IDs como identidad, no el número de fila. `get_run` permite recuperar una ejecución antigua por ID aunque no esté en la pantalla de últimas 50.
+
+Consulta `list_rejection_reasons` antes de asignar una causa. Si falta una categoría genérica, usa `create_rejection_reason` con `name`. Asigna su ID con `rejection_reason_id` en `create_offer` o `patch_offer` cuando el estado resultante sea rechazado. Por MCP, la causa es obligatoria al crear una oferta rechazada o pasarla a rechazada. Si omites el campo al editar una oferta ya rechazada, se conserva la causa existente. El listado y el detalle devuelven también el nombre en `rejection_reason`.
 
 `get_offer` devuelve `version`, `created_at`, `submitted_at` y `state_changed_at`. `submitted_at` se puede indicar o corregir mediante `create_offer` y `patch_offer`: timestamp UTC ISO 8601 o `null` si se desconoce; omitirlo conserva la fecha existente. Al crear por primera vez una candidatura `enviada`, omitirlo registra la fecha actual; para importar una inscripción histórica de fecha desconocida, indica explícitamente `null`. Para una fecha sin hora, usa `YYYY-MM-DDT00:00:00.000Z`. No inventes fechas. `state_changed_at` es automático y puede ser nulo en registros anteriores a la migración 004. `patch_offer` exige `expected_version` y solo cambia los campos indicados; los cambios de estado requieren `reason`. Las tres dimensiones de estado son independientes. Una candidatura previa sigue bloqueando el rastreo aunque se reabra la oferta. `update_action` exige su propia versión.
 

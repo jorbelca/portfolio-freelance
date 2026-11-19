@@ -30,6 +30,8 @@ export const toolEndpoints = {
   list_offers:['GET','/api/offers','HTTP: array de procesos con estados, version, fechas y publications. MCP: items, limit, offset y next_offset.'],
   get_offer:['GET','/api/offers/{id}','Proceso con empresa, puesto, estados, notas, version y fechas. Un proceso fusionado devuelve 410 y target_id.'],
   list_companies:['GET','/api/companies','HTTP: array de empresas con id y name. MCP: items, limit, offset y next_offset.'],
+  list_rejection_reasons:['GET','/api/rejection-reasons','HTTP: array de causas con id y name. MCP: items, limit, offset y next_offset.'],
+  create_rejection_reason:['POST','/api/rejection-reasons','Causa con id y name. Devuelve la existente si el nombre ya está registrado.'],
   create_offer:['POST','/api/offers','id del proceso creado (HTTP 201). HTTP recibe directamente el objeto offer, sin envolverlo en offer.'],
   patch_offer:['PATCH','/api/offers/{id}','id del proceso actualizado. HTTP usa version donde MCP usa expected_version.'],
   check_offers_batch:['POST','/api/offers/check-batch','results: [{url, applied}]. Conserva orden y duplicados; true confirma candidatura registrada, false solo ausencia de coincidencia confirmada.'],
