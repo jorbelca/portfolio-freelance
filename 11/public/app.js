@@ -21,8 +21,29 @@ function option(select,value,label=value) {
 function displayDate(value,dateOnly=false) {
   return value ? new Date(value).toLocaleDateString('es-ES',dateOnly?{timeZone:'UTC'}:undefined) : 'Sin fecha';
 }
+function renderRejectionChart() {
+  const rejected=offers.filter(item=>offerState(item)==='rechazada');
+  const causes=new Map();
+  for (const offer of rejected) {
+    const cause=offer.rejection_reason || 'Sin causa registrada';
+    causes.set(cause,(causes.get(cause) || 0)+1);
+  }
+  const entries=[...causes].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],'es'));
+  const chart=$('#rejection-chart');
+  chart.replaceChildren();
+  $('#rejection-total').textContent=`${rejected.length} ofertas rechazadas · ${entries.length} causas`;
+  $('#rejection-empty').hidden=entries.length>0;
+  for (const [cause,count] of entries) {
+    const row=document.createElement('li'),label=document.createElement('span'),bar=document.createElement('progress'),value=document.createElement('span');
+    label.textContent=cause;
+    bar.max=rejected.length;bar.value=count;bar.setAttribute('aria-label',`${cause}: ${count} de ${rejected.length} rechazos`);
+    value.className='rejection-count';value.textContent=`${count} · ${Math.round(count/rejected.length*100)} %`;
+    row.append(label,bar,value);chart.append(row);
+  }
+}
 function render() {
   renderCompanyHeatmap(offers);
+  renderRejectionChart();
   $('#count-today').textContent=applicationsToday(offers);
   $('#offer-editor-home').append($('#offer-editor'));
   $('#offers').replaceChildren();
