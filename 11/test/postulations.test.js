@@ -33,6 +33,15 @@ test('URL search identifies Indra offers with and without a brand prefix',()=>{
   assert.equal(matchesOfferUrl(offer,`${variant}similar/`),false);
 });
 
+test('URL search finds the same EURES offer with language parameters',()=>{
+  const saved='https://europa.eu/eures/portal/jv-se/jv-details/NjM3MTAyNSAxMjE';
+  const variant=saved+'?jvDisplayLanguage=sv&lang=en';
+  assert.equal(matchesOfferUrl({url:saved},variant),true);
+  assert.equal(matchesOfferUrl({url:variant},saved),true);
+  assert.equal(matchesOfferUrl({url:saved},variant.replace('MjE','MjI')),false);
+  assert.equal(matchesOfferUrl({url:saved},variant.replace('europa.eu','europa.eu.example.test')),false);
+});
+
 test('today counts only the current Madrid day, including rejected applications once',()=>{
   const offers=[
     {application_state:'enviada',submitted_at:'2026-11-17T00:00:00Z',publications:[{},{}]},

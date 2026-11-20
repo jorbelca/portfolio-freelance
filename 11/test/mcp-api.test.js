@@ -138,7 +138,11 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     const indraSaved='https://careers.indragroup.com/Minsait/job/Madrid-Desarrolladora-Junior-Java-MD/978237755/';
     const indraVariant=indraSaved.replace('/Minsait/','/');
     const indraUrls=[indraVariant,`${indraVariant.slice(0,-1)}?utm_source=job_board&source=search#details`,indraVariant.replace('978237755','978237756'),indraVariant.replace('careers.indragroup.com','jobs.example.test')];
+    const euresSaved='https://europa.eu/eures/portal/jv-se/jv-details/NjM3MTAyNSAxMjE';
+    const euresVariant=euresSaved+'?jvDisplayLanguage=sv&lang=en';
     const identityUrls=[
+      euresSaved,
+      euresVariant,
       'https://www.infojobs.net/a/dev/of-i123abc?utm_source=x',
       'https://es.linkedin.com/jobs/view/dev-123456',
       'https://apply.workable.com/a/j/AB12/',
@@ -168,6 +172,10 @@ test('MCP HTTP comparte validaciones, versiones y seguimiento en un esquema aisl
     assert.deepEqual(await ok('check_offers_batch',{urls:indraUrls}),{results:indraUrls.map((url,index)=>({url,applied:index<2}))});
     assert.equal((await ok('check_history',{url:indraVariant})).matches[0].id,offer.id);
     await admin.query('DELETE FROM publications WHERE url=$1',[indraSaved]);
+    await ok('add_publication',{offer_id:offer.id,url:euresSaved});
+    assert.equal((await ok('check_offers_batch',{urls:[euresVariant]})).results[0].applied,true);
+    assert.equal((await ok('check_history',{url:euresVariant})).matches[0].id,offer.id);
+    await admin.query('DELETE FROM publications WHERE url=$1',[euresSaved]);
     const action=await ok('create_action',{offer_id:offer.id,description:'Fixture aislada',state:'pendiente'});
     const actions=await ok('list_actions',{offer_id:offer.id});
     await ok('update_action',{offer_id:offer.id,action_id:action.id,expected_version:actions.items[0].version,description:'Fixture aislada',state:'completada'});

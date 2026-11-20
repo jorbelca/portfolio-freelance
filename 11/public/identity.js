@@ -23,6 +23,7 @@ export function publicationIdentity(value) {
   if(host==='api.smartrecruiters.com' && (match=path.match(/^\/v1\/companies\/([^/]+)\/postings\/(\d+)(?:\/|$)/))) return `smartrecruiters:${match[1].toLowerCase()}:${match[2]}`;
   if (host==='jobs.smartrecruiters.com' && (match=path.match(/^\/([^/]+)\/(\d+)(?:-|\/|$)/))) return `smartrecruiters:${match[1].toLowerCase()}:${match[2]}`;
   if (host==='emploive.com' && (match=path.match(/^(?:\/home)?\/jobs\/(\d+)(?:\/|$)/))) return `emploive:${match[1]}`;
+  if (host==='europa.eu' && (match=path.match(/^\/eures\/portal\/jv-se\/jv-details\/([A-Za-z0-9_-]+=*)\/?$/))) return `eures:${match[1]}`;
   if (host==='careers.indragroup.com' && (match=path.match(/^\/(?:[a-z0-9-]+\/)?job\/[^/]+\/(\d+)\/?$/i))) return `indra:${match[1]}`;
   if (/^[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com$/.test(host) && (match=path.match(/^\/(?:[^/]+\/)?[^/]+\/job\/(?:[^/]+\/)*[^/]*_((?:jr|r)-?\d+(?:-\d+)*)\/?$/i))) return `workday:${host}:${match[1].toLowerCase()}`;
   return null;
