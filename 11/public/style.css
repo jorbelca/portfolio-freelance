@@ -13,6 +13,7 @@
 #offers [data-offer-state] select option{background:#fff;color:#242e29}
 .offer-filters select{display:block;width:100%;margin:7px 0 0}
 .offer-search-fields{grid-column:1/-1}
+.offer-filters-reset{background:#a33232;margin:0}
 @media(width > 850px){.offer-search-fields{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}}
 #offers [data-offer-state]:hover>td,#offers [data-offer-state]:focus-within>td{background:var(--offer-chip)}
 

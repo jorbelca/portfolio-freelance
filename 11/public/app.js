@@ -204,6 +204,9 @@ $('#filter').onchange=render;
 $('#offer-company-search').oninput=render;
 $('#offer-days-filter').onchange=render;
 $('#offer-url-search').oninput=()=>{if ($('#offer-url-search').value.trim()) $('#filter').value='';render();};
+$('#reset-offer-filters').onclick=()=>{
+  $('#offer-company-search').value=''; $('#offer-url-search').value=''; $('#offer-days-filter').value=''; $('#filter').value=''; render();
+};
 $('#reset').onclick=()=>{
   selected=null; $('#offer-form').reset(); showRejectionFields(); $('[name=status] option[value=pendiente]').disabled=false; $('[name=company]').readOnly=false; $('[name=url]').readOnly=false;
   $('#form-title').textContent='Registrar oferta'; $('#events').textContent='Selecciona una oferta.'; $('#offer-detail').hidden=true; render();
