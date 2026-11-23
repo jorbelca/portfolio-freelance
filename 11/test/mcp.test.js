@@ -12,60 +12,29 @@ async function connect(request,readOnly=false) {
   await server.connect(b); await client.connect(a);
   return {client,close:async()=>{await client.close(); await server.close();}};
 }
-test('MCP negocia protocolo, publica herramientas estrictas y no reenvía argumentos inválidos',async()=>{
+test('MCP limita herramientas y recursos al seguimiento de postulaciones',async()=>{
   const calls=[];
-  const {client,close}=await connect(async(...args)=>{calls.push(args);return {id:args[2]?.id || randomUUID(),status:'queued'};});
-  try {
-    const {tools}=await client.listTools();
-    assert.equal(tools.length,45);
-    assert.equal(tools.find(t=>t.name==='get_workflow').annotations.readOnlyHint,true);
-    assert.equal(tools.find(t=>t.name==='start_run').annotations.idempotentHint,true);
-    assert.equal(tools.find(t=>t.name==='patch_settings').inputSchema.additionalProperties,false);
-    for(const input of [
-      {name:'start_run',arguments:{request_id:randomUUID(),module:'discovery',text:'Documento de prueba aislado'}},
-      {name:'patch_settings',arguments:{expected_revision:1,patch:{quota_spain:-1}}},
-      {name:'patch_settings',arguments:{expected_revision:1,patch:{}}},
-      {name:'get_workflow',arguments:{unexpected:true}}
-    ]) assert.equal((await client.callTool(input)).isError,true);
-    assert.equal(calls.length,0);
-    const urls=['https://www.linkedin.com/jobs/view/123'];
-    assert.equal(tools.find(t=>t.name==='check_offers_batch').annotations.readOnlyHint,true);
-    for(const urls of [[],Array(101).fill('https://example.test'),['javascript:alert(1)']]) {
-      assert.equal((await client.callTool({name:'check_offers_batch',arguments:{urls}})).isError,true);
-    }
-    assert.equal(calls.length,0);
-    await client.callTool({name:'check_offers_batch',arguments:{urls}});
-    assert.deepEqual(calls.pop(),['offers/check-batch','POST',{urls}]);
-    const id=randomUUID(),args={request_id:id,module:'contract',text:'  Documento de prueba aislado \n'};
-    const result=await client.callTool({name:'start_run',arguments:args});
-    assert.equal(result.structuredContent.ok,true);
-    assert.deepEqual(calls[0],['workflow/runs','POST',{id,module:'contract',text:args.text}]);
-    await client.callTool({name:'start_run',arguments:{...args,module:'extraction'}});
-    assert.deepEqual(calls[1],['workflow/runs','POST',{id,module:'extraction',text:args.text}]);
-  } finally {await close();}
-});
-test('MCP expone cambios parciales, errores recuperables, recursos y modo de consulta',async()=>{
-  const calls=[];
-  const request=async(...args)=>{
-    calls.push(args);
-    if(args[1]==='PATCH') throw Object.assign(new Error('Configuración modificada'),{status:409});
-    return {revision:2,value:{model:'',source_prompt:'Texto de fixture solo en memoria'}};
-  };
+  const request=async(...args)=>{calls.push(args); if(args[1]==='PATCH') throw Object.assign(new Error('Versión obsoleta'),{status:409}); return [];};
   const {client,close}=await connect(request);
   try {
-    const result=await client.callTool({name:'get_settings',arguments:{}});
-    assert.equal(result.structuredContent.data.value.source_prompt,undefined);
-    assert.deepEqual(result.structuredContent.data.omitted_fields,['source_prompt']);
-    const failed=await client.callTool({name:'patch_settings',arguments:{expected_revision:1,patch:{batch_size:3}}});
-    assert.equal(failed.isError,true); assert.equal(failed.structuredContent.error.code,'CONFLICT');
-    assert.deepEqual(calls.at(-1),['settings','PATCH',{revision:1,patch:{batch_size:3}}]);
-    assert.equal(failed.structuredContent.error.retryable,false);
-    const resources=await client.listResources(); assert.ok(resources.resources.some(r=>r.uri==='empleo://guide'));
-    assert.match((await client.readResource({uri:'empleo://guide'})).contents[0].text,/expected_revision/);
-    assert.ok((await client.listPrompts()).prompts.some(p=>p.name==='operate_workflow'));
+    const {tools}=await client.listTools();
+    assert.deepEqual(tools.map(t=>t.name),['get_catalogs','list_offers','get_offer','list_companies','list_rejection_reasons','create_rejection_reason','create_offer','patch_offer','check_offers_batch','check_history','list_offer_events','list_publications','list_actions','add_publication','merge_offers','list_offer_merges','unmerge_offer','create_action','update_action']);
+    assert.equal((await client.listResources()).resources.some(r=>r.uri==='empleo://settings'),false);
+    assert.equal((await client.listResourceTemplates()).resourceTemplates.length,0);
+    await assert.rejects(client.listPrompts(),/Method not found/);
+    for(const name of ['start_run','patch_settings','get_workflow']) assert.equal((await client.callTool({name,arguments:{}})).isError,true);
+    for(const urls of [[],Array(101).fill('https://example.test'),['javascript:alert(1)']]) assert.equal((await client.callTool({name:'check_offers_batch',arguments:{urls}})).isError,true);
+    assert.equal(calls.length,0);
+    const urls=['https://www.linkedin.com/jobs/view/123'];
+    await client.callTool({name:'check_offers_batch',arguments:{urls}});
+    assert.deepEqual(calls.pop(),['offers/check-batch','POST',{urls}]);
+    const id=randomUUID();
+    const failed=await client.callTool({name:'patch_offer',arguments:{id,expected_version:1,patch:{notes:'Cambio'}}});
+    assert.equal(failed.structuredContent.error.code,'CONFLICT');
+    assert.deepEqual(calls.pop(),[`offers/${id}`,'PATCH',{version:1,patch:{notes:'Cambio'}}]);
   } finally {await close();}
   const readonly=await connect(request,true);
-  try {const {tools}=await readonly.client.listTools(); assert.ok(tools.every(t=>t.annotations.readOnlyHint)); assert.ok(!tools.some(t=>t.name==='start_run'));} finally {await readonly.close();}
+  try {assert.ok((await readonly.client.listTools()).tools.every(t=>t.annotations.readOnlyHint));} finally {await readonly.close();}
 });
 test('el cliente API no usa cabecera de panel y no sigue redirecciones con el secreto',async()=>{
   let call;
