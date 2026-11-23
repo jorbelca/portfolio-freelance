@@ -19,6 +19,8 @@ export function matchesOfferUrl(offer,query) {
 
 export function filterPostulations(offers,{company,url,state,days},now=new Date()) {
   const companyTerm=normalizeCompanyName(company.trim());
+  const urlTerm=url.trim();
+  const hasSearch=Boolean(companyTerm || urlTerm);
   const today=madridDate(now);
   let firstDay;
   if (days) {
@@ -28,10 +30,11 @@ export function filterPostulations(offers,{company,url,state,days},now=new Date(
   }
   return offers.filter(offer=>{
     const submitted=offer.submitted_at?.slice(0,10);
+    const matchesCompany=Boolean(companyTerm) && normalizeCompanyName(offer.company).includes(companyTerm);
+    const matchesUrl=Boolean(urlTerm) && matchesOfferUrl(offer,urlTerm);
     return (!state || offerState(offer)===state)
-      && (!companyTerm || normalizeCompanyName(offer.company).includes(companyTerm))
-      && (!firstDay || (submitted && submitted>=firstDay && submitted<=today))
-      && matchesOfferUrl(offer,url);
+      && (!hasSearch || matchesCompany || matchesUrl)
+      && (!firstDay || (submitted && submitted>=firstDay && submitted<=today));
   });
 }
 

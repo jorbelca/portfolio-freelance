@@ -57,7 +57,7 @@ test('today counts only the current Madrid day, including rejected applications 
   assert.equal(applicationsToday([],new Date('2026-11-17T12:00:00Z')),0);
 });
 
-test('company and submission period combine with URL and status filters',()=>{
+test('company or URL search combines with submission period and status filters',()=>{
   const today=new Date('2026-11-16T23:30:00Z');
   const base={company:'Ágora Digital',url:'https://example.com/jobs/123',application_state:'enviada'};
   const dated=(date,changes={})=>({...base,...changes,submitted_at:date && `${date}T00:00:00Z`});
@@ -68,7 +68,7 @@ test('company and submission period combine with URL and status filters',()=>{
     dated('2026-11-17',{application_state:'rechazada_empresa'})
   ];
   const filters={company:' AGORA ',url:'jobs/123',state:'inscrita',days:7};
-  assert.deepEqual(filterPostulations(offers,filters,today),offers.slice(0,2));
-  assert.deepEqual(filterPostulations(offers,{...filters,days:1},today),offers.slice(0,1));
-  assert.deepEqual(filterPostulations(offers,{...filters,days:0},today),offers.slice(0,5));
+  assert.deepEqual(filterPostulations(offers,filters,today),[offers[0],offers[1],offers[5],offers[6]]);
+  assert.deepEqual(filterPostulations(offers,{...filters,days:1},today),[offers[0],offers[5],offers[6]]);
+  assert.deepEqual(filterPostulations(offers,{...filters,days:0},today),offers.slice(0,7));
 });
