@@ -31,13 +31,13 @@ function renderRejectionChart() {
   const entries=[...causes].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],'es'));
   const chart=$('#rejection-chart');
   chart.replaceChildren();
-  $('#rejection-total').textContent=`${rejected.length} ofertas rechazadas · ${entries.length} causas`;
+  $('#rejection-total').textContent=`${rejected.length} ofertas rechazadas — ${entries.length} causas`;
   $('#rejection-empty').hidden=entries.length>0;
   for (const [cause,count] of entries) {
     const row=document.createElement('li'),label=document.createElement('span'),bar=document.createElement('progress'),value=document.createElement('span');
     label.textContent=cause;
     bar.max=rejected.length;bar.value=count;bar.setAttribute('aria-label',`${cause}: ${count} de ${rejected.length} rechazos`);
-    value.className='rejection-count';value.textContent=`${count} · ${Math.round(count/rejected.length*100)} %`;
+    value.className='rejection-count';value.textContent=`${count} — ${Math.round(count/rejected.length*100)} %`;
     row.append(label,bar,value);chart.append(row);
   }
 }
@@ -58,17 +58,19 @@ function render() {
     const row=document.createElement('tr'), cell=document.createElement('td'); cell.colSpan=6; cell.textContent='Sin ofertas para mostrar.'; row.append(cell); $('#offers').append(row);
   }
   $('#count-all').textContent=offers.length;
-  $('#count-rejected').textContent=offers.filter(item=>offerState(item)==='rechazada').length;
+  const rejectedCount=offers.filter(item=>offerState(item)==='rechazada').length;
+  $('#count-rejected').textContent=rejectedCount;
+  $('#count-rejected-percent').textContent=`(${offers.length ? Math.round(rejectedCount/offers.length*100) : 0}%)`;
   $('#count-active').textContent=offers.filter(item=>offerState(item)==='inscrita').length;
   for (const offer of visible) {
     const row=document.createElement('tr'); row.dataset.offerId=offer.id; row.dataset.offerState=offerState(offer);
     for (const value of [offer.company,offer.title,'']) {
-      const cell=document.createElement('td'); cell.textContent=value.replaceAll('_',' '); row.append(cell);
+      const cell=document.createElement('td'); cell.textContent=value.replaceAll('_',' ').replaceAll('·','—'); row.append(cell);
     }
     const stateSelect=document.createElement('select');
     stateSelect.id=`offer-${offer.id}-application-state`;
     stateSelect.dataset.tool='patch_offer';
-    stateSelect.setAttribute('aria-label',`Estado de postulación: ${offer.title} · ${offer.company}`);
+    stateSelect.setAttribute('aria-label',`Estado de postulación: ${offer.title} — ${offer.company}`);
     for (const [state,label] of Object.entries(offerStates)) {
       option(stateSelect,state,label);
       stateSelect.lastElementChild.disabled=state==='pendiente' && offer.application_state!=='sin_candidatura';
@@ -149,7 +151,7 @@ async function load() {
   [offers,companies,rejectionReasons]=await Promise.all([api('offers'),api('companies'),api('rejection-reasons')]);
   showRejectionReasons(reasonSelect.value);
   const select=$('[name=company_id]'); select.replaceChildren(); option(select,'','Crear empresa');
-  for (const company of companies) option(select,company.id,`${company.name} · ${company.id.slice(0,8)}`);
+  for (const company of companies) option(select,company.id,`${company.name} — ${company.id.slice(0,8)}`);
   render();
 }
 async function selectOffer(offer) {
@@ -165,14 +167,14 @@ async function selectOffer(offer) {
   $('#form-title').textContent='Gestionar proceso';
   $('#offer-detail').hidden=false;
   const mergeSelect=$('#merge-form [name=source_id]');mergeSelect.replaceChildren(new Option('Selecciona el duplicado',''));
-  for(const other of offers.filter(item=>item.id!==offer.id)) mergeSelect.add(new Option(`${other.company} · ${other.title} · ${offerState(other)}`,other.id));
+  for(const other of offers.filter(item=>item.id!==offer.id)) mergeSelect.add(new Option(`${other.company} — ${other.title} — ${offerState(other)}`,other.id));
   const [events,publications,actions,merges]=await Promise.all([api(`offers/${offer.id}/events`),api(`offers/${offer.id}/publications`),api(`offers/${offer.id}/actions`),api(`offers/${offer.id}/merges`)]);
   $('#events').textContent=JSON.stringify(events,null,2);
   const latestMerge=merges.items[0],unmergeForm=$('#unmerge-form');
   $('#unmerge-details').hidden=!latestMerge;
   if(latestMerge) {
     unmergeForm.reset();unmergeForm.elements.source_id.value=latestMerge.source_id;unmergeForm.elements.source_version.value=latestMerge.source_version;
-    $('#unmerge-status').textContent=`Fusión más reciente: ${latestMerge.company} · ${latestMerge.title}. ${latestMerge.undoable?'Puedes separarla y restaurar ambos historiales.':latestMerge.undo_blocked_reason}`;
+    $('#unmerge-status').textContent=`Fusión más reciente: ${latestMerge.company} — ${latestMerge.title}. ${latestMerge.undoable?'Puedes separarla y restaurar ambos historiales.':latestMerge.undo_blocked_reason}`;
     $('#unmerge-submit').disabled=!latestMerge.undoable;
   }
   $('#publications').replaceChildren();
@@ -181,7 +183,7 @@ async function selectOffer(offer) {
   }
   $('#actions').replaceChildren();
   for (const action of actions) {
-    const li=document.createElement('li'); li.textContent=`${action.description} · ${action.due_on?.slice(0,10) || 'Sin fecha'} · ${action.state} `;
+    const li=document.createElement('li'); li.textContent=`${action.description} — ${action.due_on?.slice(0,10) || 'Sin fecha'} — ${action.state} `;
     li.dataset.actionId=action.id; li.dataset.state=action.state;
     for (const state of action.state==='pendiente'?['completada','cancelada']:['pendiente']) {
       const button=document.createElement('button'); button.type='button'; button.textContent=state==='pendiente'?'Reabrir':state==='completada'?'Completar':'Cancelar';
@@ -275,11 +277,11 @@ function updateConfigSummaries() {
  const terms=[...document.querySelectorAll('#search-queries [data-field="term"]')].map(field=>field.value.trim()).filter(Boolean);
  const skills=document.querySelectorAll('#profile-skills .config-row').length,languages=document.querySelectorAll('#profile-languages .config-row').length;
  const sources=[...document.querySelectorAll('#search-sources [data-field="enabled"]')].filter(field=>field.checked).length;
- $('#queries-summary').textContent=terms.length?`Puestos y lugares · ${terms.length} puestos configurados`:'Puestos y lugares · añade qué trabajo buscas';
- $('#profile-summary').textContent=`Tu perfil para valorar las ofertas · ${skills} habilidades · ${languages} idiomas`;
- $('#skills-summary').textContent=`Habilidades · ${skills}`;
- $('#languages-summary').textContent=`Idiomas · ${languages}`;
- $('#search-advanced-summary').textContent=`Ajustes avanzados (opcional) · ${sources} páginas activas`;
+ $('#queries-summary').textContent=terms.length?`Puestos y lugares — ${terms.length} puestos configurados`:'Puestos y lugares — añade qué trabajo buscas';
+ $('#profile-summary').textContent=`Tu perfil para valorar las ofertas — ${skills} habilidades — ${languages} idiomas`;
+ $('#skills-summary').textContent=`Habilidades — ${skills}`;
+ $('#languages-summary').textContent=`Idiomas — ${languages}`;
+ $('#search-advanced-summary').textContent=`Ajustes avanzados (opcional) — ${sources} páginas activas`;
 }
 function showSearchConfig() {
  for(const key of profileKeys) {const input=$(`#profile-${key}`);if(input.type==='checkbox') input.checked=searchConfig.value[key];else input.value=searchConfig.value[key] ?? '';}
@@ -383,8 +385,8 @@ async function refreshWorkflow() {
     article.dataset.runId=run.id; article.dataset.status=run.status;
     const button=document.createElement('button');button.type='button';button.className='run-select';button.dataset.tool='get_run';
     button.setAttribute('aria-pressed',String(run.id===selectedRunId));
-    button.textContent=`${runLabels[run.status]} · ${run.module==='search'?'Búsqueda de ofertas':run.module==='extraction'?'Análisis de ficha':'Contrato'}`;
-    const meta=document.createElement('p');meta.className='muted';meta.textContent=`${new Date(run.created_at).toLocaleString('es-ES')} · configuración v${run.settings_revision}`;
+    button.textContent=`${runLabels[run.status]} — ${run.module==='search'?'Búsqueda de ofertas':run.module==='extraction'?'Análisis de ficha':'Contrato'}`;
+    const meta=document.createElement('p');meta.className='muted';meta.textContent=`${new Date(run.created_at).toLocaleString('es-ES')} — configuración v${run.settings_revision}`;
     button.onclick=async()=>{selectedRunId=run.id;await refreshWorkflow().catch(error=>message(error.message));};
     article.append(button,meta);
     if (run.status==='unknown' && run.module!=='search') {
@@ -402,11 +404,11 @@ let resultsRunId=null;
 async function refreshResults() {
  const searches=runs.filter(run=>run.module==='search'),select=$('#results-run'),panel=$('#search-results');
  resultsRunId=searches.some(run=>run.id===resultsRunId)?resultsRunId:searches[0]?.id;
- select.replaceChildren();for(const run of searches) option(select,run.id,`${new Date(run.created_at).toLocaleString('es-ES')} · ${runLabels[run.status]}`);
+ select.replaceChildren();for(const run of searches) option(select,run.id,`${new Date(run.created_at).toLocaleString('es-ES')} — ${runLabels[run.status]}`);
  select.value=resultsRunId || '';panel.replaceChildren();
  if(!resultsRunId) {panel.textContent='Todavía no has ejecutado ninguna búsqueda.';return;}
  const run=searches.find(run=>run.id===resultsRunId);
- if(run.result) {const status=document.createElement('p');status.className='notice';status.textContent=`España ${run.result.spain}/${run.result.quota_spain} · Europa ${run.result.europe}/${run.result.quota_europe}. ${run.result.reason || ''}`;panel.append(status);}
+ if(run.result) {const status=document.createElement('p');status.className='notice';status.textContent=`España ${run.result.spain}/${run.result.quota_spain} — Europa ${run.result.europe}/${run.result.quota_europe}. ${run.result.reason || ''}`;panel.append(status);}
  const content=document.createElement('div');
  await renderSearchPanel(run,content,true);
  if(resultsRunId===run.id) panel.append(content);
@@ -416,10 +418,10 @@ async function renderRunDetail(id) {
   const run=await api(`workflow/runs/${id}?limit=25&offset=${taskOffsets[id] || 0}${taskStatuses[id]?`&task_status=${taskStatuses[id]}`:''}`);
   if (id!==selectedRunId) return;
   const panel=$('#run-detail');panel.replaceChildren();panel.dataset.runId=id;panel.dataset.status=run.status;
-  const heading=document.createElement('h3');heading.textContent=`${run.module==='search'?'Búsqueda de ofertas':run.module==='extraction'?'Análisis de ficha':'Contrato'} · ${runLabels[run.status]}`;panel.append(heading);
+  const heading=document.createElement('h3');heading.textContent=`${run.module==='search'?'Búsqueda de ofertas':run.module==='extraction'?'Análisis de ficha':'Contrato'} — ${runLabels[run.status]}`;panel.append(heading);
   const counts=run.task_page.counts,total=run.task_page.total,complete=(counts.succeeded || 0)+(counts.failed || 0);
   if (total) {
-    const label=document.createElement('p');label.textContent=['succeeded','failed'].includes(run.status)?`${complete} tareas ejecutadas · ${counts.pending || 0} sin ejecutar al cerrar`:`${complete} de ${total} tareas terminadas`;panel.append(label);
+    const label=document.createElement('p');label.textContent=['succeeded','failed'].includes(run.status)?`${complete} tareas ejecutadas — ${counts.pending || 0} sin ejecutar al cerrar`:`${complete} de ${total} tareas terminadas`;panel.append(label);
     const progress=document.createElement('progress');progress.max=total;progress.value=complete;progress.setAttribute('aria-label','Tareas terminadas');panel.append(progress);
   }
   if (run.error) {const error=document.createElement('p');error.className='notice';error.textContent=run.error;panel.append(error);}
@@ -430,7 +432,7 @@ async function renderRunDetail(id) {
   for(const [value,label] of [['','Todas'],['pending','Pendientes'],['running','En ejecución'],['succeeded','Terminadas'],['failed','Fallidas'],['unknown','Inciertas']]) option(taskFilter,value,`${label}${value?` (${counts[value] || 0})`:''}`);
   taskFilter.value=taskStatuses[id] || '';taskFilter.onchange=async()=>{taskStatuses[id]=taskFilter.value;taskOffsets[id]=0;try{await renderRunDetail(id);}catch(error){message(error.message);}};
   filterLabel.append(taskFilter);taskControls.append(filterLabel);
-  const taskRange=document.createElement('p');taskRange.textContent=`Tareas mostradas: ${run.tasks.length?run.task_page.offset+1:0}–${run.task_page.offset+run.tasks.length} de ${run.task_page.filtered_total} · ${total} en total`;taskControls.append(taskRange);
+  const taskRange=document.createElement('p');taskRange.textContent=`Tareas mostradas: ${run.tasks.length?run.task_page.offset+1:0}–${run.task_page.offset+run.tasks.length} de ${run.task_page.filtered_total} — ${total} en total`;taskControls.append(taskRange);
   for(const [label,offset] of [['Tareas anteriores',Math.max(0,(taskOffsets[id] || 0)-25)],['Tareas siguientes',run.task_page.next_offset]]) {
    const button=document.createElement('button');button.type='button';button.textContent=label;button.disabled=label==='Tareas anteriores'?!taskOffsets[id]:offset===null;
    button.onclick=async()=>{taskOffsets[id]=offset;try{await renderRunDetail(id);}catch(error){message(error.message);}};taskControls.append(button);
@@ -438,7 +440,7 @@ async function renderRunDetail(id) {
   panel.append(taskControls);
   for (const task of run.tasks) {
     const article=document.createElement('article');article.className='task-result';article.dataset.taskId=task.task_id;article.dataset.status=task.status;
-    const title=document.createElement('h4');title.textContent=`${String(task.position).padStart(2,'0')} · ${labels[task.task_id] || task.task_id}`;
+    const title=document.createElement('h4');title.textContent=`${String(task.position).padStart(2,'0')} — ${labels[task.task_id] || task.task_id}`;
     const status=document.createElement('span');status.className=`badge ${task.status}`;
     status.textContent=taskStatusLabel(task,run.status);
     article.append(title,status);
@@ -452,7 +454,7 @@ async function renderRunDetail(id) {
   }
   if (!total && run.result) {const p=document.createElement('p');p.textContent=run.result.value;panel.append(p);if(run.result.evidence){const q=document.createElement('blockquote');q.textContent=run.result.evidence;panel.append(q);}}
   if (run.n8n_execution_id) {const link=document.createElement('a');link.href=`http://localhost:5678/workflow/${run.module==='search'?'empleoSearch03':run.module==='extraction'?'empleoExtraction02':'empleoContract01'}/executions/${encodeURIComponent(run.n8n_execution_id)}`;link.target='_blank';link.rel='noopener';link.textContent=`Ejecución ${run.n8n_execution_id} en n8n ↗`;panel.append(link);}
-  const meta=document.createElement('p');meta.className='muted';meta.textContent=`ID: ${id} · ${new Date(run.created_at).toLocaleString('es-ES')}`;panel.append(meta);
+  const meta=document.createElement('p');meta.className='muted';meta.textContent=`ID: ${id} — ${new Date(run.created_at).toLocaleString('es-ES')}`;panel.append(meta);
 }
 async function renderSearchPanel(run,panel,resultsOnly=false) {
  const data=await api(`search/runs/${run.id}/results?limit=25&offset=0`);
@@ -484,15 +486,15 @@ async function renderSearchPanel(run,panel,resultsOnly=false) {
    form.onsubmit=async event=>{event.preventDefault();button.disabled=true;try{await api(`search/runs/${run.id}/control`,'POST',{action:'retry',revision:state.revision,step_id:task.id,reason:reason.value});await refreshWorkflow();}catch(error){message(error.message);button.disabled=false;}};controls.append(form);
   }
  }
- const controlLabel=document.createElement('p');controlLabel.textContent=`Búsqueda: ${run.status==='succeeded'?'cerrada':state.control==='active'?'activa':state.control==='paused'?'pausada':'cancelada'} · control v${state.revision}`;controls.append(controlLabel);panel.append(controls);
+ const controlLabel=document.createElement('p');controlLabel.textContent=`Búsqueda: ${run.status==='succeeded'?'cerrada':state.control==='active'?'activa':state.control==='paused'?'pausada':'cancelada'} — control v${state.revision}`;controls.append(controlLabel);panel.append(controls);
  if(run.result) {
   const report=document.createElement('section');report.className='search-summary';const title=document.createElement('h3');title.textContent=run.status!=='succeeded'?'Avance de la búsqueda':run.result.fulfilled?'Reparto verificado':'Búsqueda cerrada con déficit';
-  const totals=document.createElement('p');totals.textContent=`España ${run.result.spain}/${run.result.quota_spain} · Europa ${run.result.europe}/${run.result.quota_europe} · Fichas ${run.result.openings}/${run.result.max_openings}. Motivo: ${run.result.reason}.`;
+  const totals=document.createElement('p');totals.textContent=`España ${run.result.spain}/${run.result.quota_spain} — Europa ${run.result.europe}/${run.result.quota_europe} — Fichas ${run.result.openings}/${run.result.max_openings}. Motivo: ${run.result.reason}.`;
   const deficits=document.createElement('p');deficits.textContent=`Faltan ${run.result.deficit_spain} de España y ${run.result.deficit_europe} del resto de Europa. Corte: ${new Date(run.result.cutoff).toLocaleString('es-ES',{timeZone:run.result.timezone})}.`;
   report.append(title,totals,deficits);
   if(run.result.summary) {
    const summary=run.result.summary,p=document.createElement('p');
-   p.textContent=`Total computable: ${summary.computable}/${run.result.quota_spain+run.result.quota_europe} · A ${summary.classes.A} · B ${summary.classes.B} · C ${summary.classes.C} · Pistas ${summary.classes.pista}. B que cuentan: ${summary.b_computable}; fuera del cupo: ${summary.b_not_computable}. Encaje de finalistas: favorable ${summary.fit.favorable}, condicionado ${summary.fit.condicionado}, débil ${summary.fit['débil']}, desconocido ${summary.fit.desconocido}.`;
+   p.textContent=`Total computable: ${summary.computable}/${run.result.quota_spain+run.result.quota_europe} — A ${summary.classes.A} — B ${summary.classes.B} — C ${summary.classes.C} — Pistas ${summary.classes.pista}. B que cuentan: ${summary.b_computable}; fuera del cupo: ${summary.b_not_computable}. Encaje de finalistas: favorable ${summary.fit.favorable}, condicionado ${summary.fit.condicionado}, débil ${summary.fit['débil']}, desconocido ${summary.fit.desconocido}.`;
    report.append(p);
    if(summary.fit['débil']>summary.computable/2) {const warning=document.createElement('p');warning.className='notice';warning.textContent='Predominan los encajes débiles entre las finalistas computables.';report.append(warning);}
   }
@@ -511,28 +513,28 @@ async function renderSearchPanel(run,panel,resultsOnly=false) {
   const result=task.result || {},status=result.status || task.status;
   const labels={captcha:'Bloqueada por CAPTCHA',blocked:'Acceso bloqueado',error:'Error',failed:'Tarea fallida',unknown:'Resultado incierto',ok:'Fuente consultada',succeeded:'Consulta terminada'};
   const source={'browser:google':'Google','browser:bing':'Bing'}[task.input?.source] || task.input?.source || task.kind;
-  title.textContent=`${source}${task.input?.term?' · '+task.input.term:''} — ${result.skipped?'Consulta omitida tras bloqueo':labels[status] || status}`;
+  title.textContent=`${source}${task.input?.term?' — '+task.input.term:''} — ${result.skipped?'Consulta omitida tras bloqueo':labels[status] || status}`;
   item.className=['captcha','blocked','error','failed','unknown'].includes(status) || task.error?'notice':'source-diagnostic';
   reason.textContent=task.error || result.reason || (task.kind==='discover'?`Páginas leídas: ${result.pages ?? 0}. Ofertas recibidas: ${result.received ?? 0}; aceptadas: ${result.accepted ?? 0}.`:'Sin causa adicional registrada.');
   item.append(title,reason);diagnostics.append(item);
  }
  panel.append(diagnostics);
  const groups=new Map();
- for(const [key,label] of [['A','Recomendadas y verificadas'],['B','Pendientes de comprobar'],['C','Excluidas'],['pista','Sin clasificar · pistas']]) {
+ for(const [key,label] of [['A','Recomendadas y verificadas'],['B','Pendientes de comprobar'],['C','Excluidas'],['pista','Sin clasificar — pistas']]) {
   const section=document.createElement('section'),heading=document.createElement('h3');
-  heading.textContent=`${key==='pista'?'':key+' · '}${label} (${data.candidates.filter(item=>(item.evaluation?.classification || 'pista')===key).length})`;section.append(heading);groups.set(key,section);panel.append(section);
+  heading.textContent=`${key==='pista'?'':key+' — '}${label} (${data.candidates.filter(item=>(item.evaluation?.classification || 'pista')===key).length})`;section.append(heading);groups.set(key,section);panel.append(section);
   if(!data.candidates.some(item=>(item.evaluation?.classification || 'pista')===key)) {const empty=document.createElement('p');empty.className='muted';empty.textContent='Sin ofertas en este grupo.';section.append(empty);}
  }
  const heading=document.createElement('h3');heading.textContent='Ofertas y pistas investigadas';panel.prepend(heading);
  for(const candidate of data.candidates) {
   const article=document.createElement('article');article.className='search-result';article.dataset.candidateId=candidate.id;article.dataset.classification=candidate.evaluation?.classification || 'pista';
-  const title=document.createElement('h4');title.textContent=`${candidate.title} · ${candidate.company}`;
+  const title=document.createElement('h4');title.textContent=`${candidate.title} — ${candidate.company}`;
   const classification=document.createElement('p');const evaluation=candidate.evaluation;
-  classification.textContent=evaluation?`${{A:'A · Recomendada y verificada',B:'B · Pendiente',C:'C · Excluida',pista:'Pista sin ficha completa'}[evaluation.classification]} · ${evaluation.computable?'Computable':'No computable'}${evaluation.country?` · ${evaluation.country}`:''}`:candidate.stage==='blocked'?'Identidad o lectura pendiente · No computable':candidate.stage==='extracting'?'Ficha completa · análisis en curso':candidate.stage==='reading'?'Lectura en curso':'Pista sin ficha completa · No computable';
+  classification.textContent=evaluation?`${{A:'A — Recomendada y verificada',B:'B — Pendiente',C:'C — Excluida',pista:'Pista sin ficha completa'}[evaluation.classification]} — ${evaluation.computable?'Computable':'No computable'}${evaluation.country?` — ${evaluation.country}`:''}`:candidate.stage==='blocked'?'Identidad o lectura pendiente — No computable':candidate.stage==='extracting'?'Ficha completa — análisis en curso':candidate.stage==='reading'?'Lectura en curso':'Pista sin ficha completa — No computable';
   const sourceLabel={'browser:google':'Google','browser:bing':'Bing'}[candidate.source] || candidate.source;
   const link=document.createElement('a');link.href=candidate.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`Ver en ${sourceLabel} ↗`;
   article.append(title,classification,link);
-  if(candidate.prior_candidate_id) {const continuity=document.createElement('p');continuity.textContent=`Recuperada de una búsqueda anterior · Proceso ${candidate.process_id || candidate.id}`;article.append(continuity);}
+  if(candidate.prior_candidate_id) {const continuity=document.createElement('p');continuity.textContent=`Recuperada de una búsqueda anterior — Proceso ${candidate.process_id || candidate.id}`;article.append(continuity);}
   if(evaluation?.fit_explanation) {const fit=document.createElement('p');fit.textContent=`Encaje ${evaluation.fit}: ${evaluation.fit_explanation}${evaluation.fit_evidence?' Cita: «'+evaluation.fit_evidence+'»':''}`;article.append(fit);}
   for(const exclusion of evaluation?.exclusions || []) {const p=document.createElement('p');p.textContent=`${exclusion.rule}: ${exclusion.evidence}`;article.append(p);}
   if(evaluation?.pending?.length) {const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');summary.textContent=`${evaluation.pending.length} pendientes por resolver`;for(const pending of evaluation.pending){const li=document.createElement('li');li.textContent=`${pending.owner}: ${pending.resolution}`;list.append(li);}details.append(summary,list);article.append(details);}
@@ -552,7 +554,7 @@ function renderCandidateTools(candidate,article,candidates) {
  const application=candidate.application_check;
  if(application) {
   const status={pending:'Pendiente de revisar',accessible:'Formulario público accesible',login_required:'Requiere iniciar sesión',captcha:'Protegido por CAPTCHA',closed:'La vacante aparece cerrada',blocked:'Acceso bloqueado',unknown:'No se pudo confirmar'}[application.status] || application.status;
-  const check=document.createElement('section'),heading=document.createElement('h5'),result=document.createElement('p');heading.textContent='Comprobación de candidatura';result.textContent=`${status}${application.form_found===true?' · formulario visible':''}`;check.append(heading,result);
+  const check=document.createElement('section'),heading=document.createElement('h5'),result=document.createElement('p');heading.textContent='Comprobación de candidatura';result.textContent=`${status}${application.form_found===true?' — formulario visible':''}`;check.append(heading,result);
   if(application.required_fields?.length) {const p=document.createElement('p');p.textContent=`Campos obligatorios visibles: ${application.required_fields.join(', ')}`;check.append(p);}
   if(application.evidence || application.reason) {const quote=document.createElement('blockquote');quote.textContent=application.evidence || application.reason;check.append(quote);}
   if(application.application_url) {const link=document.createElement('a');link.href=application.application_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir página de candidatura ↗';check.append(link);}
@@ -562,7 +564,7 @@ function renderCandidateTools(candidate,article,candidates) {
  const identity=document.createElement('form'),resolution=document.createElement('select'),target=document.createElement('select'),reason=document.createElement('input'),save=document.createElement('button');
  const labelled=(text,field)=>{const label=document.createElement('label');label.textContent=text;label.append(field);return label;};
  for(const [value,label] of [['distinct','Es otra convocatoria'],['same_process','Es un proceso del seguimiento'],['duplicate','Es duplicada de otra pista']]) option(resolution,value,label);
- const targets=()=>{target.replaceChildren();option(target,'','Seleccionar destino');for(const item of resolution.value==='same_process'?offers:candidates.filter(item=>item.id!==candidate.id)) option(target,item.id,`${item.title} · ${item.company}`);target.hidden=resolution.value==='distinct';target.required=resolution.value!=='distinct';};resolution.onchange=targets;targets();reason.required=true;reason.maxLength=2000;save.textContent='Guardar resolución';
+ const targets=()=>{target.replaceChildren();option(target,'','Seleccionar destino');for(const item of resolution.value==='same_process'?offers:candidates.filter(item=>item.id!==candidate.id)) option(target,item.id,`${item.title} — ${item.company}`);target.hidden=resolution.value==='distinct';target.required=resolution.value!=='distinct';};resolution.onchange=targets;targets();reason.required=true;reason.maxLength=2000;save.textContent='Guardar resolución';
  identity.append(labelled('Identidad',resolution),labelled('Proceso principal',target),labelled('Motivo de la resolución',reason),save);
  identity.onsubmit=async event=>{event.preventDefault();save.disabled=true;try{await api(`search/candidates/${candidate.id}/identity`,'POST',{version:candidate.version,resolution:resolution.value,...(resolution.value==='same_process'?{target_offer_id:target.value}:resolution.value==='duplicate'?{duplicate_candidate_id:target.value}:{}),reason:reason.value});await refreshWorkflow();message('Identidad y recuentos actualizados.');}catch(error){message(error.message);save.disabled=false;}};section.append(identity);
  const correction=document.createElement('form'),field=document.createElement('select'),value=document.createElement('input'),verdict=document.createElement('select'),evidence=document.createElement('textarea'),why=document.createElement('input'),apply=document.createElement('button');
@@ -584,7 +586,7 @@ function updateRunScope() {
    $('#pause-workflow').hidden=!workflow.control.enabled;
   }
   const search=runModule()==='search';$('#run-text').required=!search;$('#run-text').closest('label').hidden=search;
-  if(search) {$('#run-scope').textContent=`Recorrido completo: buscar → revisar → evaluar → resultados. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} · modelo: ${settings.value.model || 'gpt-6-luna'} · thinking ${settings.value.reasoning_effort || 'max'}. Puedes pausar entre tareas.`;return;}
+  if(search) {$('#run-scope').textContent=`Recorrido completo: buscar → revisar → evaluar → resultados. Máximo ${settings.value.max_openings} lecturas; objetivo ${settings.value.quota_spain} España + ${settings.value.quota_europe} Europa. Motor: ${settings.value.provider==='openai'?'API de OpenAI':'Codex (suscripción)'} — modelo: ${settings.value.model || 'gpt-6-luna'} — thinking ${settings.value.reasoning_effort || 'max'}. Puedes pausar entre tareas.`;return;}
   $('#run-scope').textContent=runModule()==='extraction'?'15 llamadas consecutivas al modelo. Cada dato se guarda por separado con su cita literal. Puede tardar varios minutos. No clasifica ni verifica páginas externas.':'Una llamada al modelo para extraer únicamente el contrato y su cita.';
 }
 document.querySelectorAll('[name=run-module]').forEach(input=>{input.onchange=()=>{requestId=null;updateRunScope();};});
@@ -614,11 +616,11 @@ function renderEndpointCatalog(integration) {
     const item=document.createElement('details'),summary=document.createElement('summary');
     item.className='endpoint';
     item.dataset.search=[endpoint.name,endpoint.method,endpoint.path,endpoint.description,endpoint.returns].filter(Boolean).join(' ').toLowerCase();
-    summary.textContent=`${endpoint.method} ${endpoint.path}${endpoint.name?` · ${endpoint.name}`:' · Solo HTTP'}`;
+    summary.textContent=`${endpoint.method} ${endpoint.path}${endpoint.name?` — ${endpoint.name}`:' — Solo HTTP'}`;
     item.append(summary);
     if (endpoint.name) {
       const description=document.createElement('p');
-      description.textContent=`${endpoint.readOnly?'Consulta':'Modifica datos o controla tareas'} · ${endpoint.description}`;
+      description.textContent=`${endpoint.readOnly?'Consulta':'Modifica datos o controla tareas'} — ${endpoint.description}`;
       item.append(description);
     }
     const output=document.createElement('p');output.textContent=`Devuelve: ${endpoint.returns}`;item.append(output);
@@ -629,7 +631,7 @@ function renderEndpointCatalog(integration) {
   const filter=()=>{
     const term=$('#endpoint-filter').value.trim().toLowerCase();
     for (const item of container.children) item.hidden=!item.dataset.search.includes(term);
-    $('#endpoint-count').textContent=`${[...container.children].filter(item=>!item.hidden).length} de ${endpoints.length} operaciones · ${integration.tools.length} herramientas MCP`;
+    $('#endpoint-count').textContent=`${[...container.children].filter(item=>!item.hidden).length} de ${endpoints.length} operaciones — ${integration.tools.length} herramientas MCP`;
   };
   $('#endpoint-filter').oninput=filter;
   filter();
@@ -641,7 +643,7 @@ function route() {
   document.body.dataset.page=page;
   for (const view of document.querySelectorAll('[data-view]')) view.hidden=view.dataset.view!==page;
   for (const link of document.querySelectorAll('[data-page]')) link.classList.toggle('active',link.dataset.page===page);
-  $('#page-title').textContent={control:'Ejecutar',results:'Resultados de la búsqueda.',configuration:'Configura tu búsqueda.',seguimiento:'Postulaciones.',integrations:'Conecta tu asistente.'}[page];
+  $('#page-title').textContent={control:'Ejecutar',results:'Resultados de la búsqueda',configuration:'Configura tu búsqueda',seguimiento:'Postulaciones',integrations:'Conecta tu asistente'}[page];
   $('#page-subtitle').textContent={control:'Elige el alcance, inicia una ejecución y consulta sus resultados.',results:'Ofertas separadas por clasificación, con sus detalles y comprobaciones.',configuration:'Elige qué buscar, qué perfil usar y qué modelo lo analizará.',seguimiento:'Gestiona candidaturas, publicaciones y próximos pasos.',integrations:'Herramientas MCP para consultar, configurar y operar la aplicación.'}[page];
 }
 window.addEventListener('hashchange',()=>{route();if(location.hash==='#results') refreshResults().catch(error=>message(error.message));}); route();
@@ -649,7 +651,7 @@ try {
   for (const [state,label] of Object.entries(offerStates)) {option($('[name=status]'),state,label); option($('#filter'),state,label);}
   await load(); searchConfig=await api('search/config');showSearchConfig(); models=await api('models'); settings=await api('settings'); showSettings(); await refreshWorkflow();
   const integration=await api('integration');
-  $('#integration-state').textContent=integration.configured?'MCP configurado · stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';
+  $('#integration-state').textContent=integration.configured?'MCP configurado — stdio y HTTP disponibles':'Falta configurar MCP_TOKEN en 11/.env y reiniciar el servicio.';
   $('#mcp-stdio-config').value=JSON.stringify(integration.stdio,null,2);
   $('#mcp-http-config').value=JSON.stringify(integration.http,null,2);
   document.body.dataset.mcpEndpoint=integration.endpoint;

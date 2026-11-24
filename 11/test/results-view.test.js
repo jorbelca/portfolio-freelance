@@ -21,7 +21,7 @@ test('resultados agrupa todas las páginas por clase y conserva las pistas sin c
  assert.equal(groups.length,4);
  assert.deepEqual(groups.map(group=>group.children.filter(item=>item.dataset.candidateId!==undefined).length),[9,8,8,1]);
  assert.match(groups[3].children[0].textContent,/Sin clasificar/);
- assert.equal(groups[0].children[1].children[0].textContent,'Puesto 0 · Empresa');
+ assert.equal(groups[0].children[1].children[0].textContent,'Puesto 0 — Empresa');
 });
 
 test('resultados muestra CAPTCHA y errores aunque la ejecución figure completada',async()=>{

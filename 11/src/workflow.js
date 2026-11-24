@@ -17,7 +17,7 @@ export async function workflowStatus() {
   try {reachable=(await fetch(`${base}/healthz/readiness`,{signal:AbortSignal.timeout(3000)})).ok;} catch {}
   return {reachable,editorUrl:'http://localhost:5678/workflow/empleoContract01',control:(await pool.query('SELECT * FROM workflow_control WHERE id=1')).rows[0],modules:[
     {id:'contract',label:'Extraer contrato',available:true,workflowId:'empleoContract01',tasks:tasksFor('contract')},
-    {id:'extraction',label:'Analizar ficha · 15 tareas',available:true,workflowId:'empleoExtraction02',tasks:extractionTasks},
+    {id:'extraction',label:'Analizar ficha — 15 tareas',available:true,workflowId:'empleoExtraction02',tasks:extractionTasks},
     {id:'search',label:'Buscar, filtrar y presentar ofertas',available:true,workflowId:'empleoSearch03',tasks:searchTaskKinds.map(id=>({id,label:id,instruction:'Operación singular persistente; consulta sus resultados por ejecución.'}))}
   ]};
 }

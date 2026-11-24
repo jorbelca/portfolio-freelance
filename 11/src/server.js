@@ -65,11 +65,11 @@ http.createServer(async (req, res) => {
       return await handleMcpHttp(req,res,parsed,origin);
     }
     if (path === '/' && req.method === 'GET') {
-      res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"});
+      res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"});
       return res.end(await readFile(new URL('../public/index.html', import.meta.url)));
     }
     if (['/app.js', '/offer-state.js', '/company-heatmap.js', '/postulations.js', '/identity.js', '/workflow-state.js', '/style.css'].includes(path) && req.method === 'GET') {
-      res.writeHead(200, {'Content-Type': path.endsWith('.js') ? 'text/javascript' : 'text/css'});
+      res.writeHead(200, {'Content-Type': path.endsWith('.js') ? 'text/javascript' : 'text/css', 'Cache-Control': 'no-store'});
       return res.end(await readFile(new URL(`../public${path}`, import.meta.url)));
     }
     if (path==='/MCP.md' && req.method==='GET') {

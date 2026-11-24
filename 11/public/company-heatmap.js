@@ -31,12 +31,12 @@ export function renderCompanyHeatmap(offers) {
   const max=rejections.length?Math.max(...rejections):0;
   document.querySelector('#company-scale-min').textContent=`Mínimo: ${min} rechazos`;
   document.querySelector('#company-scale-max').textContent=`Máximo: ${max} rechazos`;
-  const summary=company=>`${company.name}: ${company.total} ofertas · ${company.inscrita} inscritas · ${company.rechazada} rechazadas · ${company.pendiente} pendientes`;
+  const summary=company=>`${company.name}: ${company.total} ofertas — ${company.inscrita} inscritas — ${company.rechazada} rechazadas — ${company.pendiente} pendientes`;
   for (const company of stats) {
     const cell=document.createElement('button');
     cell.type='button';
     cell.className='company-cell';
-    cell.textContent=company.name;
+    cell.textContent=company.name.replaceAll('·','—');
     cell.title=summary(company);
     cell.setAttribute('aria-label',summary(company));
     cell.dataset.company=normalizeCompanyName(company.name);
@@ -56,7 +56,7 @@ export function renderCompanyHeatmap(offers) {
       cell.classList.toggle('company-dimmed',Boolean(query) && !match);
       if (match) matches++;
     }
-    document.querySelector('#company-count').textContent=`${stats.length} empresas${query?` · ${matches} coincidencias`:''}`;
+    document.querySelector('#company-count').textContent=`${stats.length} empresas${query?` — ${matches} coincidencias`:''}`;
   };
   search.oninput=highlight;
   detail.textContent=stats.length?'Selecciona una empresa para ver sus cifras.':'No hay empresas con ofertas registradas.';

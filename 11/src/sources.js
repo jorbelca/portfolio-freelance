@@ -1,6 +1,6 @@
 export const sourceCatalog={
-  'browser:google':{label:'Google · navegador',engine:'google',url:'https://www.google.com/search'},
-  'browser:bing':{label:'Bing · navegador',engine:'bing',url:'https://www.bing.com/search'}
+  'browser:google':{label:'Google — navegador',engine:'google',url:'https://www.google.com/search'},
+  'browser:bing':{label:'Bing — navegador',engine:'bing',url:'https://www.bing.com/search'}
 };
 export function sourceSpec(source) {
  const spec=sourceCatalog[source];
