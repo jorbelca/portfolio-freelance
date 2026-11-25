@@ -8,7 +8,11 @@ const taskOffsets={},taskStatuses={};
 let offers=[], companies=[], rejectionReasons=[], selected=null, settings, workflow, runs=[], posting=false, requestId=null, selectedRunId=null;
 const fields=['company','company_id','title','url','notes'];
 document.addEventListener('invalid',event=>{for(let parent=event.target.parentElement;parent;parent=parent.parentElement) if(parent.tagName==='DETAILS') parent.open=true;},true);
-function message(text) { $('#message').textContent=text; }
+function message(text) {
+  $('#message').textContent=text;
+  const feedback=$('#refresh-feedback');
+  if(feedback) {feedback.textContent='';feedback.hidden=true;}
+}
 async function api(path,method='GET',value) {
   const response=await fetch(`/api/${path}`,{method,headers:{'Content-Type':'application/json','X-Empleo-Client':'panel'},body:value===undefined?undefined:JSON.stringify(value)});
   const result=await response.json();
@@ -596,9 +600,11 @@ for (const id of ['enable-workflow','pause-workflow']) $(`#${id}`).onclick=async
 };
 $('#refresh-workflow').onclick=async()=>{
   const button=$('#refresh-workflow');button.disabled=true;
+  message('');
   try {
     const refreshOffers=document.body.dataset.page==='seguimiento'?(selected?refreshSelected():load()):Promise.resolve();
-    await Promise.all([refreshWorkflow(),refreshOffers]);message('Estado actualizado.');
+    await Promise.all([refreshWorkflow(),refreshOffers]);
+    const feedback=$('#refresh-feedback');feedback.textContent='Estado actualizado';feedback.hidden=false;
   } catch(error) {message(error.message);}
   finally {button.disabled=false;}
 };

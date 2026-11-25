@@ -1,6 +1,6 @@
 # Plan de implementación — búsqueda y seguimiento de empleo
 
-Estado actualizado: 14 de noviembre de 2026. Las secciones de avances fechadas conservan el historial; el estado actual se resume a continuación.
+Estado actualizado: 25 de noviembre de 2026. Las secciones de avances fechadas conservan el historial; el estado actual se resume a continuación.
 
 ## Estado actual de la entrega
 
@@ -456,3 +456,9 @@ La captura por APIs o feeds queda descartada. `search_steps` se detiene de forma
 Las fichas capturadas desde DOM se guardan como documento y pasan a las tareas existentes de extracción y comparación de requisitos obligatorios contra el perfil. El enlace de candidatura abre una comprobación separada; se registran acceso, bloqueo, cierre y campos obligatorios, sin autenticación ni interacción con controles. Si no se confirma formulario accesible, queda pendiente y no computa. Las reglas actuales de publicación y país pueden dejar una oferta no computable si la página no ofrece evidencia verificable.
 
 Migración 020 añade comprobaciones de candidatura normalizadas, habilita `browser` en las lecturas y cambia las fuentes configuradas a Google/Bing. MCP incorpora estado, reclamación y herramientas para entregar evidencia. El dashboard explica por qué una ejecución espera al navegador. La migración está aplicada en Neon y pasa la suite aislada. No se inició una búsqueda ni se visitaron portales en esta verificación.
+
+## Revisión de pendientes — 25/11/2026
+
+La suite completa se ejecutó con `node --env-file=.env --test --test-reporter=spec`: 75 pruebas correctas, 0 fallidas y 0 omitidas, incluidas las integraciones con esquemas temporales de Neon. No hay marcadores TODO/FIXME en `src/`, `public/`, `test/` ni `scripts/`, y el árbol de trabajo estaba limpio al iniciar la revisión.
+
+No quedan tareas de implementación identificadas. Sigue pendiente la validación final de búsqueda real mediante navegador con finalistas A/B y cobertura España/Europa. El plan exige autorización expresa para esa búsqueda; no se inició porque no se obtuvo dicha autorización. No se modificaron ofertas ni candidaturas reales.
