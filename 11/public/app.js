@@ -71,7 +71,9 @@ function render() {
     for (const value of [offer.company,offer.title,'']) {
       const cell=document.createElement('td'); cell.textContent=value.replaceAll('_',' ').replaceAll('·','—'); row.append(cell);
     }
-    const stateSelect=document.createElement('select');
+    const stateSelect=document.createElement('select'),stateControl=document.createElement('span'),stateArrow=document.createElement('span');
+    stateControl.className='offer-state-control';
+    stateArrow.className='select-arrow';stateArrow.setAttribute('aria-hidden','true');
     stateSelect.id=`offer-${offer.id}-application-state`;
     stateSelect.dataset.tool='patch_offer';
     stateSelect.setAttribute('aria-label',`Estado de postulación: ${offer.title} — ${offer.company}`);
@@ -80,6 +82,7 @@ function render() {
       stateSelect.lastElementChild.disabled=state==='pendiente' && offer.application_state!=='sin_candidatura';
     }
     stateSelect.value=offerState(offer);
+    stateControl.append(stateSelect,stateArrow);
     stateSelect.onchange=async()=>{
       const next=stateSelect.value;
       if (next===offerState(offer)) return;
@@ -94,7 +97,7 @@ function render() {
         catch(error) {message(`Estado guardado; no se pudo actualizar el panel: ${error.message}`);}
       } finally {stateSelect.disabled=false;}
     };
-    row.children[2].replaceChildren(stateSelect);
+    row.children[2].replaceChildren(stateControl);
     if (row.dataset.offerState==='rechazada') {
       const cause=document.createElement('small');
       cause.className='rejection-reason';
