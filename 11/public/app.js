@@ -1,5 +1,5 @@
 import {offerStates,offerState,statePatch} from './offer-state.js';
-import {filterPostulations,applicationsToday} from './postulations.js';
+import {filterPostulations,applicationsToday,rejectionsToday} from './postulations.js';
 import {renderCompanyHeatmap} from './company-heatmap.js';
 import {launchBlocked,launchBlockReason,taskStatusLabel} from './workflow-state.js';
 const $ = selector => document.querySelector(selector);
@@ -48,7 +48,7 @@ function renderRejectionChart() {
 function render() {
   renderCompanyHeatmap(offers);
   renderRejectionChart();
-  $('#count-today').textContent=applicationsToday(offers);
+  renderTodayCounts();
   $('#offer-editor-home').append($('#offer-editor'));
   $('#offers').replaceChildren();
   const visible=filterPostulations(offers,{
@@ -130,6 +130,10 @@ function render() {
       detailCell.append($('#offer-editor')); detailRow.append(detailCell); $('#offers').append(detailRow);
     }
   }
+}
+function renderTodayCounts() {
+  $('#count-today').textContent=applicationsToday(offers);
+  $('#count-rejected-today').textContent=`${rejectionsToday(offers)} rechazos hoy`;
 }
 const reasonSelect=$('[name=rejection_reason_id]');
 function showRejectionReasons(id) {
@@ -666,7 +670,7 @@ try {
   document.body.dataset.mcpEndpoint=integration.endpoint;
   renderEndpointCatalog(integration);
   document.body.dataset.appState='ready';
-  setInterval(()=>{$('#count-today').textContent=applicationsToday(offers);},60000);
+  setInterval(renderTodayCounts,60000);
   setInterval(()=>{if (!document.hidden && !$('#run-detail').contains(document.activeElement) && runs.some(run=>['queued','running'].includes(run.status))) refreshWorkflow().catch(error=>message(error.message));},3000);
 } catch(error) {
   $('#connection-banner').hidden=false; $('#connection-banner').textContent=error.message;

@@ -42,3 +42,11 @@ export function applicationsToday(offers,now=new Date()) {
   const today=madridDate(now);
   return offers.filter(offer=>offer.application_state && offer.application_state!=='sin_candidatura' && offer.submitted_at?.slice(0,10)===today).length;
 }
+
+export function rejectionsToday(offers,now=new Date()) {
+  const today=madridDate(now);
+  return offers.filter(offer=>(offer.application_state || offer.review_state==='descartada')
+    && offerState(offer)==='rechazada'
+    && offer.state_changed_at
+    && madridDate(new Date(offer.state_changed_at))===today).length;
+}

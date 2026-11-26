@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {matchesOfferUrl,filterPostulations,applicationsToday} from '../public/postulations.js';
+import {matchesOfferUrl,filterPostulations,applicationsToday,rejectionsToday} from '../public/postulations.js';
 
 test('URL search matches primary and alternative URLs, ignores case and surrounding whitespace',()=>{
   const offer={url:'https://example.com/Job/123',publications:[{url:'https://portal.es/456'}]};
@@ -55,6 +55,20 @@ test('today counts only the current Madrid day, including rejected applications 
   assert.equal(applicationsToday(offers,new Date('2026-11-16T22:30:00Z')),1);
   assert.equal(applicationsToday(offers,new Date('2026-11-17T23:30:00Z')),0);
   assert.equal(applicationsToday([],new Date('2026-11-17T12:00:00Z')),0);
+});
+
+test('today rejection count uses the rejection change date in Madrid, not application date',()=>{
+  const offers=[
+    {application_state:'rechazada_empresa',submitted_at:'2026-11-10T00:00:00Z',state_changed_at:'2026-11-16T23:30:00Z'},
+    {application_state:'retirada',state_changed_at:'2026-11-17T10:00:00Z'},
+    {application_state:'rechazada_empresa',submitted_at:'2026-11-17T00:00:00Z',state_changed_at:'2026-11-16T22:30:00Z'},
+    {application_state:'enviada',state_changed_at:'2026-11-17T10:00:00Z'},
+    {application_state:'rechazada_empresa',state_changed_at:null},
+    {}
+  ];
+  assert.equal(rejectionsToday(offers,new Date('2026-11-16T23:30:00Z')),2);
+  assert.equal(rejectionsToday(offers,new Date('2026-11-16T22:30:00Z')),1);
+  assert.equal(rejectionsToday([],new Date('2026-11-17T12:00:00Z')),0);
 });
 
 test('company or URL search combines with submission period and status filters',()=>{
